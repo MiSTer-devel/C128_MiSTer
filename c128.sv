@@ -196,7 +196,7 @@ assign VGA_SCALER = 0;
 
 `include "build_id.v"
 localparam CONF_STR = {
-	"C64;UART9600:2400;",
+	"C128;UART9600:2400;",
 	"H7S0,D64G64T64D81,Mount #8;",
 	"H0S1,D64G64T64D81,Mount #9;",
 	"-;",
