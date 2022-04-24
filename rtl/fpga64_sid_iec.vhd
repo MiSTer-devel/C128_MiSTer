@@ -12,24 +12,24 @@
 -- System runs on 32 Mhz
 -- The VIC-II runs in 4 cycles of first 16 cycles.
 -- The CPU runs in the last 16 cycles. Effective cpu speed is 1 Mhz.
--- 
+--
 -- -----------------------------------------------------------------------
--- Dar 08/03/2014 
+-- Dar 08/03/2014
 --
 -- Based on fpga64_cone
 -- add external selection for 15KHz(TV)/31KHz(VGA)
 -- add external selection for power on NTSC(60Hz)/PAL(50Hz)
 -- add external conection in/out for IEC signal
--- add sid entity 
+-- add sid entity
 -- -----------------------------------------------------------------------
--- 
+--
 -- Alexey Melnikov 2021
--- 
+--
 -- add dma engine
 -- implement up to 4x turbo of C128 and smart types.
 -- add user port signals
 -- various fixes and tweaks
--- 
+--
 -- -----------------------------------------------------------------------
 
 
@@ -44,8 +44,9 @@ entity fpga64_sid_iec is
 port(
 	clk32       : in  std_logic;
 	reset_n     : in  std_logic;
-	bios        : in  std_logic_vector(1 downto 0);
-	
+	dcr         : in  std_logic;
+	cpslk_mode  : in  std_logic;
+
 	pause       : in  std_logic := '0';
 	pause_out   : out std_logic;
 
@@ -94,6 +95,9 @@ port(
 	mod_key     : out std_logic;
 	tape_play   : out std_logic;
 
+	-- internal function rom
+	from1       : out std_logic;
+
 	-- dma access
 	dma_req     : in  std_logic := '0';
 	dma_cycle   : out std_logic;
@@ -122,7 +126,7 @@ port(
 	sid_ld_addr : in  std_logic_vector(11 downto 0);
 	sid_ld_data : in  std_logic_vector(15 downto 0);
 	sid_ld_wr   : in  std_logic;
-	
+
 	-- USER
 	pb_i        : in  unsigned(7 downto 0);
 	pb_o        : out unsigned(7 downto 0);
@@ -145,7 +149,7 @@ port(
 	iec_clk_o	: out std_logic;
 	iec_clk_i	: in  std_logic;
 	iec_atn_o	: out std_logic;
-	
+
 	c64rom_addr : in  std_logic_vector(13 downto 0);
 	c64rom_data : in  std_logic_vector(7 downto 0);
 	c64rom_wr   : in  std_logic;
@@ -153,7 +157,12 @@ port(
 	cass_motor  : out std_logic;
 	cass_write  : out std_logic;
 	cass_sense  : in  std_logic;
-	cass_read   : in  std_logic
+	cass_read   : in  std_logic;
+
+	--test
+	c64mode     : in  std_logic;
+	z80mode     : in  std_logic
+
 );
 end fpga64_sid_iec;
 
@@ -264,6 +273,12 @@ signal pot_y1       : std_logic_vector(7 downto 0);
 signal pot_x2       : std_logic_vector(7 downto 0);
 signal pot_y2       : std_logic_vector(7 downto 0);
 
+-- MMU signals
+signal mmu_do       : unsigned(7 downto 0);
+
+-- VDC signals
+signal vdc_do       : unsigned(7 downto 0);
+
 component sid_top
 	port (
 		reset         : in  std_logic;
@@ -322,7 +337,7 @@ component mos6526
 		cnt_out       : out std_logic;
 		irq_n         : out std_logic
 	);
-end component; 
+end component;
 
 begin
 
@@ -352,7 +367,7 @@ begin
 				rfsh_cycle <= rfsh_cycle + 1;
 			end if;
 		end if;
-		
+
 		refresh <= '0';
 		if preCycle = sysCycleDef'pred(CYCLE_EXT4) and rfsh_cycle = "00" then
 			sysEnable <= not pause;
@@ -434,12 +449,17 @@ buslogic: entity work.fpga64_buslogic
 port map (
 	clk => clk32,
 	reset => reset,
-	bios => bios,
+	dcr => dcr,
+	cpslk_mode => cpslk_mode,
 
 	cpuHasBus => cpuHasBus,
 	aec => aec,
 
 	bankSwitch => cpuIO(2 downto 0),
+	z80dis => not z80mode,
+	c64mode => c64mode,
+	mmu_cr => B"00000000",
+	cpslk_sense => '0',
 
 	game => game,
 	exrom => exrom,
@@ -455,6 +475,8 @@ port map (
 	vicAddr => vicAddr,
 	vicData => vicData,
 	sidData => sid_do,
+	mmuData => mmu_do,
+	vdcData => vdc_do,
 	colorData => colorData,
 	cia1Data => cia1Do,
 	cia2Data => cia2Do,
@@ -469,6 +491,8 @@ port map (
 
 	cs_vic => cs_vic,
 	cs_sid => cs_sid,
+	--cs_mmu => cs_mmu,
+	--cs_vdc => cs_vdc,
 	cs_color => cs_color,
 	cs_cia1 => cs_cia1,
 	cs_cia2 => cs_cia2,
@@ -478,6 +502,7 @@ port map (
 	cs_romL => romL,
 	cs_romH => romH,
 	cs_UMAXromH => UMAXromH,
+	cs_from1 => from1,
 
 	c64rom_addr => c64rom_addr,
 	c64rom_data => c64rom_data,
@@ -527,14 +552,14 @@ generic map (
 	emulateRefresh => true,
 	emulateLightpen => true,
 	emulateGraphics => true
-)			
+)
 port map (
 	clk => clk32,
 	reset => reset,
 	enaPixel => enablePixel,
 	enaData => enableVic,
 	phi => phi0_cpu,
-	
+
 	baSync => '0',
 	ba => baLoc,
 	ba_dma => ba_dma,
@@ -543,10 +568,10 @@ port map (
 	mode6567old => '0',
 	mode6567R8 => ntscMode,
 	mode6572 => '0',
-	
+
 	turbo_en => turbo_en,
 	turbo_state => turbo_state,
-	
+
 	cs => cs_vic,
 	we => cpuWe,
 	lp_n => cia1_pbi(4),
@@ -559,7 +584,7 @@ port map (
 
 	vicAddr => vicAddr(13 downto 0),
 	addrValid => aec,
-	
+
 	hsync => hSync,
 	vsync => vSync,
 	colorIndex => vicColorIndex,
@@ -585,7 +610,7 @@ begin
 end process;
 
 -- VIC bank to address lines
--- 
+--
 -- The glue logic on a C64C will generate a glitch during 10 <-> 01
 -- generating 00 (in other words, bank 3) for one cycle.
 --
@@ -800,12 +825,12 @@ ramDout <= cpuDo;
 ramAddr <= systemAddr;
 ramWE   <= systemWe when sysCycle >= CYCLE_CPU0 else '0';
 ramCE   <= cs_ram when sysCycle = CYCLE_VIC0 or cpu_cyc = '1' else '0';
-cpu_cyc <= '1' when 
+cpu_cyc <= '1' when
 				(sysCycle = CYCLE_CPU0 and turbo_m(0) = '1' and cs_ram = '1' ) or
 				(sysCycle = CYCLE_CPU4 and turbo_m(1) = '1' and cs_ram = '1' ) or
 				(sysCycle = CYCLE_CPU8 and turbo_m(2) = '1' and cs_ram = '1' ) or
 				(sysCycle = CYCLE_CPUC and (io_enable = '1'  or cs_ram = '1')) else '0';
-				
+
 process(clk32)
 begin
 	if rising_edge(clk32) then
@@ -848,7 +873,7 @@ dma_din   <= cpuDi;
 Keyboard: entity work.fpga64_keyboard
 port map (
 	clk => clk32,
-	
+
 	reset => kbd_reset,
 	ps2_key => ps2_key,
 

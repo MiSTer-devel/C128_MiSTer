@@ -192,11 +192,13 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   XX 
 
 `include "build_id.v"
 localparam CONF_STR = {
 	"C128;UART9600:2400;",
+	"oUV,Boot Mode,c128,C64,Z80;", // for testing
+	"-;",
 	"H7S0,D64G64T64D81,Mount #8;",
 	"H0S1,D64G64T64D81,Mount #9;",
 	"-;",
@@ -254,7 +256,8 @@ localparam CONF_STR = {
 	"P2FC9,ROM,System ROM C1581     ;",
 	"P2FC5,CRT,Boot Cartridge       ;",
 	"P2-;",
-	"P2OEF,System ROM,Loadable C64,Standard C64,C64GS,Japanese;",
+	"P2OE,ROM set,Standard,128DCR;",
+	"P2OF,Char switch,64 mode,Caps Lock;",
 
 	"-;",
 	"O3,Swap Joysticks,No,Yes;",
@@ -933,7 +936,10 @@ fpga64_sid_iec fpga64
 	.reset_n(reset_n),
 	.pause(freeze),
 	.pause_out(c64_pause),
-	.bios(status[15:14]),
+	.dcr(status[14]),
+	.cpslk_mode(status[15]),
+	.c64mode(status[62]), // for testing
+	.z80mode(status[63]), // for testing
 	
 	.turbo_mode({status[47] & ~disk_access, status[46]}),
 	.turbo_speed(status[49:48]),
