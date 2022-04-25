@@ -42,6 +42,7 @@ entity video_vicii_656x is
 		mode6567old : in std_logic; -- old NTSC 64 cycles and 262 line
 		mode6567R8 : in std_logic; -- new NTSC 65 cycles and 263 line
 		mode6572 : in std_logic; -- PAL-N 65 cycles and 312 lines
+		mode856x : in std_logic; -- Enable I/O port at register $2F
 
 		turbo_en   : in  std_logic;
 		turbo_state: out std_logic;
@@ -65,6 +66,9 @@ entity video_vicii_656x is
 		hSync : out std_logic;
 		vSync : out std_logic;
 		colorIndex : out unsigned(3 downto 0);
+
+		-- I/O pins
+		ko : out unsigned(2 downto 0);
 
 		-- Debug outputs
 		debugX  : out unsigned(9 downto 0);
@@ -261,8 +265,11 @@ architecture rtl of video_vicii_656x is
 	signal myWr_b : std_logic;
 	signal myWr_c : std_logic;
 	signal myRd : std_logic;
-	
+
 	signal turbo_reg : std_logic;
+
+-- I/O port (VIC 856x)
+   signal k_reg : unsigned(2 downto 0) := (others => '0');
 
 begin
 -- -----------------------------------------------------------------------
@@ -274,6 +281,7 @@ begin
 	vSync <= vBlanking;
 	irq_n <= not IRQ;
 	turbo_state <= turbo_reg;
+	ko <= k_reg;
 
 -- -----------------------------------------------------------------------
 -- chip-select signals and data/address bus latch
@@ -418,7 +426,7 @@ vicStateMachine: process(clk)
 			and baSync = '0' then
 				sprite <= sprite + 1;
 			end if;
-		end if;			
+		end if;
 	end process;
 
 -- -----------------------------------------------------------------------
@@ -747,7 +755,7 @@ vicStateMachine: process(clk)
 						end if;
 					end if;
 				when others =>
-					null;					
+					null;
 				end case;
 				if lastLineFlag then
 					-- 1. Once somewhere outside of the range of raster lines $30-$f7 (i.e.
@@ -846,15 +854,15 @@ lightPen: process(clk)
 				if resetLightPenIrq = '1' then
 					-- Reset light pen interrupt
 					ILP <= '0';
-				end if;			
+				end if;
 				if lastLineFlag then
 					-- Reset lightpen state at beginning of frame
 					lightPenHit <= '0';
 				elsif (lightPenHit = '0') and (lp_n = '0') then
 					-- One hit/frame
-					lightPenHit <= '1'; 
+					lightPenHit <= '1';
 					-- Toggle Interrupt
-					ILP <= '1'; 
+					ILP <= '1';
 					-- Store position of beam
 					lpx <= rasterX(8 downto 1);
 					lpy <= rasterY(7 downto 0);
@@ -986,7 +994,7 @@ calcBitmap: process(clk)
 					waitingChar_r <= waitingChar;
 					waitingPixels_r <= waitingPixels;
 				end if;
-				
+
 				xscroll_r <= xscroll;
 
 				--
@@ -1010,7 +1018,7 @@ calcBitmap: process(clk)
 				pixelBgFlag <= currentPixels(1);
 
 				--
-				-- Calculate color of next pixel				
+				-- Calculate color of next pixel
 				pixelColor <= B0C;
 				if (BMM = '0') and (ECM='0') then
 					if (multiColor = '0') then
@@ -1336,8 +1344,8 @@ calcBitmap: process(clk)
 			when others =>
 				null;
 			end case;
-		
-		
+
+
 --			myColor := pixelColor;
 --			for i in 7 downto 0 loop
 --				if (MPRIO(i) = '0') or (pixelBgFlag = '0') then
@@ -1353,7 +1361,7 @@ calcBitmap: process(clk)
 --					end if;
 --				end if;
 --			end loop;
-			
+
 			if enaPixel = '1' then
 				colorIndex <= myColor;
 
@@ -1437,7 +1445,7 @@ spriteSpriteCollision: process(clk)
 -- -----------------------------------------------------------------------
 spriteBackgroundCollision: process(clk)
 	begin
-		if rising_edge(clk) then			
+		if rising_edge(clk) then
 			if resetIMBC = '1' then
 				IMBC <= '0';
 			end if;
@@ -1484,7 +1492,7 @@ writeRegisters: process(clk)
 			resetIMMC <= '0';
 			resetIMBC <= '0';
 			resetRasterIrq <= '0';
-		
+
 			--
 			-- write to registers
 			if(reset = '1') then
@@ -1537,6 +1545,7 @@ writeRegisters: process(clk)
 				spriteColors(6) <= (others => '0');
 				spriteColors(7) <= (others => '0');
 				turbo_reg <= '0';
+				k_reg <= (others => '0');
 			else
 
 				if (myWr_a = '1') then
@@ -1557,6 +1566,7 @@ writeRegisters: process(clk)
 					when "101100" => spriteColors(5) <= diRegisters(3 downto 0);
 					when "101101" => spriteColors(6) <= diRegisters(3 downto 0);
 					when "101110" => spriteColors(7) <= diRegisters(3 downto 0);
+					when "101111" => if mode856x = '1' then k_reg <= diRegisters(2 downto 0); end if;
 					when "110000" => turbo_reg <= diRegisters(0);
 					when others => null;
 					end case;
@@ -1692,6 +1702,7 @@ readRegisters: process(clk)
 			when "101100" => do <= "1111" & spriteColors(5);
 			when "101101" => do <= "1111" & spriteColors(6);
 			when "101110" => do <= "1111" & spriteColors(7);
+			when "101111" => if mode856x = '1' then do <= ("11111" & k_reg); else do <= (others => '1'); end if;
 			when "110000" => do <= "1111111" & (turbo_reg or not turbo_en);
 			when others => do <= (others => '1');
 			end case;

@@ -263,6 +263,7 @@ signal colorData    : unsigned(3 downto 0);
 signal colorDataAec : unsigned(3 downto 0);
 signal turbo_en     : std_logic;
 signal turbo_state  : std_logic;
+signal vicKo        : unsigned(2 downto 0);
 
 -- SID signals
 signal sid_do       : unsigned(7 downto 0);
@@ -568,6 +569,7 @@ port map (
 	mode6567old => '0',
 	mode6567R8 => ntscMode,
 	mode6572 => '0',
+	mode856x => '1',
 
 	turbo_en => turbo_en,
 	turbo_state => turbo_state,
@@ -581,6 +583,7 @@ port map (
 	di => vicDiAec,
 	diColor => colorDataAec,
 	do => vicData,
+	ko => vicKo,
 
 	vicAddr => vicAddr(13 downto 0),
 	addrValid => aec,
