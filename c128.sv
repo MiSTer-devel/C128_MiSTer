@@ -1,6 +1,6 @@
 //============================================================================
 //  C128 Top level for MiSTer
-//  Copyright (C) 2022 
+//  Copyright (C) 2022
 //  Based on C64 for MiSTer Copyright (C) 2017-2021 Sorgelig
 //
 //  Used DE2-35 Top level by Dar (darfpga@aol.fr)
@@ -22,7 +22,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-//============================================================================ 
+//============================================================================
 
 module emu
 (
@@ -192,12 +192,12 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   XX 
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXX  XX
 
 `include "build_id.v"
 localparam CONF_STR = {
 	"C128;UART9600:2400;",
-	"oUV,Boot Mode,c128,C64,Z80;", // for testing
+	"oUV,Boot Mode,Z80,C128,C64;", // for testing
 	"-;",
 	"H7S0,D64G64T64D81,Mount #8;",
 	"H0S1,D64G64T64D81,Mount #9;",
@@ -209,7 +209,7 @@ localparam CONF_STR = {
 	"h3OB,Tape Sound,Off,On;",
 	"-;",
 
-	"P1,Audio & Video;", 
+	"P1,Audio & Video;",
 	"P1O2,Video Standard,PAL,NTSC;",
 	"P1O45,Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"P1O8A,Scandoubler Fx,None,HQ2x-320,HQ2x-160,CRT 25%,CRT 50%,CRT 75%;",
@@ -227,12 +227,13 @@ localparam CONF_STR = {
 	"P1o89,DigiMax,Disabled,DE00,DF00;",
 	"P1OIJ,Stereo Mix,None,25%,50%,100%;",
 
-	"P2,Hardware;", 
+	"P2,Hardware;",
 	"P2oPQ,Enable Drive #8,If Mounted,Always,Never;",
 	"P2oNO,Enable Drive #9,If Mounted,Always,Never;",
 	"P2oC,Parallel port,Enabled,Disabled;",
 	"P2R6,Reset Disk Drives;",
 	"P2-;",
+	"P2oR,Internal memory,128K,256K;",
 	"P2oK,GeoRAM,Disabled,4MB;",
 	"P2oLM,REU,Disabled,512KB,2MB (512KB wrap),16MB;",
 	"P2-;",
@@ -568,13 +569,13 @@ reu reu
 	.ram_dout(reu_ram_dout),
 	.ram_din(sdram_data),
 	.ram_we(reu_ram_we),
-	
+
 	.cpu_addr(c64_addr),
 	.cpu_dout(c64_data_out),
 	.cpu_din(reu_dout),
 	.cpu_we(ram_we),
 	.cpu_cs(IOF),
-	
+
 	.irq(reu_irq)
 );
 
@@ -647,7 +648,7 @@ always @(posedge clk_sys) begin
 	old_download <= ioctl_download;
 	io_cycleD <= io_cycle;
 	cart_hdr_wr <= 0;
-	
+
 	if (~io_cycle & io_cycleD) begin
 		io_cycle_ce <= 1;
 		io_cycle_we <= 0;
@@ -680,7 +681,7 @@ always @(posedge clk_sys) begin
 				ioctl_load_addr <= 24'h100000;
 				cart_blk_len <= 0;
 				cart_hdr_cnt <= 0;
-			end 
+			end
 
 			if (ioctl_addr == 8'h16) cart_id[15:8]   <= ioctl_data;
 			if (ioctl_addr == 8'h17) cart_id[7:0]    <= ioctl_data;
@@ -717,7 +718,7 @@ always @(posedge clk_sys) begin
 				end
 			end
 		end
-		
+
 		if (load_tap) begin
 			if (ioctl_addr == 0)  ioctl_load_addr <= TAP_ADDR;
 			if (ioctl_addr == 12) tap_version <= ioctl_data[1:0];
@@ -729,11 +730,11 @@ always @(posedge clk_sys) begin
 			ioctl_req_wr <= 1;
 		end
 	end
-	
+
 	if (old_download != ioctl_download && load_crt) begin
 		cart_attached <= old_download;
 		erase_cram <= 1;
-	end 
+	end
 
 	// meminit for RAM injection
 	if (old_download != ioctl_download && load_prg && !inj_meminit) begin
@@ -749,7 +750,7 @@ always @(posedge clk_sys) begin
 			end
 			else begin
 				ioctl_req_wr <= 1;
-				
+
 				// Initialize BASIC pointers to simulate the BASIC LOAD command
 				case(ioctl_load_addr)
 					// TXT (2B-2C)
@@ -760,15 +761,15 @@ always @(posedge clk_sys) begin
 					// SAVE_START (AC-AD)
 					// Set these two bytes to zero just as they would be on reset (the BASIC LOAD command does not alter these)
 					'hAC, 'hAD: inj_meminit_data <= 'h00;
-					
+
 					// VAR (2D-2E), ARY (2F-30), STR (31-32), LOAD_END (AE-AF)
 					// Set these just as they would be with the BASIC LOAD command (essentially they are all set to the load end address)
 					'h2D, 'h2F, 'h31, 'hAE: inj_meminit_data <= inj_end[7:0];
 					'h2E, 'h30, 'h32, 'hAF: inj_meminit_data <= inj_end[15:8];
-					
+
 					default: begin
 						ioctl_req_wr <= 0;
-						
+
 						// advance the address
 						ioctl_load_addr <= ioctl_load_addr + 1'b1;
 					end
@@ -779,10 +780,10 @@ always @(posedge clk_sys) begin
 
 	old_meminit <= inj_meminit;
 	start_strk  <= old_meminit & ~inj_meminit;
-	
+
 	old_st0 <= status[17];
 	if (~old_st0 & status[17]) cart_attached <= 0;
-	
+
 	if (!erasing && force_erase) begin
 		erasing <= 1;
 		ioctl_load_addr <= 0;
@@ -819,9 +820,9 @@ always @(posedge clk_sys) begin
 				(joy[9]) ?
 				(joy[0] ? 18'h016 : joy[1] ? 18'h01E : joy[2] ? 18'h026 : joy[3] ? 18'h025  :
 			    joy[4] ? 18'h02E : joy[5] ? 18'h045 : joy[6] ? 18'h035 : joy[7] ? 18'h031  : 18'h0):
-				(joy[0] ? 18'h174 : joy[1] ? 18'h16B : joy[2] ? 18'h172 : joy[3] ? 18'h175  : 
+				(joy[0] ? 18'h174 : joy[1] ? 18'h16B : joy[2] ? 18'h172 : joy[3] ? 18'h175  :
 				 joy[4] ? 18'h05A : joy[5] ? 18'h029 : joy[6] ? 18'h076 : joy[7] ? 18'h2276 : 18'h0);
-	
+
 	if(~reset_n) {joy_finish, act} <= 0;
 
 	if(joy[9:8]) begin
@@ -938,9 +939,11 @@ fpga64_sid_iec fpga64
 	.pause_out(c64_pause),
 	.dcr(status[14]),
 	.cpslk_mode(status[15]),
-	.c64mode(status[62]), // for testing
-	.z80mode(status[63]), // for testing
-	
+
+	.sys256k(status[59]),
+	.osmode(status[63]), // for testing, "0" C128, "1" C64
+	.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
+
 	.turbo_mode({status[47] & ~disk_access, status[46]}),
 	.turbo_speed(status[49:48]),
 
@@ -976,7 +979,7 @@ fpga64_sid_iec fpga64
 	.io_rom(io_rom),
 	.io_ext(cart_oe | reu_oe | opl_en),
 	.io_data(cart_oe ? cart_data : reu_oe ? reu_dout : opl_dout),
-	
+
 	.dma_req(dma_req),
 	.dma_cycle(dma_cycle),
 	.dma_addr(dma_addr),
@@ -1051,7 +1054,7 @@ c1351 mouse
 	.reset(~reset_n),
 
 	.ps2_mouse(ps2_mouse),
-	
+
 	.potX(mouse_x),
 	.potY(mouse_y),
 	.button(mouse_btn)
@@ -1075,7 +1078,7 @@ wire       drive_reset = ~reset_n | status[6] | (load_c1581 & ioctl_download);
 wire [1:0] drive_led;
 
 reg [1:0] drive_mounted = 0;
-always @(posedge clk_sys) begin 
+always @(posedge clk_sys) begin
 	if(img_mounted[0]) drive_mounted[0] <= |img_size;
 	if(img_mounted[1]) drive_mounted[1] <= |img_size;
 end
@@ -1130,7 +1133,7 @@ reg drive_ce;
 always @(posedge clk_sys) begin
 	int sum = 0;
 	int msum;
-	
+
 	msum <= ntsc ? 32727264 : 31527954;
 
 	drive_ce <= 0;
@@ -1152,8 +1155,8 @@ always @(posedge clk_sys) begin
 	drive_iec_clk_old <= drive_iec_clk;
 	drive_stb_i_old <= drive_stb_i;
 	drive_stb_o_old <= drive_stb_o;
-	
-	if(((c64_iec_clk_old != c64_iec_clk) || (drive_iec_clk_old != drive_iec_clk)) || 
+
+	if(((c64_iec_clk_old != c64_iec_clk) || (drive_iec_clk_old != drive_iec_clk)) ||
 		(disk_parport && ((drive_stb_i_old != drive_stb_i) || (drive_stb_o_old != drive_stb_o))))
 	begin
 		disk_access <= 1;
@@ -1261,7 +1264,7 @@ wire freeze_sync;
 reg freeze;
 always @(posedge clk_sys) begin
 	reg old_sync;
-	
+
 	old_sync <= freeze_sync;
 	if(old_sync ^ freeze_sync) freeze <= OSD_STATUS & status[42];
 end
@@ -1392,7 +1395,7 @@ always @(posedge clk_sys) begin
 	reg [16:0] alm,arm;
 	reg [15:0] cout;
 	reg [15:0] cin;
-	
+
 	cin  <= opl_out - {{3{opl_out[15]}},opl_out[15:3]};
 	cout <= compr(cin);
 

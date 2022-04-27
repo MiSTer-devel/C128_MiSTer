@@ -159,9 +159,12 @@ port(
 	cass_sense  : in  std_logic;
 	cass_read   : in  std_logic;
 
+	-- Memory size
+	sys256k     : in  std_logic;
+
 	--test
-	c64mode     : in  std_logic;
-	z80mode     : in  std_logic
+	osmode      : in  std_logic;
+	cpumode     : in  std_logic
 
 );
 end fpga64_sid_iec;
@@ -210,6 +213,9 @@ signal systemAddr   : unsigned(15 downto 0);
 
 signal cs_vic       : std_logic;
 signal cs_sid       : std_logic;
+signal cs_mmuH      : std_logic;
+signal cs_mmuL      : std_logic;
+-- signal cs_vdc       : std_logic;
 signal cs_color     : std_logic;
 signal cs_cia1      : std_logic;
 signal cs_cia2      : std_logic;
@@ -276,6 +282,17 @@ signal pot_y2       : std_logic_vector(7 downto 0);
 
 -- MMU signals
 signal mmu_do       : unsigned(7 downto 0);
+signal tAddr        : unsigned(15 downto 8);
+signal rambank      : unsigned(1 downto 0);
+signal vicbank      : unsigned(1 downto 0);
+signal exrom_mmu    : std_logic;
+signal game_mmu     : std_logic;
+signal ossel        : std_logic;
+signal cpusel       : std_logic;
+signal mmu_memC000  : unsigned(1 downto 0);
+signal mmu_mem8000  : unsigned(1 downto 0);
+signal mmu_mem4000  : std_logic;
+signal mmu_memD000  : std_logic;
 
 -- VDC signals
 signal vdc_do       : unsigned(7 downto 0);
@@ -444,6 +461,50 @@ port map (
 );
 
 -- -----------------------------------------------------------------------
+-- MMU
+-- -----------------------------------------------------------------------
+mmu: entity work.mmu8722
+port map (
+	clk => clk32,
+	reset => reset,
+
+	cs_io => cs_mmuL,
+	cs_lr => cs_mmuH,
+
+	sys256k => sys256k, -- "1" for 256K system memory
+	osmode => osmode,  -- debug
+	cpumode => cpumode,  -- debug
+
+	we => pulseWr_io,
+
+	addr => cpuAddr,
+	di => cpuDo,
+	do => mmu_do,
+
+	ta => tAddr,
+	rambank => rambank,
+	vicbank => vicbank,
+
+	c4080 => '1',
+
+	exromi => exrom,
+	exromo => exrom_mmu,
+
+	gamei => game,
+	gameo => game_mmu,
+
+	fsdiri => '1',
+
+	ossel => ossel,
+	cpusel => cpusel,
+
+	memC000 => mmu_memC000,
+	mem8000 => mmu_mem8000,
+	mem4000 => mmu_mem4000,
+	memD000 => mmu_memD000
+);
+
+-- -----------------------------------------------------------------------
 -- PLA and bus-switches
 -- -----------------------------------------------------------------------
 buslogic: entity work.fpga64_buslogic
@@ -457,13 +518,17 @@ port map (
 	aec => aec,
 
 	bankSwitch => cpuIO(2 downto 0),
-	z80dis => not z80mode,
-	c64mode => c64mode,
-	mmu_cr => B"00000000",
-	cpslk_sense => '0',
+	ossel => ossel,
+	cpusel => cpusel,
+	mmu_memC000 => mmu_memC000,
+	mmu_mem8000 => mmu_mem8000,
+	mmu_mem4000 => mmu_mem4000,
+	mmu_memD000 => mmu_memD000,
+	tAddr => tAddr,
+	cpslk_sense => '1',
 
-	game => game,
-	exrom => exrom,
+	game => game_mmu,
+	exrom => exrom_mmu,
 	io_rom => io_rom,
 	io_ext => io_ext or sid_sel_r,
 	io_data => io_data_i,
@@ -492,7 +557,8 @@ port map (
 
 	cs_vic => cs_vic,
 	cs_sid => cs_sid,
-	--cs_mmu => cs_mmu,
+	cs_mmuH => cs_mmuH,
+	cs_mmuL => cs_mmuL,
 	--cs_vdc => cs_vdc,
 	cs_color => cs_color,
 	cs_cia1 => cs_cia1,

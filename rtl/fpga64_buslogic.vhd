@@ -41,9 +41,13 @@ entity fpga64_buslogic is
 		bankSwitch  : in unsigned(2 downto 0);
 
 		-- From MMU
-		z80dis      : in std_logic;
-		c64mode     : in std_logic;
-		mmu_cr      : in std_logic_vector(7 downto 0);
+		cpusel      : in std_logic;             -- "0" Z80, "1" 8502
+		ossel       : in std_logic;             -- "0" C128, "1" C64
+		mmu_memC000 : in unsigned(1 downto 0);  -- $C000-$FFFF "00" Kernal ROM, "01" Int ROM, "10" Ext. ROM, "11" RAM
+		mmu_mem8000 : in unsigned(1 downto 0);  -- $8000-$BFFF "00" Basic ROM Hi, "01" Int ROM, "10" Ext. ROM, "11" RAM
+		mmu_mem4000 : in std_logic;             -- $4000-$7FFF "0" Basic ROM Lo, "1" RAM
+		mmu_memD000 : in std_logic;             -- $D000-$DFFF "0" I/O, "1" RAM/ROM based on mmu_memC000
+		tAddr       : in unsigned(15 downto 8); -- Translated address bus
 
 		-- From Keyboard
 		cpslk_sense : in std_logic;
@@ -81,7 +85,8 @@ entity fpga64_buslogic is
 
 		cs_vic      : out std_logic;
 		cs_sid      : out std_logic;
-		cs_mmu      : out std_logic;
+		cs_mmuH     : out std_logic;
+		cs_mmuL     : out std_logic;
 		cs_vdc      : out std_logic;
 		cs_color    : out std_logic;
 		cs_cia1     : out std_logic;
@@ -127,7 +132,8 @@ architecture rtl of fpga64_buslogic is
 	signal cs_ramLoc      : std_logic;
 	signal cs_vicLoc      : std_logic;
 	signal cs_sidLoc      : std_logic;
-	signal cs_mmuLoc      : std_logic;
+	signal cs_mmuHLoc     : std_logic;
+	signal cs_mmuLLoc     : std_logic;
 	signal cs_vdcLoc      : std_logic;
 	signal cs_colorLoc    : std_logic;
 	signal cs_cia1Loc     : std_logic;
@@ -139,7 +145,6 @@ architecture rtl of fpga64_buslogic is
 	signal cs_UMAXromHLoc : std_logic;
 	signal cs_UMAXnomapLoc: std_logic;
 	signal charset_a12    : std_logic;
-	signal rom4_a12       : std_logic;
 	signal ultimax        : std_logic;
 
 	signal currentAddr    : unsigned(15 downto 0);
@@ -147,7 +152,7 @@ architecture rtl of fpga64_buslogic is
 begin
 	-- character rom
 
-	charset_a12 <= (not c64mode) when cpslk_mode = '0' else cpslk_sense;
+	charset_a12 <= (not ossel) when cpslk_mode = '0' else cpslk_sense;
 
 	chargen: entity work.dprom
 	generic map ("rtl/roms/chargen.mif", 13)
@@ -163,7 +168,7 @@ begin
 	-- ROM1 (U32): c64 basic+kernal rom 16K
 	-- rom loc -> mem loc  contents
 	-- 0000    -> A000     C64 Basic
-	-- 2000    -> E000     C62 Kernal
+	-- 2000    -> E000     C64 Kernal
 	rom1_std: entity work.dprom
 	generic map ("rtl/roms/std_C64.mif", 14)
 	port map
@@ -207,10 +212,8 @@ begin
 	-- ROM4: U35 16K
 	-- rom loc -> mem loc  contents
 	-- 0000    -> C000     editor
-	-- 1000    -> 0000     z80 bios
+	-- 1000    -> 0000     z80 bios     (MMU sets tAddr(12) to 1 in Z80 mode when reading from $0xxx)
 	-- 2000    -> E000     c128 Kernal
-
-	rom4_a12 <= (not currentAddr(15)) or currentAddr(12);
 
 	rom4_std: entity work.dprom
 	generic map ("rtl/roms/std_kernal_C128.mif", 14)
@@ -219,7 +222,7 @@ begin
 		wrclock => clk,
 		rdclock => clk,
 
-		rdaddress => std_logic_vector(currentAddr(13) & rom4_a12 & currentAddr(11 downto 0)),
+		rdaddress => std_logic_vector(currentAddr(13) & tAddr(12) & currentAddr(11 downto 0)),
 		q => rom4Data_std
 	);
 
@@ -230,7 +233,7 @@ begin
 		wrclock => clk,
 		rdclock => clk,
 
-		rdaddress => std_logic_vector(currentAddr(13) & rom4_a12 & currentAddr(11 downto 0)),
+		rdaddress => std_logic_vector(currentAddr(13) & tAddr(12) & currentAddr(11 downto 0)),
 		q => rom4Data_dcr
 	);
 
@@ -272,7 +275,7 @@ begin
 			dataToCpu <= vicData;
 		elsif cs_sidLoc = '1' then
 			dataToCpu <= sidData;
-		elsif cs_mmuLoc = '1' then
+		elsif (cs_mmuLLoc = '1' or cs_mmuHLoc = '1') then
 			dataToCpu <= mmuData;
 		elsif cs_vdcLoc = '1' then
 			dataToCpu <= vdcData;
@@ -299,9 +302,12 @@ begin
 		end if;
 	end process;
 
-	ultimax <= c64mode and exrom and (not game);
+	ultimax <= ossel and exrom and (not game);
 
-	process(cpuHasBus, cpuAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr, c64mode, z80dis, mmu_cr)
+	process(
+		cpuHasBus, cpuAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
+		ossel, cpusel, mmu_memC000, mmu_mem8000, mmu_mem4000, mmu_memD000
+	)
 	begin
 		currentAddr <= (others => '1');
 		systemWe <= '0';
@@ -317,7 +323,8 @@ begin
 		cs_colorLoc <= '0';
 		cs_cia1Loc <= '0';
 		cs_cia2Loc <= '0';
-		cs_mmuLoc <= '0';
+		cs_mmuHLoc <= '0';
+		cs_mmuLLoc <= '0';
 		cs_vdcLoc <= '0';
 		cs_ioELoc <= '0';
 		cs_ioFLoc <= '0';
@@ -329,17 +336,15 @@ begin
 		if (cpuHasBus = '1') then
 			currentAddr <= cpuAddr;
 
-			if c64mode = '0' then
+			if ossel = '0' then
 				-- C128 mode
 
 				case cpuAddr(15 downto 12) is
 				when X"C" | X"E" | X"F" =>
-					if cpuAddr(15 downto 2) = B"11111111000000" or cpuAddr = X"FF04" then
-						cs_mmuLoc <= '1';
-					elsif cpuWe = '1' then
-					  cs_ramLoc <= '1';
-					else
-						case mmu_cr(5 downto 4) is
+					if cpuAddr(15 downto 3) = "1111111100000" and cpuAddr(2 downto 0) < X"5" then
+						cs_mmuHLoc <= '1';
+					elsif cpuWe = '0' then
+						case mmu_memC000 is
 							when B"00" =>
 								cs_rom4Loc <= '1';
 							when B"01" =>
@@ -349,16 +354,18 @@ begin
 							when B"11" =>
 								cs_ramLoc <= '1';
 						end case;
+					else
+						cs_ramLoc <= '1';
 					end if;
 				when X"D" =>
-					if mmu_cr(0) = '0' then
+					if mmu_memD000 = '0' then
 						case cpuAddr(11 downto 8) is
 							when X"0" | X"1" | X"2" | X"3" =>
 								cs_vicLoc <= '1';
 							when X"4" =>
 								cs_sidLoc <= '1';
 							when X"5" =>
-								cs_mmuLoc <= '1';
+								cs_mmuLLoc <= '1';
 							when X"6" =>
 								cs_vdcLoc <= '1';
 							when X"8" | X"9" | X"A" | X"B" =>
@@ -374,28 +381,23 @@ begin
 							when others =>
 								null;
 						end case;
+					elsif cpuWe = '0' then
+						case mmu_memC000 is
+							when B"00" =>
+								cs_charLoc <= '1';
+							when B"01" =>
+								cs_from1Loc <= '1';
+							when B"10" =>
+								cs_romHLoc <= '1';
+							when B"11" =>
+								cs_ramLoc <= '1';
+						end case;
 					else
-						-- I/O space turned off. Read from rom or write to RAM.
-						if cpuWe = '0' then
-							case mmu_cr(5 downto 4) is
-								when B"00" =>
-									cs_charLoc <= '1';
-								when B"01" =>
-									cs_from1Loc <= '1';
-								when B"10" =>
-									cs_romHLoc <= '1';
-								when B"11" =>
-									cs_ramLoc <= '1';
-							end case;
-						else
-							cs_ramLoc <= '1';
-						end if;
+						cs_ramLoc <= '1';
 					end if;
 				when X"A" | X"B" =>
-					if cpuWe = '1' then
-					  cs_ramLoc <= '1';
-					else
-						case mmu_cr(3 downto 2) is
+					if cpuWe = '0' then
+						case mmu_mem8000 is
 							when B"00" =>
 								cs_rom2Loc <= '1';
 							when B"01" =>
@@ -405,12 +407,12 @@ begin
 							when B"11" =>
 								cs_ramLoc <= '1';
 						end case;
+					else
+					  cs_ramLoc <= '1';
 					end if;
 				when X"8" | X"9" =>
-					if cpuWe = '1' then
-					  cs_ramLoc <= '1';
-					else
-						case mmu_cr(3 downto 2) is
+					if cpuWe = '0' then
+						case mmu_mem8000 is
 							when B"00" =>
 								cs_rom2Loc <= '1';
 							when B"01" =>
@@ -420,18 +422,20 @@ begin
 							when B"11" =>
 								cs_ramLoc <= '1';
 						end case;
+					else
+						cs_ramLoc <= '1';
 					end if;
 				when X"4" | X"5" | X"6" | X"7" =>
-					if cpuWe = '1' or mmu_cr(1) = '1' then
-					  cs_ramLoc <= '1';
+					if cpuWe = '1' or mmu_mem4000 = '1' then
+						cs_ramLoc <= '1';
 					else
 						cs_rom2Loc <= '1';
 					end if;
-			  when X"0" =>
-					if cpuWe = '1' or z80dis = '1' then
-					 cs_ramLoc <= '1';
-				  else
-					 cs_rom4Loc <= '1';
+				when X"0" =>
+					if cpuWe = '1' or cpusel = '1' or mmu_memC000 /= "00" then
+						cs_ramLoc <= '1';
+					else
+						cs_rom4Loc <= '1';
 					end if;
 				when others =>
 					cs_ramLoc <= '1';
@@ -545,7 +549,8 @@ begin
 	cs_ram <= cs_ramLoc or cs_romLLoc or cs_romHLoc or cs_UMAXromHLoc or cs_UMAXnomapLoc or cs_CharLoc or cs_rom1Loc or cs_rom2Loc or cs_rom4Loc or cs_from1Loc;
 	cs_vic <= cs_vicLoc and io_enable;
 	cs_sid <= cs_sidLoc and io_enable;
-	cs_mmu <= cs_mmuLoc and io_enable;
+	cs_mmuH <= cs_mmuHLoc and io_enable;
+	cs_mmuL <= cs_mmuLLoc and io_enable;
 	cs_vdc <= cs_vdcLoc and io_enable;
 	cs_color <= cs_colorLoc and io_enable;
 	cs_cia1 <= cs_cia1Loc and io_enable;
