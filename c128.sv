@@ -253,9 +253,12 @@ localparam CONF_STR = {
 	"P2oA,Pause When OSD is Open,No,Yes;",
 	"P2o7,Tape Autoplay,Yes,No;",
 	"P2-;",
-	"P2FC8,ROM,System ROM C64+C1541 ;",
-	"P2FC9,ROM,System ROM C1581     ;",
-	"P2FC5,CRT,Boot Cartridge       ;",
+	"P2FC8,ROM,Syst. ROM1/4 C64+Kernal+Char;",
+	"P2FC9,ROM,Syst. ROM2/3 C128 Basic     ;",
+	"P2FCA,ROM,Function ROM                ;",
+	"P2FCB,ROM,Drive ROM                   ;",
+	"P2-;",
+	"P2FC5,CRT,Boot Cartridge              ;",
 	"P2-;",
 	"P2OE,ROM set,Standard,128DCR;",
 	"P2OF,Char switch,64 mode,Caps Lock;",
@@ -374,7 +377,7 @@ always @(posedge clk_sys) begin
 		reset_wait <= 1;
 		reset_counter <= 255;
 	end
-	else if (ioctl_download & (load_crt | load_rom)) begin
+	else if (ioctl_download & (load_crt | load_rom14 | load_rom23 | load_romF1)) begin
 		do_erase <= 1;
 		reset_counter <= 255;
 	end
@@ -477,8 +480,10 @@ wire load_crt   = ioctl_index == 'h41 || ioctl_index == 5;
 wire load_reu   = ioctl_index == 'h81;
 wire load_tap   = ioctl_index == 'hC1;
 wire load_flt   = ioctl_index == 7;
-wire load_rom   = ioctl_index == 8;
-wire load_c1581 = ioctl_index == 9;
+wire load_rom14 = ioctl_index == 8;
+wire load_rom23 = ioctl_index == 9;
+wire load_romF1 = ioctl_index == 10;
+wire load_c15xx = ioctl_index == 11;
 
 wire game;
 wire exrom;
@@ -1034,9 +1039,11 @@ fpga64_sid_iec fpga64
 	.cnt1_i(cnt1_i),
 	.cnt1_o(cnt1_o),
 
-	.c64rom_addr(ioctl_addr[13:0]),
-	.c64rom_data(ioctl_data),
-	.c64rom_wr(load_rom && !ioctl_addr[16:14] && ioctl_download && ioctl_wr),
+	.rom_addr(ioctl_addr[15:0]),
+	.rom_data(ioctl_data),
+	.rom14_wr(load_rom14 && !ioctl_addr[16] && ioctl_download && ioctl_wr),
+	.rom23_wr(load_rom23 && !ioctl_addr[16:15] && ioctl_download && ioctl_wr),
+	.romF1_wr(load_romF1 && !ioctl_addr[16:15] && ioctl_download && ioctl_wr),
 
 	.cass_write(cass_write),
 	.cass_motor(cass_motor),
@@ -1073,7 +1080,7 @@ wire [7:0] drive_par_o;
 wire       drive_stb_o;
 wire       drive_iec_clk_o;
 wire       drive_iec_data_o;
-wire       drive_reset = ~reset_n | status[6] | (load_c1581 & ioctl_download);
+wire       drive_reset = ~reset_n | status[6] | (load_c15xx & ioctl_download);
 
 wire [1:0] drive_led;
 
@@ -1123,9 +1130,9 @@ iec_drive iec_drive
 	.sd_buff_din(sd_buff_din),
 	.sd_buff_wr(sd_buff_wr),
 
-	.rom_addr(load_rom ? (ioctl_addr[15:0] - 16'h4000) : {1'b1,ioctl_addr[14:0]}),
+	.rom_addr(ioctl_addr),
 	.rom_data(ioctl_data),
-	.rom_wr(((load_rom && ioctl_addr[16:14]) || load_c1581) && ioctl_download && ioctl_wr),
+	.rom_wr(load_c15xx && ioctl_download && ioctl_wr),
 	.rom_std(status[14])
 );
 

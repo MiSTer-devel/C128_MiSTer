@@ -150,9 +150,11 @@ port(
 	iec_clk_i	: in  std_logic;
 	iec_atn_o	: out std_logic;
 
-	c64rom_addr : in  std_logic_vector(13 downto 0);
-	c64rom_data : in  std_logic_vector(7 downto 0);
-	c64rom_wr   : in  std_logic;
+	rom_addr    : in  std_logic_vector(15 downto 0);
+	rom_data    : in  std_logic_vector(7 downto 0);
+	rom14_wr    : in  std_logic;
+	rom23_wr    : in  std_logic;
+	romF1_wr    : in  std_logic;
 
 	cass_motor  : out std_logic;
 	cass_write  : out std_logic;
@@ -569,11 +571,12 @@ port map (
 	cs_romL => romL,
 	cs_romH => romH,
 	cs_UMAXromH => UMAXromH,
-	cs_from1 => from1,
 
-	c64rom_addr => c64rom_addr,
-	c64rom_data => c64rom_data,
-	c64rom_wr => c64rom_wr
+	rom_addr => rom_addr,
+	rom_data => rom_data,
+	rom14_wr => rom14_wr,
+	rom23_wr => rom23_wr,
+	romF1_wr => romF1_wr
 );
 
 IOE <= ioe_i;

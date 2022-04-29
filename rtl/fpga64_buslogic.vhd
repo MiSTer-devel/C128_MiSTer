@@ -59,9 +59,11 @@ entity fpga64_buslogic is
 		io_ext      : in std_logic;
 		io_data     : in unsigned(7 downto 0);
 
-		c64rom_addr : in std_logic_vector(13 downto 0);
-		c64rom_data : in std_logic_vector(7 downto 0);
-		c64rom_wr   : in std_logic;
+		rom_addr    : in std_logic_vector(15 downto 0);
+		rom_data    : in std_logic_vector(7 downto 0);
+		rom14_wr    : in std_logic;
+		rom23_wr    : in std_logic;
+		romF1_wr    : in std_logic;
 
 		cpuWe       : in std_logic;
 		cpuAddr     : in unsigned(15 downto 0);
@@ -98,10 +100,7 @@ entity fpga64_buslogic is
 		cs_ioF      : out std_logic;
 		cs_romL     : out std_logic;
 		cs_romH     : out std_logic;
-		cs_UMAXromH : out std_logic;
-
-		-- To function rom
-		cs_from1    : out std_logic
+		cs_UMAXromH : out std_logic
 	);
 end fpga64_buslogic;
 
@@ -111,22 +110,21 @@ architecture rtl of fpga64_buslogic is
 	signal charData       : std_logic_vector(7 downto 0);
 
 	signal rom1Data       : std_logic_vector(7 downto 0);
-
-	signal rom2Data       : std_logic_vector(7 downto 0);
-	signal rom2Data_std   : std_logic_vector(7 downto 0);
-	signal rom2Data_dcr   : std_logic_vector(7 downto 0);
-
+	signal rom23Data      : std_logic_vector(7 downto 0);
+	signal rom23Data_std  : std_logic_vector(7 downto 0);
+	signal rom23Data_dcr  : std_logic_vector(7 downto 0);
 	signal rom4Data       : std_logic_vector(7 downto 0);
 	signal rom4Data_std   : std_logic_vector(7 downto 0);
 	signal rom4Data_dcr   : std_logic_vector(7 downto 0);
+	signal romF1Data      : std_logic_vector(7 downto 0);
 
 	signal dcr_ena        : std_logic := '0';
 
 	signal cs_CharLoc     : std_logic;
 	signal cs_rom1Loc     : std_logic;
-	signal cs_rom2Loc     : std_logic;
+	signal cs_rom23Loc    : std_logic;
 	signal cs_rom4Loc     : std_logic;
-	signal cs_from1Loc    : std_logic;
+	signal cs_romF1Loc    : std_logic;
 	signal vicCharLoc     : std_logic;
 
 	signal cs_ramLoc      : std_logic;
@@ -161,6 +159,10 @@ begin
 		wrclock => clk,
 		rdclock => clk,
 
+		wren => rom14_wr and rom_addr(15) and not rom_addr(14) and not rom_addr(13),
+		data => rom_data,
+		wraddress => rom_addr(12 downto 0),
+
 		rdaddress => std_logic_vector(charset_a12 & currentAddr(11 downto 0)),
 		q => charData
 	);
@@ -176,6 +178,10 @@ begin
 		wrclock => clk,
 		rdclock => clk,
 
+		wren => rom14_wr and not rom_addr(15) and not rom_addr(14),
+		data => rom_data,
+		wraddress => rom_addr(13 downto 0),
+
 		rdaddress => std_logic_vector(cpuAddr(14) & cpuAddr(12 downto 0)),
 		q => rom1Data
 	);
@@ -185,18 +191,22 @@ begin
 	-- 0000    -> 4000     C128 Basic Low (rom2)
 	-- 4000    -> 8000     C128 Basic High (rom3)
 
-	rom2_std: entity work.dprom
+	rom23_std: entity work.dprom
 	generic map ("rtl/roms/std_basic_C128.mif", 15)
 	port map
 	(
 		wrclock => clk,
 		rdclock => clk,
 
+		wren => rom23_wr,
+		data => rom_data,
+		wraddress => rom_addr(14 downto 0),
+
 		rdaddress => std_logic_vector(currentAddr(14 downto 0)),
-		q => rom2Data_std
+		q => rom23Data_std
 	);
 
-	rom2_dcr: entity work.dprom
+	rom23_dcr: entity work.dprom
 	generic map ("rtl/roms/dcr_basic_C128.mif", 15)
 	port map
 	(
@@ -204,10 +214,10 @@ begin
 		rdclock => clk,
 
 		rdaddress => std_logic_vector(currentAddr(14 downto 0)),
-		q => rom2Data_dcr
+		q => rom23Data_dcr
 	);
 
-	rom2Data <= rom2Data_dcr when dcr_ena = '1' else rom2Data_std;
+	rom23Data <= rom23Data_dcr when dcr_ena = '1' else rom23Data_std;
 
 	-- ROM4: U35 16K
 	-- rom loc -> mem loc  contents
@@ -221,6 +231,10 @@ begin
 	(
 		wrclock => clk,
 		rdclock => clk,
+
+		wren => rom14_wr and not rom_addr(15) and rom_addr(14),
+		data => rom_data,
+		wraddress => rom_addr(13 downto 0),
 
 		rdaddress => std_logic_vector(currentAddr(13) & tAddr(12) & currentAddr(11 downto 0)),
 		q => rom4Data_std
@@ -239,6 +253,21 @@ begin
 
 	rom4Data <= rom4Data_dcr when dcr_ena = '1' else rom4Data_std;
 
+	romF1: entity work.dprom
+	-- generic map ("rtl/roms/function.mif", 14)
+	port map
+	(
+		wrclock => clk,
+		rdclock => clk,
+
+		wren => romF1_wr,
+		data => rom_data,
+		wraddress => rom_addr(13 downto 0),
+
+		rdaddress => std_logic_vector(currentAddr(13 downto 0)),
+		q => romF1Data
+	);
+
 	process(clk)
 	begin
 		if rising_edge(clk) then
@@ -251,8 +280,8 @@ begin
 	--
 	--begin
 	process(ramData, vicData, sidData, mmuData, vdcData, colorData,
-			cia1Data, cia2Data, charData, rom1Data, rom2Data, rom4Data,
-			  cs_romHLoc, cs_romLLoc, cs_rom1Loc, cs_rom2Loc, cs_rom4Loc, cs_CharLoc, cs_from1Loc,
+			cia1Data, cia2Data, charData, rom1Data, rom23Data, rom4Data, romF1Data,
+			  cs_romHLoc, cs_romLLoc, cs_rom1Loc, cs_rom23Loc, cs_rom4Loc, cs_CharLoc, cs_romF1Loc,
 			  cs_ramLoc, cs_vicLoc, cs_sidLoc, cs_colorLoc,
 			  cs_cia1Loc, cs_cia2Loc, lastVicData,
 			  cs_ioELoc, cs_ioFLoc,
@@ -265,10 +294,12 @@ begin
 			dataToCpu <= unsigned(charData);
 		elsif cs_rom1Loc = '1' then
 			dataToCpu <= unsigned(rom1Data);
-		elsif cs_rom2Loc = '1' then
-			dataToCpu <= unsigned(rom2Data);
+		elsif cs_rom23Loc = '1' then
+			dataToCpu <= unsigned(rom23Data);
 		elsif cs_rom4Loc = '1' then
 			dataToCpu <= unsigned(rom4Data);
+		elsif cs_romF1Loc = '1' then
+			dataToCpu <= unsigned(romF1Data);
 		elsif cs_ramLoc = '1' then
 			dataToCpu <= ramData;
 		elsif cs_vicLoc = '1' then
@@ -288,8 +319,6 @@ begin
 		elsif cs_romLLoc = '1' then
 			dataToCpu <= ramData;
 		elsif cs_romHLoc = '1' then
-			dataToCpu <= ramData;
-		elsif cs_from1Loc = '1' then
 			dataToCpu <= ramData;
 		elsif cs_ioELoc = '1' and io_rom = '1' then
 			dataToCpu <= ramData;
@@ -313,10 +342,10 @@ begin
 		systemWe <= '0';
 		vicCharLoc <= '0';
 		cs_CharLoc <= '0';
-		cs_rom1Loc <= '0'; -- rom1: c64 basic/kernal
-		cs_rom2Loc <= '0'; -- rom2: c128 basic
-		cs_rom4Loc <= '0'; -- rom4: c128 editor, z80 bios, c128 kernal
-		cs_from1Loc <= '0'; -- internal function rom
+		cs_rom1Loc <= '0';  -- rom1: c64 basic/kernal
+		cs_rom23Loc <= '0'; -- rom23: c128 basic
+		cs_rom4Loc <= '0';  -- rom4: c128 editor, z80 bios, c128 kernal
+		cs_romF1Loc <= '0'; -- internal function rom
 		cs_ramLoc <= '0';
 		cs_vicLoc <= '0';
 		cs_sidLoc <= '0';
@@ -348,7 +377,7 @@ begin
 							when B"00" =>
 								cs_rom4Loc <= '1';
 							when B"01" =>
-								cs_from1Loc <= '1';
+								cs_romF1Loc <= '1';
 							when B"10" =>
 								cs_romHLoc <= '1';
 							when B"11" =>
@@ -386,7 +415,7 @@ begin
 							when B"00" =>
 								cs_charLoc <= '1';
 							when B"01" =>
-								cs_from1Loc <= '1';
+								cs_romF1Loc <= '1';
 							when B"10" =>
 								cs_romHLoc <= '1';
 							when B"11" =>
@@ -399,9 +428,9 @@ begin
 					if cpuWe = '0' then
 						case mmu_mem8000 is
 							when B"00" =>
-								cs_rom2Loc <= '1';
+								cs_rom23Loc <= '1';
 							when B"01" =>
-								cs_from1Loc <= '1';
+								cs_romF1Loc <= '1';
 							when B"10" =>
 								cs_romHLoc <= '1';
 							when B"11" =>
@@ -414,9 +443,9 @@ begin
 					if cpuWe = '0' then
 						case mmu_mem8000 is
 							when B"00" =>
-								cs_rom2Loc <= '1';
+								cs_rom23Loc <= '1';
 							when B"01" =>
-								cs_from1Loc <= '1';
+								cs_romF1Loc <= '1';
 							when B"10" =>
 								cs_romLLoc <= '1';
 							when B"11" =>
@@ -429,7 +458,7 @@ begin
 					if cpuWe = '1' or mmu_mem4000 = '1' then
 						cs_ramLoc <= '1';
 					else
-						cs_rom2Loc <= '1';
+						cs_rom23Loc <= '1';
 					end if;
 				when X"0" =>
 					if cpuWe = '1' or cpusel = '1' or mmu_memC000 /= "00" then
@@ -546,7 +575,7 @@ begin
 		end if;
 	end process;
 
-	cs_ram <= cs_ramLoc or cs_romLLoc or cs_romHLoc or cs_UMAXromHLoc or cs_UMAXnomapLoc or cs_CharLoc or cs_rom1Loc or cs_rom2Loc or cs_rom4Loc or cs_from1Loc;
+	cs_ram <= cs_ramLoc or cs_romLLoc or cs_romHLoc or cs_UMAXromHLoc or cs_UMAXnomapLoc or cs_CharLoc or cs_rom1Loc or cs_rom23Loc or cs_rom4Loc or cs_romF1Loc;
 	cs_vic <= cs_vicLoc and io_enable;
 	cs_sid <= cs_sidLoc and io_enable;
 	cs_mmuH <= cs_mmuHLoc and io_enable;
@@ -560,7 +589,6 @@ begin
 	cs_romL <= cs_romLLoc;
 	cs_romH <= cs_romHLoc;
 	cs_UMAXromH <= cs_UMAXromHLoc;
-	cs_from1 <= cs_from1Loc;
 
 	dataToVic  <= unsigned(charData) when vicCharLoc = '1' else ramData;
 	systemAddr <= currentAddr;
