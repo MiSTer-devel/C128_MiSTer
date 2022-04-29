@@ -133,25 +133,25 @@ begin
 					when others => null;
 					end case;
 				elsif (cs_io = '1') then
-					case addr(3 downto 0) is
-					when "0000" => reg_cr <= di;
-					when "0001" => reg_pcr(0) <= di;
-					when "0010" => reg_pcr(1) <= di;
-					when "0011" => reg_pcr(2) <= di;
-					when "0100" => reg_pcr(3) <= di;
-					when "0101" => reg_cpu <= di(0);
-					               reg_fsdir <= di(3);
-					               reg_os <= di(6);
-					when "0110" => reg_commonSz <= di(1 downto 0);
-					               reg_commonL <= di(2);
-					               reg_commonH <= di(3);
-					               reg_vicbank <= di(7 downto 6);
-					when "0111" => reg_p0l <= di;
-					               reg_p0h <= reg_p0hb;
-					when "1000" => reg_p0hb <= di(3 downto 0);
-					when "1001" => reg_p1l <= di;
-					               reg_p1h <= reg_p1hb;
-					when "1010" => reg_p1hb <= di(3 downto 0);
+					case addr(7 downto 0) is
+					when X"00" => reg_cr <= di;
+					when X"01" => reg_pcr(0) <= di;
+					when X"02" => reg_pcr(1) <= di;
+					when X"03" => reg_pcr(2) <= di;
+					when X"04" => reg_pcr(3) <= di;
+					when X"05" => reg_cpu <= di(0);
+					              reg_fsdir <= di(3);
+					              reg_os <= di(6);
+					when X"06" => reg_commonSz <= di(1 downto 0);
+					              reg_commonL <= di(2);
+					              reg_commonH <= di(3);
+					              reg_vicbank <= di(7 downto 6);
+					when X"07" => reg_p0l <= di;
+					              reg_p0h <= reg_p0hb;
+					when X"08" => reg_p0hb <= di(3 downto 0);
+					when X"09" => reg_p1l <= di;
+					              reg_p1h <= reg_p1hb;
+					when X"0A" => reg_p1hb <= di(3 downto 0);
 					when others => null;
 					end case;
 				end if;
@@ -267,19 +267,19 @@ begin
 	begin
 		if rising_edge(clk) then
 			if we = '0' and (cs_io = '1' or cs_lr = '1') then
-				case addr(3 downto 0) is
-				when "0000" => do <= (reg_cr(7 downto 6) and bankmask) & reg_cr(5 downto 0);
-				when "0001" => do <= reg_pcr(0);
-				when "0010" => do <= reg_pcr(1);
-				when "0011" => do <= reg_pcr(2);
-				when "0100" => do <= reg_pcr(3);
-				when "0101" => do <= c4080 & reg_os & exrom & game & fsdir & "11" & reg_cpu;
-				when "0110" => do <= reg_vicbank & "11" & reg_commonH & reg_commonL & reg_commonSz;
-				when "0111" => do <= reg_p0l;
-				when "1000" => do <= "1111" & reg_p0h;
-				when "1001" => do <= reg_p1l;
-				when "1010" => do <= "1111" & reg_p1h;
-				when "1011" => do <= "0" & sys256k & (not sys256k) & "00000";
+				case addr(7 downto 0) is
+				when X"00" => do <= (reg_cr(7 downto 6) and bankmask) & reg_cr(5 downto 0);
+				when X"01" => do <= reg_pcr(0);
+				when X"02" => do <= reg_pcr(1);
+				when X"03" => do <= reg_pcr(2);
+				when X"04" => do <= reg_pcr(3);
+				when X"05" => do <= c4080 & reg_os & exrom & game & fsdir & "11" & reg_cpu;
+				when X"06" => do <= reg_vicbank & "11" & reg_commonH & reg_commonL & reg_commonSz;
+				when X"07" => do <= reg_p0l;
+				when X"08" => do <= "1111" & reg_p0h;
+				when X"09" => do <= reg_p1l;
+				when X"0A" => do <= "1111" & reg_p1h;
+				when X"0B" => do <= "0" & sys256k & (not sys256k) & "00000";
 				when others => do <= (others => '1');
 				end case;
 			end if;
