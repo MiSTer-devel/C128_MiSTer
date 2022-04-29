@@ -192,7 +192,7 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXX  XX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXX    XXXXXXXXXX  XX
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -262,12 +262,8 @@ localparam CONF_STR = {
 	"P2-;",
 	"P2OE,ROM set,Standard,128DCR;",
 	"P2OF,Char switch,64 mode,Caps Lock;",
-
 	"-;",
 	"O3,Swap Joysticks,No,Yes;",
-	"-;",
-	"oEF,Turbo mode,Off,C128,Smart;",
-	"d6oGH,Turbo speed,2x,3x,4x;",
 	"-;",
 	"R0,Reset;",
 	"RH,Reset & Detach Cartridge;",
@@ -443,7 +439,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 	.paddle_3(pd4),
 
 	.status(status),
-	.status_menumask({status[58], |status[47:46], status[16], status[13], tap_loaded, 1'b0, |vcrop, status[56]}),
+	.status_menumask({status[58], 1'b0, status[16], status[13], tap_loaded, 1'b0, |vcrop, status[56]}),
 	.buttons(buttons),
 	.forced_scandoubler(forced_scandoubler),
 	.gamma_bus(gamma_bus),
@@ -948,9 +944,6 @@ fpga64_sid_iec fpga64
 	.sys256k(status[59]),
 	.osmode(status[63]), // for testing, "0" C128, "1" C64
 	.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
-
-	.turbo_mode({status[47] & ~disk_access, status[46]}),
-	.turbo_speed(status[49:48]),
 
 	.ps2_key(key),
 	.kbd_reset((~reset_n & ~status[1]) | reset_keys),
