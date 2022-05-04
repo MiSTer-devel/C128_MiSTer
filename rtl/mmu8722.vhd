@@ -121,7 +121,7 @@ begin
 				reg_p0l <= (others => '0');
 				reg_p1hb <= (others => '0');
 				reg_p1h <= (others => '0');
-				reg_p1l <= (others => '1');
+				reg_p1l <= X"01";
 			elsif (we = '1') then
 				if (cs_lr = '1') then
 					case addr(2 downto 0) is
