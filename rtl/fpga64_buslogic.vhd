@@ -280,9 +280,9 @@ begin
 	--
 	--begin
 	process(ramData, vicData, sidData, mmuData, vdcData, colorData,
-			cia1Data, cia2Data, charData, rom1Data, rom23Data, rom4Data, romF1Data,
+		     cia1Data, cia2Data, charData, rom1Data, rom23Data, rom4Data, romF1Data,
 			  cs_romHLoc, cs_romLLoc, cs_rom1Loc, cs_rom23Loc, cs_rom4Loc, cs_CharLoc, cs_romF1Loc,
-			  cs_ramLoc, cs_vicLoc, cs_sidLoc, cs_colorLoc,
+			  cs_ramLoc, cs_vicLoc, cs_sidLoc, cs_colorLoc, cs_mmuLLoc, cs_mmuHLoc, cs_vdcLoc,
 			  cs_cia1Loc, cs_cia2Loc, lastVicData,
 			  cs_ioELoc, cs_ioFLoc,
 			  io_rom, io_ext, io_data)
