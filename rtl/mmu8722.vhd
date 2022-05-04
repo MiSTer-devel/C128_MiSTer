@@ -63,9 +63,9 @@ architecture rtl of mmu8722 is
 	signal reg_cr : configReg;
 	signal reg_pcr : configStore;
 	signal reg_cpu : std_logic;
-	signal reg_fsdir : std_logic;
-	signal reg_exrom : std_logic;
-	signal reg_game : std_logic;
+	signal reg_fsdir : std_logic := '1';
+	signal reg_exrom : std_logic := '1';
+	signal reg_game : std_logic := '1';
 	signal reg_os : std_logic;
 	signal reg_vicbank : unsigned(1 downto 0);
 	signal reg_commonH : std_logic;
@@ -77,20 +77,16 @@ architecture rtl of mmu8722 is
 	signal reg_p0l : unsigned(7 downto 0);
 	signal reg_p1hb : unsigned(3 downto 0);
 	signal reg_p1h : unsigned(3 downto 0);
-	signal reg_p1l : unsigned(7 downto 0);
+	signal reg_p1l : unsigned(7 downto 0) := X"01";
 
-	signal crBank : unsigned(3 downto 0);
-	signal addrH : unsigned(15 downto 8);
-	signal romHen : std_logic;
 	signal fsdir : std_logic;
 	signal exrom : std_logic;
 	signal game : std_logic;
 
+	signal addrH : unsigned(15 downto 8);
+	signal z80rom : std_logic;
 	signal bankmask : unsigned(1 downto 0);
-	signal common_addrH: unsigned(7 downto 0);
-	signal common_addrL: unsigned(7 downto 0);
-	signal rambank_buf: unsigned(1 downto 0);
-	signal ta_buf: unsigned(7 downto 0);
+	signal common_mask: unsigned(7 downto 0) := "11111100";
 
 begin
 
@@ -116,6 +112,7 @@ begin
 				reg_commonH <= '0';
 				reg_commonL <= '0';
 				reg_commonSz <= (others => '0');
+				common_mask <= "11111100";
 				reg_p0hb <= (others => '0');
 				reg_p0h <= (others => '0');
 				reg_p0l <= (others => '0');
@@ -146,6 +143,12 @@ begin
 					              reg_commonL <= di(2);
 					              reg_commonH <= di(3);
 					              reg_vicbank <= di(7 downto 6);
+									  case reg_commonSz is
+									  when "00" => common_mask <= "11111100";
+									  when "01" => common_mask <= "11110000";
+									  when "10" => common_mask <= "11100000";
+									  when "11" => common_mask <= "11000000";
+									  end case;
 					when X"07" => reg_p0l <= di;
 					              reg_p0h <= reg_p0hb;
 					when X"08" => reg_p0hb <= di(3 downto 0);
@@ -157,16 +160,6 @@ begin
 				end if;
 			end if;
 		end if;
-	end process;
-
-	calc_common_addr: process(reg_commonSz)
-	begin
-		case reg_commonSz is
-		when "00" => common_addrH <= X"FC"; common_addrL <= X"04";
-		when "01" => common_addrH <= X"F0"; common_addrL <= X"10";
-		when "10" => common_addrH <= X"E0"; common_addrL <= X"20";
-		when "11" => common_addrH <= X"C0"; common_addrL <= X"40";
-		end case;
 	end process;
 
 -- -----------------------------------------------------------------------
@@ -199,15 +192,17 @@ begin
 
 	addrH <= addr(15 downto 8);
 	bankmask <= sys256k & "1";
+	z80rom <= not (reg_cpu or we or addr(15) or addr(14) or addr(13) or addr(12) or reg_cr(4) or reg_cr(5));
 
 	output_addr: process(
-		addrH, reg_os, reg_cpu, reg_cr, reg_vicbank,
-		reg_p0h, reg_p0l, reg_p1h, reg_p1l,
-		reg_commonH, reg_commonL, common_addrH, common_addrL,
-		bankmask
+		reg_os, reg_cr, reg_vicbank, reg_p0h, reg_p0l, reg_p1h, reg_p1l,
+		reg_commonH, reg_commonL, common_mask,
+		addrH, bankmask, z80rom
 	)
+	variable crBank: unsigned(3 downto 0);
+	variable ta_buf: unsigned(7 downto 0);
+	variable ta_common: unsigned(7 downto 0);
 	begin
-
 		if reg_os = '0' then
 			-- C128 mode
 
@@ -218,34 +213,32 @@ begin
 
 			vicbank <= reg_vicbank and bankmask;
 
-			crBank <= "00" & reg_cr(7 downto 6) and bankmask;
-			romHen <= reg_cr(4) or reg_cr(5);
+			crBank := "00" & reg_cr(7 downto 6) and bankmask;
 
-			if crBank = reg_p0h and addrH = reg_p0l then
-				rambank_buf <= "00";
-				ta_buf <= X"00";
-			elsif addrH = X"00" then
-				rambank_buf <= reg_p0h(1 downto 0) and bankmask;
-				ta_buf <= reg_p0l;
-			elsif crBank = reg_p1h and addrH = reg_p1l then
-				rambank_buf <= "00";
-				ta_buf <= X"01";
-			elsif addrH = X"01" then
-				rambank_buf <= reg_p1h(1 downto 0) and bankmask;
-				ta_buf <= reg_p1l;
-			elsif reg_cpu = '0' and we = '0' and addr(15 downto 12) = "0000" and romHen = '0' then
+			if z80rom = '1' then
 				-- When reading from $0xxx in Z80 mode with upper roms enabled, actually read from $Dxxx
-				rambank_buf <= "00";
-				ta_buf <= X"D" & addr(11 downto 8);
+				rambank <= "00";
+				ta_buf := X"D" & addrH(11 downto 8);
+			elsif crBank = reg_p0h and addrH = reg_p0l then
+				rambank <= "00";
+				ta_buf := X"00";
+			elsif addrH = X"00" then
+				rambank <= reg_p0h(1 downto 0) and bankmask;
+				ta_buf := reg_p0l;
+			elsif crBank = reg_p1h and addrH = reg_p1l then
+				rambank <= "00";
+				ta_buf := X"01";
+			elsif addrH = X"01" then
+				rambank <= reg_p1h(1 downto 0) and bankmask;
+				ta_buf := reg_p1l;
 			else
-				rambank <= crBank(1 downto 0) and bankmask;
-				ta_buf <= addrH;
+				rambank <= crBank(1 downto 0);
+				ta_buf := addrH;
 			end if;
 
-			if (reg_commonH = '1' and ta_buf >= common_addrH) or (reg_commonL = '1' and ta_buf < common_addrL) then
+			ta_common := ta_buf and common_mask;
+			if (reg_commonH = '1' and ta_common = common_mask) or (reg_commonL = '1' and ta_common = "00000000") then
 				rambank <= "00";
-			else
-				rambank <= rambank_buf;
 			end if;
 			ta <= ta_buf;
 		else
