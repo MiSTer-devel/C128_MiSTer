@@ -159,6 +159,9 @@ port(
 	cass_sense  : in  std_logic;
 	cass_read   : in  std_logic;
 
+	-- VDC
+	vdcVersion  : in  unsigned(1 downto 0);
+
 	-- Memory size
 	sys256k     : in  std_logic;
 
@@ -215,7 +218,7 @@ signal cs_vic       : std_logic;
 signal cs_sid       : std_logic;
 signal cs_mmuH      : std_logic;
 signal cs_mmuL      : std_logic;
--- signal cs_vdc       : std_logic;
+signal cs_vdc       : std_logic;
 signal cs_color     : std_logic;
 signal cs_cia1      : std_logic;
 signal cs_cia2      : std_logic;
@@ -294,7 +297,7 @@ signal mmu_mem4000  : std_logic;
 signal mmu_memD000  : std_logic;
 
 -- VDC signals
-signal vdc_do       : unsigned(7 downto 0);
+signal vdcData      : unsigned(7 downto 0);
 
 component sid_top
 	port (
@@ -353,6 +356,21 @@ component mos6526
 		cnt_in        : in  std_logic;
 		cnt_out       : out std_logic;
 		irq_n         : out std_logic
+	);
+end component;
+
+component vdc_top
+	port (
+		version       : in  unsigned(1 downto 0);
+		clk           : in  std_logic;
+		reset         : in  std_logic;
+		init          : in  std_logic;
+
+		cs            : in  std_logic;
+		rs            : in  std_logic;
+		we            : in  std_logic;
+		db_in         : in  unsigned(7 downto 0);
+		db_out        : out unsigned(7 downto 0)
 	);
 end component;
 
@@ -541,7 +559,7 @@ port map (
 	vicData => vicData,
 	sidData => sid_do,
 	mmuData => mmu_do,
-	vdcData => vdc_do,
+	vdcData => vdcData,
 	colorData => colorData,
 	cia1Data => cia1Do,
 	cia2Data => cia2Do,
@@ -558,7 +576,7 @@ port map (
 	cs_sid => cs_sid,
 	cs_mmuH => cs_mmuH,
 	cs_mmuL => cs_mmuL,
-	--cs_vdc => cs_vdc,
+	cs_vdc => cs_vdc,
 	cs_color => cs_color,
 	cs_cia1 => cs_cia1,
 	cs_cia2 => cs_cia2,
@@ -715,6 +733,26 @@ begin
 		end if;
 	end if;
 end process;
+
+-- -----------------------------------------------------------------------
+-- VDC 80-col video display controller
+-- -----------------------------------------------------------------------
+
+vdc: vdc_top
+port map (
+	version => vdcVersion,
+
+	clk => clk32,
+	reset => reset,
+	init => '0',
+
+	cs => cs_vdc,
+	we => cpuWe,
+
+	rs => cpuAddr(0),
+	db_in => cpuDo,
+	db_out => vdcData
+);
 
 -- -----------------------------------------------------------------------
 -- SID

@@ -192,7 +192,7 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXX    XXXXXXXXXX  XX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXX XXXXXXXXXXX   XX
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -226,6 +226,8 @@ localparam CONF_STR = {
 	"P1OC,Sound Expander,Disabled,OPL2;",
 	"P1o89,DigiMax,Disabled,DE00,DF00;",
 	"P1OIJ,Stereo Mix,None,25%,50%,100%;",
+	"P1-;",
+	"P1oEF,VDC version,8563 R8,8563 R7a,8568 R9 (DCR);",
 
 	"P2,Hardware;",
 	"P2oPQ,Enable Drive #8,If Mounted,Always,Never;",
@@ -233,7 +235,7 @@ localparam CONF_STR = {
 	"P2oC,Parallel port,Enabled,Disabled;",
 	"P2R6,Reset Disk Drives;",
 	"P2-;",
-	"P2oR,Internal memory,128K,256K;",
+	"P2oH,Internal memory,128K,256K;",
 	"P2oK,GeoRAM,Disabled,4MB;",
 	"P2oLM,REU,Disabled,512KB,2MB (512KB wrap),16MB;",
 	"P2-;",
@@ -941,7 +943,8 @@ fpga64_sid_iec fpga64
 	.dcr(status[14]),
 	.cpslk_mode(status[15]),
 
-	.sys256k(status[59]),
+	.sys256k(status[49]),
+	.vdcVersion({status[47],~status[46]^status[47]}),
 	.osmode(status[63]), // for testing, "0" C128, "1" C64
 	.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
 

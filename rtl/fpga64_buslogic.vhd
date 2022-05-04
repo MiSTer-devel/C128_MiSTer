@@ -495,8 +495,10 @@ begin
 						case cpuAddr(11 downto 8) is
 							when X"0" | X"1" | X"2" | X"3" =>
 								cs_vicLoc <= '1';
-							when X"4" | X"5" | X"6" | X"7" =>
+							when X"4" =>
 								cs_sidLoc <= '1';
+							when X"6" =>
+								cs_vdcLoc <= '1';
 							when X"8" | X"9" | X"A" | X"B" =>
 								cs_colorLoc <= '1';
 							when X"C" =>
