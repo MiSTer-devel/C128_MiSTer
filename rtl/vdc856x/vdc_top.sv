@@ -79,7 +79,7 @@ wire			busy;
 always @(posedge clk32) begin
 	reg [1:0] counter;
 
-	counter <= reset ? 0 : counter + 2'd1;
+	counter <= reset ? 2'd0 : counter + 2'd1;
 
 	clk <= counter[0];
 	clkDot <= reg_dbl ? counter[1] : counter[0];
