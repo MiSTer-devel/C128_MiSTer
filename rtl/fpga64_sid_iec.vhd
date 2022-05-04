@@ -362,7 +362,7 @@ end component;
 component vdc_top
 	port (
 		version       : in  unsigned(1 downto 0);
-		clk           : in  std_logic;
+		clk32         : in  std_logic;
 		reset         : in  std_logic;
 		init          : in  std_logic;
 
@@ -742,7 +742,7 @@ vdc: vdc_top
 port map (
 	version => vdcVersion,
 
-	clk => clk32,
+	clk32 => clk32,
 	reset => reset,
 	init => '0',
 

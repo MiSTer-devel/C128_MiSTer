@@ -2,7 +2,7 @@
 module vdc_top (
 	input    [1:0] version,   // 0=REV7A (8563), 1=REV8 (8563), 2=REV9 (8568)
 
-	input          clk,
+	input          clk32,
 	input          reset,
 	input          init,
 
@@ -18,7 +18,7 @@ module vdc_top (
 //   1      8563 R8     changes to R25, 16k RAM
 //   2      8568 R9     adds R37, 64k RAM
 
-                            // Reg      Init value  Description
+									 // Reg      Init value  Description
 reg   [7:0] reg_ht;         // R0         7E 126    Horizontal total (minus 1)
 reg   [7:0] reg_hd;         // R1         50 80     Horizontal displayed
 reg   [7:0] reg_hp;         // R2         66 102    Horizontal sync position
@@ -68,11 +68,38 @@ reg         reg_vspol = 1;  // R37[6]               [Rev 9 (8568) only], VSYnc p
 
 reg   [7:0] regSel;         // selected internal register (write to $D600)
 
+reg			clk;            // base clock (16 MHz)
+reg         clkDot;         // dot clock (8 MHz)
 reg         lpStatus;       // light pen status
 reg         vSync;          // vertical sync
 reg         hSync;          // horizontal sync
 
-wire        busy = 0;       // VDC busy signal
+wire			busy;
+
+always @(posedge clk32) begin
+	reg [1:0] counter;
+
+	counter <= reset ? 0 : counter + 2'd1;
+
+	clk <= counter[0];
+	clkDot <= reg_dbl ? counter[1] : counter[0];
+end
+
+
+vdc_ram ram (
+	.ramsize(version[1]),
+	.clk(clk),
+	.reset(reset),
+	.update(cs && rs && we && !busy),
+	.regSel(regSel),
+	.db_in(db_in),
+	.reg_ua(reg_ua),
+	.reg_wc(reg_wc),
+	.reg_da(reg_da),
+	.reg_ba(reg_ba),
+	.reg_copy(reg_copy),
+	.busy(busy)
+);
 
 always @(posedge clk) begin
 	if (reset || init) begin
@@ -81,72 +108,53 @@ always @(posedge clk) begin
 	end
 end
 
-// RAM interface registers
-always @(posedge clk) begin
-	if (reset) begin
-      reg_ua <= 0;
-      reg_wc <= 0;
-      reg_da <= 0;
-      reg_ba <= 0;
-	end
-	else if (cs && we && !busy && rs)
-		case (regSel)
-			8'd18: reg_ua[15:8]  <= db_in;
-			8'd19: reg_ua[7:0]   <= db_in;
-			8'd30: reg_wc        <= db_in;
-			8'd31: reg_da        <= db_in;
-			8'd32: reg_ba[15:8]  <= db_in;
-			8'd33: reg_ba[7:0]   <= db_in;
-		endcase
-end
-
-// Other registers
+// Internal registers
 always @(posedge clk) begin
 	if (reset) begin
 		regSel <= 0;
 
 		reg_ht <= 0;
-      reg_hd <= 0;
-      reg_hp <= 0;
-      reg_vw <= 0;
-      reg_hw <= 0;
-      reg_vt <= 0;
-      reg_va <= 0;
-      reg_vd <= 0;
-      reg_vp <= 0;
-      reg_im <= 0;
-      reg_ctv <= 0;
-      reg_cm <= 0;
-      reg_cs <= 0;
-      reg_ce <= 0;
-      reg_ds <= 0;
-      reg_cp <= 0;
-      reg_lpv <= 0;
-      reg_lph <= 0;
-      reg_aa <= 0;
-      reg_cth <= 0;
-      reg_cdh <= 0;
-      reg_cdv <= 0;
-      reg_copy <= 0;
-      reg_rvs <= 0;
-      reg_cbrate <= 0;
-      reg_vss <= 0;
-      reg_text <= 0;
-      reg_atr <= 0;
-      reg_semi <= 0;
-      reg_dbl <= 0;
-      reg_hss <= 0;
-      reg_fg <= 0;
-      reg_bg <= 0;
-      reg_ai <= 0;
-      reg_cb <= 0;
-      reg_ram <= 0;
-      reg_ul <= 0;
-      reg_deb <= 0;
-      reg_dee <= 0;
-      reg_drr <= 0;
-      reg_hspol <= 1;
-      reg_vspol <= 1;
+		reg_hd <= 0;
+		reg_hp <= 0;
+		reg_vw <= 0;
+		reg_hw <= 0;
+		reg_vt <= 0;
+		reg_va <= 0;
+		reg_vd <= 0;
+		reg_vp <= 0;
+		reg_im <= 0;
+		reg_ctv <= 0;
+		reg_cm <= 0;
+		reg_cs <= 0;
+		reg_ce <= 0;
+		reg_ds <= 0;
+		reg_cp <= 0;
+		reg_lpv <= 0;
+		reg_lph <= 0;
+		reg_aa <= 0;
+		reg_cth <= 0;
+		reg_cdh <= 0;
+		reg_cdv <= 0;
+		reg_copy <= 0;
+		reg_rvs <= 0;
+		reg_cbrate <= 0;
+		reg_vss <= 0;
+		reg_text <= 0;
+		reg_atr <= 0;
+		reg_semi <= 0;
+		reg_dbl <= 0;
+		reg_hss <= 0;
+		reg_fg <= 0;
+		reg_bg <= 0;
+		reg_ai <= 0;
+		reg_cb <= 0;
+		reg_ram <= 0;
+		reg_ul <= 0;
+		reg_deb <= 0;
+		reg_dee <= 0;
+		reg_drr <= 0;
+		reg_hspol <= 1;
+		reg_vspol <= 1;
 	end
 	else if (cs)
 		if (we) begin
@@ -155,15 +163,15 @@ always @(posedge clk) begin
 					regSel <= db_in;
 				end
 				else begin
-					// writes to R18-R19 and R31-R33 are handled by the ram process
+					// writes to R18-R19 and R31-R33 are handled by the `vdc_ram` module
 					case (regSel)
 						8'd00: reg_ht        <= db_in;
 						8'd01: reg_hd        <= db_in;
 						8'd02: reg_hp        <= db_in;
 						8'd03: begin
-								    reg_vw     <= db_in[7:4];
-						          reg_hw     <= db_in[3:0];
-						       end
+									 reg_vw     <= db_in[7:4];
+									 reg_hw     <= db_in[3:0];
+								 end
 						8'd04: reg_vt        <= db_in;
 						8'd05: reg_va        <= db_in[4:0];
 						8'd06: reg_vd        <= db_in;
@@ -171,9 +179,9 @@ always @(posedge clk) begin
 						8'd08: reg_im        <= db_in[1:0];
 						8'd09: reg_ctv       <= db_in[4:0];
 						8'd10: begin
-								    reg_cm     <= db_in[6:5];
-						          reg_cs     <= db_in[4:0];
-						       end
+									 reg_cm     <= db_in[6:5];
+									 reg_cs     <= db_in[4:0];
+								 end
 						8'd11: reg_ce        <= db_in[4:0];
 						8'd12: reg_ds[15:8]  <= db_in;
 						8'd13: reg_ds[7:0]   <= db_in;
@@ -185,25 +193,26 @@ always @(posedge clk) begin
 						8'd21: reg_aa[7:0]   <= db_in;
 						8'd22: begin
 									 reg_cth    <= db_in[7:4];
-						          reg_cdh    <= db_in[3:0];
-						       end
+									 reg_cdh    <= db_in[3:0];
+								 end
 						8'd23: reg_cdv       <= db_in[4:0];
 						8'd24: begin
+									 reg_copy   <= db_in[7];
 									 reg_rvs    <= db_in[6];
-						          reg_cbrate <= db_in[5];
-						          reg_vss    <= db_in[4:0];
-						       end
+									 reg_cbrate <= db_in[5];
+									 reg_vss    <= db_in[4:0];
+								 end
 						8'd25: begin
 									 reg_text   <= db_in[7];
-						          reg_atr    <= db_in[6];
-						          reg_semi   <= db_in[5];
-						          reg_dbl    <= db_in[4];
-						          reg_hss    <= db_in[3:0];
-						       end
+									 reg_atr    <= db_in[6];
+									 reg_semi   <= db_in[5];
+									 reg_dbl    <= db_in[4];
+									 reg_hss    <= db_in[3:0];
+								 end
 						8'd26: begin
 									 reg_fg     <= db_in[7:4];
-						          reg_bg     <= db_in[3:0];
-						       end
+									 reg_bg     <= db_in[3:0];
+								 end
 						8'd27: reg_ai        <= db_in;
 						8'd28: begin
 									 reg_cb     <= db_in[7:5];
@@ -216,9 +225,9 @@ always @(posedge clk) begin
 						8'd36: reg_drr       <= db_in[3:0];
 						// R37 only exists in 8568
 						8'd37: if (version[1]) begin
-						          reg_hspol  <= db_in[7];
-						          reg_vspol  <= db_in[6];
-						       end
+									 reg_hspol  <= db_in[7];
+									 reg_vspol  <= db_in[6];
+								 end
 					endcase
 				end
 		end
