@@ -2,7 +2,7 @@
 module vdc_top (
 	input    [1:0] version,   // 0=REV7A (8563), 1=REV8 (8563), 2=REV9 (8568)
 
-	input          clk32,
+	input          clk,
 	input          reset,
 	input          init,
 
@@ -10,7 +10,10 @@ module vdc_top (
 	input          rs,        // register select
 	input          we,        // write enable
 	input    [7:0] db_in,     // data in
-	output   [7:0] db_out     // data out
+	output   [7:0] db_out,    // data out
+
+	input          enablePixel0,
+	input          enablePixel1
 );
 
 // version  chip
@@ -68,23 +71,13 @@ reg         reg_vspol = 1;  // R37[6]               [Rev 9 (8568) only], VSYnc p
 
 reg   [7:0] regSel;         // selected internal register (write to $D600)
 
-reg			clk;            // base clock (16 MHz)
-reg         clkDot;         // dot clock (8 MHz)
 reg         lpStatus;       // light pen status
 reg         vSync;          // vertical sync
 reg         hSync;          // horizontal sync
 
 wire			busy;
 
-always @(posedge clk32) begin
-	reg [1:0] counter;
-
-	counter <= reset ? 2'd0 : counter + 2'd1;
-
-	clk <= counter[0];
-	clkDot <= reg_dbl ? counter[1] : counter[0];
-end
-
+wire        enablePixel = enablePixel0 & (~reg_dbl & enablePixel1);
 
 vdc_ram ram (
 	.ramsize(version[1]),

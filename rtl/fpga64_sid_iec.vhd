@@ -202,7 +202,9 @@ signal aec          : std_logic;
 
 signal enableCpu    : std_logic;
 signal enableVic    : std_logic;
-signal enablePixel  : std_logic;
+signal enableVdc    : std_logic;
+signal enablePixel0 : std_logic;
+signal enablePixel1 : std_logic;
 signal enableSid    : std_logic;
 
 signal irq_cia1     : std_logic;
@@ -362,7 +364,7 @@ end component;
 component vdc_top
 	port (
 		version       : in  unsigned(1 downto 0);
-		clk32         : in  std_logic;
+		clk           : in  std_logic;
 		reset         : in  std_logic;
 		init          : in  std_logic;
 
@@ -370,7 +372,10 @@ component vdc_top
 		rs            : in  std_logic;
 		we            : in  std_logic;
 		db_in         : in  unsigned(7 downto 0);
-		db_out        : out unsigned(7 downto 0)
+		db_out        : out unsigned(7 downto 0);
+
+		enablePixel0  : in  std_logic;
+		enablePixel1  : in  std_logic
 	);
 end component;
 
@@ -441,6 +446,7 @@ process(clk32)
 begin
 	if rising_edge(clk32) then
 		enableVic <= '0';
+		enableVdc <= '0';
 		enableCia_n <= '0';
 		enableCia_p <= '0';
 		enableSid <= '0';
@@ -452,6 +458,7 @@ begin
 			enableVic <= '1';
 		when CYCLE_CPUC =>
 			enableCia_n <= '1';
+			enableVdc <= '1';
 		when CYCLE_CPUF =>
 			enableCia_p <= '1';
 			enableSid <= '1';
@@ -644,7 +651,7 @@ generic map (
 port map (
 	clk => clk32,
 	reset => reset,
-	enaPixel => enablePixel,
+	enaPixel => enablePixel1,
 	enaData => enableVic,
 	phi => phi0_cpu,
 
@@ -726,17 +733,28 @@ vicAddr(15 downto 14) <= "11" when ((vicAddr1514 xor not cia2_pao(1 downto 0)) =
 process(clk32)
 begin
 	if rising_edge(clk32) then
-		enablePixel <= '0';
-		if sysCycle = CYCLE_VIC2
-		or sysCycle = CYCLE_EXT2
-		or sysCycle = CYCLE_DMA2
-		or sysCycle = CYCLE_EXT6
-		or sysCycle = CYCLE_CPU2
-		or sysCycle = CYCLE_CPU6
-		or sysCycle = CYCLE_CPUA
-		or sysCycle = CYCLE_CPUE then
-			enablePixel <= '1';
-		end if;
+		enablePixel0 <= '0';
+		enablePixel1 <= '0';
+
+		case sysCycle is
+		when CYCLE_EXT0 => enablePixel0 <= '1';
+		when CYCLE_EXT2 => enablePixel1 <= '1';
+		when CYCLE_DMA0 => enablePixel0 <= '1';
+		when CYCLE_DMA2 => enablePixel1 <= '1';
+		when CYCLE_EXT4 => enablePixel0 <= '1';
+		when CYCLE_EXT6 => enablePixel1 <= '1';
+		when CYCLE_VIC0 => enablePixel0 <= '1';
+		when CYCLE_VIC2 => enablePixel1 <= '1';
+		when CYCLE_CPU0 => enablePixel0 <= '1';
+		when CYCLE_CPU2 => enablePixel1 <= '1';
+		when CYCLE_CPU4 => enablePixel0 <= '1';
+		when CYCLE_CPU6 => enablePixel1 <= '1';
+		when CYCLE_CPU8 => enablePixel0 <= '1';
+		when CYCLE_CPUA => enablePixel1 <= '1';
+		when CYCLE_CPUC => enablePixel0 <= '1';
+		when CYCLE_CPUE => enablePixel1 <= '1';
+		when others     => null;
+		end case;
 	end if;
 end process;
 
@@ -748,16 +766,19 @@ vdc: vdc_top
 port map (
 	version => vdcVersion,
 
-	clk32 => clk32,
+	clk => clk32,
 	reset => reset,
 	init => '0',
 
-	cs => cs_vdc,
+	cs => cs_vdc and enableVdc,
 	we => cpuWe,
 
 	rs => tAddr(0),
 	db_in => cpuDo,
-	db_out => vdcData
+	db_out => vdcData,
+
+	enablePixel0 => enablePixel0,
+	enablePixel1 => enablePixel1
 );
 
 -- -----------------------------------------------------------------------
