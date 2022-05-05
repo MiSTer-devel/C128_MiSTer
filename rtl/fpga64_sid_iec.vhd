@@ -493,6 +493,7 @@ port map (
 	cpumode => cpumode,  -- debug
 
 	we => pulseWr_io,
+	cpuHasBus => cpuHasBus,
 
 	addr => cpuAddr,
 	di => cpuDo,
