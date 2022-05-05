@@ -95,9 +95,6 @@ port(
 	mod_key     : out std_logic;
 	tape_play   : out std_logic;
 
-	-- internal function rom
-	from1       : out std_logic;
-
 	-- dma access
 	dma_req     : in  std_logic := '0';
 	dma_cycle   : out std_logic;
