@@ -35,7 +35,7 @@ module cartridge
 	output            IO_rom,					// FLAG to enable IOE/IOF address relocation
 	output            IO_rd,
 	output reg  [7:0] IO_data,
-	input      [15:0] addr_in,             // address from cpu
+	input      [17:0] addr_in,             // address from cpu
 	input       [7:0] data_in,  			   // data from cpu going to sdram
 	output reg [24:0] addr_out, 	         // translated address output
 
@@ -376,7 +376,7 @@ always @(posedge clk32) begin
 					end
 				end
 			end
-	
+
 		// Epyx Fastload - (game=1, exrom=0, 8k bank)
 		// any access to romL or $DE00 charges a capacitor
 		// Once discharged the exrom drops to ON disabling cart

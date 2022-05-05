@@ -42,10 +42,10 @@ entity mmu8722 is
 		ossel: out std_logic;           -- "0" C128, "1" C64
 		cpusel: out std_logic;          -- "0" Z80, "1" 8502
 
-		-- outgoing address bus
-		ta: out unsigned(15 downto 8);
-		rambank: out unsigned(1 downto 0);
-		vicbank: out unsigned(1 downto 0);
+		-- translated address bus
+		tAddr: out unsigned(15 downto 0);
+		cpuBank: out unsigned(1 downto 0);
+		vicBank: out unsigned(1 downto 0);
 
 		-- memory config
 		memC000: out unsigned(1 downto 0);  -- $C000-$FFFF "00" Kernal ROM, "01" Int ROM, "10" Ext. ROM, "11" RAM
@@ -83,8 +83,6 @@ architecture rtl of mmu8722 is
 	signal exrom : std_logic;
 	signal game : std_logic;
 
-	signal addrH : unsigned(15 downto 8);
-	signal z80rom : std_logic;
 	signal bankmask : unsigned(1 downto 0);
 	signal common_mask: unsigned(7 downto 0) := "11111100";
 
@@ -190,18 +188,17 @@ begin
 	exromo <= exrom;
 	fsdiro <= fsdir;
 
-	addrH <= addr(15 downto 8);
 	bankmask <= sys256k & "1";
-	z80rom <= not (reg_cpu or we or addr(15) or addr(14) or addr(13) or addr(12) or reg_cr(4) or reg_cr(5));
 
-	output_addr: process(
-		reg_os, reg_cr, reg_vicbank, reg_p0h, reg_p0l, reg_p1h, reg_p1l,
+	translate_addr: process(
+		reg_os, reg_cpu, reg_cr, reg_vicbank, reg_p0h, reg_p0l, reg_p1h, reg_p1l,
 		reg_commonH, reg_commonL, common_mask,
-		addrH, bankmask, z80rom
+		addr, bankmask, we
 	)
 	variable crBank: unsigned(3 downto 0);
 	variable ta_buf: unsigned(7 downto 0);
 	variable ta_common: unsigned(7 downto 0);
+	variable addrH: unsigned(15 downto 8);
 	begin
 		if reg_os = '0' then
 			-- C128 mode
@@ -211,45 +208,48 @@ begin
 			mem4000 <= reg_cr(1);
 			memD000 <= reg_cr(0);
 
-			vicbank <= reg_vicbank and bankmask;
+			vicBank <= reg_vicbank and bankmask;
 
+			addrH := addr(15 downto 8);
 			crBank := "00" & reg_cr(7 downto 6) and bankmask;
 
-			if z80rom = '1' then
+			if addr(15 downto 12) = X"0" and reg_cr(5 downto 4) = "00" and reg_cpu = '0' and we = '0' then
 				-- When reading from $0xxx in Z80 mode with upper roms enabled, actually read from $Dxxx
-				rambank <= "00";
-				ta_buf := X"D" & addrH(11 downto 8);
+				cpuBank <= "00";
+				ta_buf := X"D" & addr(11 downto 8);
 			elsif crBank = reg_p0h and addrH = reg_p0l then
-				rambank <= "00";
+				cpuBank <= "00";
 				ta_buf := X"00";
 			elsif addrH = X"00" then
-				rambank <= reg_p0h(1 downto 0) and bankmask;
+				cpuBank <= reg_p0h(1 downto 0) and bankmask;
 				ta_buf := reg_p0l;
 			elsif crBank = reg_p1h and addrH = reg_p1l then
-				rambank <= "00";
+				cpuBank <= "00";
 				ta_buf := X"01";
 			elsif addrH = X"01" then
-				rambank <= reg_p1h(1 downto 0) and bankmask;
+				cpuBank <= reg_p1h(1 downto 0) and bankmask;
 				ta_buf := reg_p1l;
 			else
-				rambank <= crBank(1 downto 0);
+				cpuBank <= crBank(1 downto 0);
 				ta_buf := addrH;
 			end if;
 
 			ta_common := ta_buf and common_mask;
 			if (reg_commonH = '1' and ta_common = common_mask) or (reg_commonL = '1' and ta_common = "00000000") then
-				rambank <= "00";
+				cpuBank <= "00";
 			end if;
-			ta <= ta_buf;
+
+			tAddr <= ta_buf & addr(7 downto 0);
 		else
 			-- C64 mode
 			memC000 <= "00";
 			mem8000 <= "00";
 			mem4000 <= '0';
 			memD000 <= '0';
-			vicbank <= "00";
-			rambank <= "00";
-			ta <= addrH;
+			vicBank <= "00";
+			cpuBank <= "00";
+
+			tAddr <= addr;
 		end if;
 	end process;
 

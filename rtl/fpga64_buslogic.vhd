@@ -34,7 +34,7 @@ entity fpga64_buslogic is
 
 		ramData     : in unsigned(7 downto 0);
 
-		-- From CPU
+		-- From CPU (64 mode only)
 		-- 2 CHAREN
 		-- 1 HIRAM
 		-- 0 LORAM
@@ -47,7 +47,9 @@ entity fpga64_buslogic is
 		mmu_mem8000 : in unsigned(1 downto 0);  -- $8000-$BFFF "00" Basic ROM Hi, "01" Int ROM, "10" Ext. ROM, "11" RAM
 		mmu_mem4000 : in std_logic;             -- $4000-$7FFF "0" Basic ROM Lo, "1" RAM
 		mmu_memD000 : in std_logic;             -- $D000-$DFFF "0" I/O, "1" RAM/ROM based on mmu_memC000
-		tAddr       : in unsigned(15 downto 8); -- Translated address bus
+		tAddr       : in unsigned(15 downto 0); -- Translated address bus
+		cpuBank     : in unsigned(1 downto 0);
+		vicBank     : in unsigned(1 downto 0);
 
 		-- From Keyboard
 		cpslk_sense : in std_logic;
@@ -81,7 +83,7 @@ entity fpga64_buslogic is
 		io_enable   : in std_logic;
 
 		systemWe    : out std_logic;
-		systemAddr  : out unsigned(15 downto 0);
+		systemAddr  : out unsigned(17 downto 0);
 		dataToCpu   : out unsigned(7 downto 0);
 		dataToVic   : out unsigned(7 downto 0);
 
@@ -145,7 +147,7 @@ architecture rtl of fpga64_buslogic is
 	signal charset_a12    : std_logic;
 	signal ultimax        : std_logic;
 
-	signal currentAddr    : unsigned(15 downto 0);
+	signal currentAddr    : unsigned(17 downto 0);
 
 begin
 	-- character rom
@@ -335,7 +337,7 @@ begin
 
 	process(
 		cpuHasBus, cpuAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
-		ossel, cpusel, mmu_memC000, mmu_mem8000, mmu_mem4000, mmu_memD000
+		ossel, cpusel, mmu_memC000, mmu_mem8000, mmu_mem4000, mmu_memD000, cpuBank, vicBank
 	)
 	begin
 		currentAddr <= (others => '1');
@@ -363,7 +365,7 @@ begin
 		cs_UMAXnomapLoc <= '0';
 
 		if (cpuHasBus = '1') then
-			currentAddr <= cpuAddr;
+			currentAddr <= cpuBank & cpuAddr;
 
 			if ossel = '0' then
 				-- C128 mode
@@ -561,9 +563,9 @@ begin
 		else
 			-- The VIC-II has the bus, but only when aec is asserted
 			if aec = '1' then
-				currentAddr <= vicAddr;
+				currentAddr <= vicBank & vicAddr;
 			else
-				currentAddr <= cpuAddr;
+				currentAddr <= cpuBank & cpuAddr;
 			end if;
 
 			if ultimax = '0' and vicAddr(14 downto 12)="001" then

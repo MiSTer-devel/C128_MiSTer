@@ -383,7 +383,7 @@ always @(posedge clk_sys) begin
 	else if (erasing) force_erase <= 0;
 	else if (!reset_counter) begin
 		do_erase <= 0;
-		if(reset_wait && c64_addr == 'hFFCF) reset_wait <= 0;
+		if(reset_wait && c128_addr[15:0] == 'hFFCF) reset_wait <= 0;
 	end
 	else begin
 		reset_counter <= reset_counter - 1;
@@ -525,8 +525,8 @@ cartridge cartridge
 	.IO_rom(io_rom),
 	.IO_rd(cart_oe),
 	.IO_data(cart_data),
-	.addr_in(c64_addr),
-	.data_in(c64_data_out),
+	.addr_in(c128_addr),
+	.data_in(c128_data_out),
 	.addr_out(cart_addr),
 
 	.freeze_key(freeze_key),
@@ -573,8 +573,8 @@ reu reu
 	.ram_din(sdram_data),
 	.ram_we(reu_ram_we),
 
-	.cpu_addr(c64_addr),
-	.cpu_dout(c64_data_out),
+	.cpu_addr(c128_addr[15:0]),
+	.cpu_dout(c128_data_out),
 	.cpu_din(reu_dout),
 	.cpu_we(ram_we),
 	.cpu_cs(IOF),
@@ -909,12 +909,12 @@ sdram sdram
 	.addr( io_cycle ? io_cycle_addr : ext_cycle ? reu_ram_addr : cart_addr    ),
 	.ce  ( io_cycle ? io_cycle_ce   : ext_cycle ? reu_ram_ce   : cart_ce      ),
 	.we  ( io_cycle ? io_cycle_we   : ext_cycle ? reu_ram_we   : cart_we      ),
-	.din ( io_cycle ? io_cycle_data : ext_cycle ? reu_ram_dout : c64_data_out ),
+	.din ( io_cycle ? io_cycle_data : ext_cycle ? reu_ram_dout : c128_data_out ),
 	.dout( sdram_data )
 );
 
-wire  [7:0] c64_data_out;
-wire [15:0] c64_addr;
+wire  [7:0] c128_data_out;
+wire [17:0] c128_addr;
 wire        c64_pause;
 wire        refresh;
 wire        ram_ce;
@@ -951,8 +951,8 @@ fpga64_sid_iec fpga64
 	.ps2_key(key),
 	.kbd_reset((~reset_n & ~status[1]) | reset_keys),
 
-	.ramAddr(c64_addr),
-	.ramDout(c64_data_out),
+	.ramAddr(c128_addr),
+	.ramDout(c128_data_out),
 	.ramDin(sdram_data),
 	.ramCE(ram_ce),
 	.ramWE(ram_we),
@@ -1312,10 +1312,10 @@ opl3 #(.OPLCLK(47291931)) opl_inst
 	.clk_opl(clk48),
 	.rst_n(reset_n & opl_en),
 
-	.addr(c64_addr[4]),
+	.addr(c128_addr[4]),
 	.dout(opl_dout),
-	.we(ram_we & IOF & opl_en & c64_addr[6] & ~c64_addr[5]),
-	.din(c64_data_out),
+	.we(ram_we & IOF & opl_en & c128_addr[6] & ~c128_addr[5]),
+	.din(c128_data_out),
 
 	.sample_l(opl_out)
 );
@@ -1358,9 +1358,9 @@ always @(posedge clk_sys) begin
 		dac <= '{0,0,0,0};
 		act <= 0;
 	end
-	else if((status[41] ? iof_we : ioe_we) && ~c64_addr[2]) begin
-		dac[c64_addr[1:0]] <= c64_data_out;
-		if(c64_data_out) act[c64_addr[1:0]] <= 1;
+	else if((status[41] ? iof_we : ioe_we) && ~c128_addr[2]) begin
+		dac[c128_addr[1:0]] <= c128_data_out;
+		if(c128_data_out) act[c128_addr[1:0]] <= 1;
 	end
 
 	// guess mono/stereo/4-chan modes

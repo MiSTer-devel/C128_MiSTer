@@ -55,7 +55,7 @@ port(
 	kbd_reset   : in  std_logic := '0';
 
 	-- external memory
-	ramAddr     : out unsigned(15 downto 0);
+	ramAddr     : out unsigned(17 downto 0);
 	ramDin      : in  unsigned(7 downto 0);
 	ramDout     : out unsigned(7 downto 0);
 	ramCE       : out std_logic;
@@ -212,7 +212,7 @@ signal irq_vic      : std_logic;
 
 signal systemWe     : std_logic;
 signal pulseWr_io   : std_logic;
-signal systemAddr   : unsigned(15 downto 0);
+signal systemAddr   : unsigned(17 downto 0);
 
 signal cs_vic       : std_logic;
 signal cs_sid       : std_logic;
@@ -284,9 +284,9 @@ signal pot_y2       : std_logic_vector(7 downto 0);
 
 -- MMU signals
 signal mmu_do       : unsigned(7 downto 0);
-signal tAddr        : unsigned(15 downto 8);
-signal rambank      : unsigned(1 downto 0);
-signal vicbank      : unsigned(1 downto 0);
+signal tAddr        : unsigned(15 downto 0);
+signal cpuBank      : unsigned(1 downto 0);
+signal vicBank      : unsigned(1 downto 0);
 signal exrom_mmu    : std_logic;
 signal game_mmu     : std_logic;
 signal ossel        : std_logic;
@@ -498,8 +498,8 @@ port map (
 	di => cpuDo,
 	do => mmu_do,
 
-	ta => tAddr,
-	rambank => rambank,
+	tAddr => tAddr,
+	cpubank => cpubank,
 	vicbank => vicbank,
 
 	c4080 => '1',
@@ -542,6 +542,8 @@ port map (
 	mmu_mem4000 => mmu_mem4000,
 	mmu_memD000 => mmu_memD000,
 	tAddr => tAddr,
+	cpuBank => cpuBank,
+	vicBank => vicBank,
 	cpslk_sense => '1',
 
 	game => game_mmu,
@@ -553,7 +555,7 @@ port map (
 	ramData => ramDin,
 
 	cpuWe => cpuWe,
-	cpuAddr => cpuAddr,
+	cpuAddr => tAddr,
 	cpuData => cpuDo,
 	vicAddr => vicAddr,
 	vicData => vicData,
@@ -662,7 +664,7 @@ port map (
 	we => cpuWe,
 	lp_n => cia1_pbi(4),
 
-	aRegisters => cpuAddr(5 downto 0),
+	aRegisters => tAddr(5 downto 0),
 	diRegisters => cpuDo,
 	di => vicDiAec,
 	diColor => colorDataAec,
@@ -749,7 +751,7 @@ port map (
 	cs => cs_vdc,
 	we => cpuWe,
 
-	rs => cpuAddr(0),
+	rs => tAddr(0),
 	db_in => cpuDo,
 	db_out => vdcData
 );
@@ -760,7 +762,7 @@ port map (
 
 --	Right SID Port: Same,DE00,D420,D500,DF00
 
-sid_sel_l <= cs_sid when sid_mode(2 downto 1) /= 1 else (cs_sid and ((not sid_mode(0) and not cpuAddr(5)) or (sid_mode(0) and not cpuAddr(8))));
+sid_sel_l <= cs_sid when sid_mode(2 downto 1) /= 1 else (cs_sid and ((not sid_mode(0) and not tAddr(5)) or (sid_mode(0) and not tAddr(8))));
 sid_sel_r <= sid_sel_l when sid_mode = 0 else ioe_i when sid_mode = 1 else iof_i when sid_mode = 4 else (cs_sid and not sid_sel_l);
 io_data_i <= io_data when io_ext = '1' else sid_do when sid_sel_r = '1' else (others => '1');
 
@@ -776,7 +778,7 @@ port map (
 	ce_1m => enableSid,
 	we => pulseWr_io,
 	cs => sid_sel_r & sid_sel_l,
-	addr => cpuAddr(4 downto 0),
+	addr => tAddr(4 downto 0),
 	data_in => cpuDo,
 	data_out => sid_do,
 	pot_x_l => pot_x1 and pot_x2,
@@ -808,7 +810,7 @@ port map (
 	cs_n => not cs_cia1,
 	rw => not cpuWe,
 
-	rs => cpuAddr(3 downto 0),
+	rs => tAddr(3 downto 0),
 	db_in => cpuDo,
 	db_out => cia1Do,
 
@@ -838,7 +840,7 @@ port map (
 	cs_n => not cs_cia2,
 	rw => not cpuWe,
 
-	rs => cpuAddr(3 downto 0),
+	rs => tAddr(3 downto 0),
 	db_in => cpuDo,
 	db_out => cia2Do,
 
