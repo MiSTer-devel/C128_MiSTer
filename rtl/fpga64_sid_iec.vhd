@@ -66,6 +66,8 @@ port(
 	refresh     : out std_logic;
 
 	cia_mode    : in  std_logic;
+	turbo_mode  : in  std_logic_vector(1 downto 0);
+	turbo_speed : in  std_logic_vector(1 downto 0);
 
 	-- VGA/SCART interface
 	ntscMode    : in  std_logic;
@@ -238,7 +240,7 @@ signal iof_i        : std_logic;
 signal io_enable    : std_logic;
 signal cpu_cyc      : std_logic;
 signal cpu_cyc_s    : std_logic_vector(1 downto 0);
-signal turbo_m      : std_logic;
+signal turbo_m      : std_logic_vector(2 downto 0);
 
 signal reset        : std_logic := '1';
 
@@ -270,6 +272,7 @@ signal lastVicDi    : unsigned(7 downto 0);
 signal vicAddr1514  : unsigned(1 downto 0);
 signal colorData    : unsigned(3 downto 0);
 signal colorDataAec : unsigned(3 downto 0);
+signal turbo_en     : std_logic;
 signal turbo_state  : std_logic;
 signal vicKo        : unsigned(2 downto 0);
 
@@ -652,11 +655,14 @@ port map (
 	ba => baLoc,
 	ba_dma => ba_dma,
 
-	mode6569 => (not ntscMode),
+	mode6569 => '0',
 	mode6567old => '0',
-	mode6567R8 => ntscMode,
+	mode6567R8 => '0',
 	mode6572 => '0',
-	mode856x => '1',
+
+	mode8564 => ntscMode,
+	mode8566 => (not ntscMode),
+	mode8569 => '0',
 
 	turbo_en => '1',
 	turbo_state => turbo_state,
@@ -936,7 +942,9 @@ ramAddr <= systemAddr;
 ramWE   <= systemWe when sysCycle >= CYCLE_CPU0 else '0';
 ramCE   <= cs_ram when sysCycle = CYCLE_VIC0 or cpu_cyc = '1' else '0';
 cpu_cyc <= '1' when
-				(sysCycle = CYCLE_CPU4 and turbo_m = '1' and cs_ram = '1' ) or
+				(sysCycle = CYCLE_CPU0 and turbo_m(0) = '1' and cs_ram = '1' ) or
+				(sysCycle = CYCLE_CPU4 and turbo_m(1) = '1' and cs_ram = '1' ) or
+				(sysCycle = CYCLE_CPU8 and turbo_m(2) = '1' and cs_ram = '1' ) or
 				(sysCycle = CYCLE_CPUC and (io_enable = '1'  or cs_ram = '1')) else '0';
 
 process(clk32)
@@ -953,7 +961,16 @@ begin
 		-- 2 points to register DMA request before CPU cycles.
 		if sysCycle = CYCLE_EXT1 or sysCycle = CYCLE_EXT5 then
 			dma_active <= dma_req;
-			turbo_m <= not dma_req and turbo_state;
+			turbo_en <= turbo_mode(0);
+			turbo_m <= "000";
+			if dma_req = '0' and ((turbo_mode(0) and turbo_state) = '1' or turbo_mode(1) = '1') then
+				case turbo_speed is
+					when "00" => turbo_m <= "010";
+					when "01" => turbo_m <= "110";
+					when "10" => turbo_m <= "111";
+					when "11" => turbo_m <= "111"; -- unused
+				end case;
+			end if;
 		end if;
 	end if;
 end process;

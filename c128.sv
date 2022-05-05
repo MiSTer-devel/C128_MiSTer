@@ -947,6 +947,8 @@ fpga64_sid_iec fpga64
 	.vdcVersion({status[47],~status[46]^status[47]}),
 	.osmode(status[63]), // for testing, "0" C128, "1" C64
 	.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
+	.turbo_mode(2'b01),
+	.turbo_speed(2'b00),
 
 	.ps2_key(key),
 	.kbd_reset((~reset_n & ~status[1]) | reset_keys),

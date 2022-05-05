@@ -38,13 +38,16 @@ entity video_vicii_656x is
 		ba: out std_logic;
 		ba_dma : out std_logic;
 
-		mode6569 : in std_logic; -- PAL 63 cycles and 312 lines
+		mode6569 : in std_logic; -- PAL-B 63 cycles and 312 lines
 		mode6567old : in std_logic; -- old NTSC 64 cycles and 262 line
 		mode6567R8 : in std_logic; -- new NTSC 65 cycles and 263 line
 		mode6572 : in std_logic; -- PAL-N 65 cycles and 312 lines
-		mode856x : in std_logic; -- Enable I/O port at register $2F
 
-		turbo_en   : in  std_logic;
+		mode8564 : in std_logic; -- C128 VIC-II, NTSC
+		mode8566 : in std_logic; -- C128 VIC-II, PAL-B
+		mode8569 : in std_logic; -- C128 VIC-II, PAL-N
+
+		turbo_en: in std_logic;  -- Enable turbo mode in 64xx models
 		turbo_state: out std_logic;
 
 		reset : in std_logic;
@@ -266,12 +269,27 @@ architecture rtl of video_vicii_656x is
 	signal myWr_c : std_logic;
 	signal myRd : std_logic;
 
-	signal turbo_reg : std_logic;
-
--- I/O port (VIC 856x)
+-- I/O port (Model 856x)
    signal k_reg : unsigned(2 downto 0) := (others => '0');
+	signal turbo_reg : std_logic;
+	signal test_reg : std_logic;
+
+-- type selection
+	signal pal_b : std_logic;
+	signal pal_n : std_logic;
+	signal ntsc : std_logic;
+	signal ntsc_old : std_logic;
+	signal ntsc_new : std_logic;
+	signal vic2e : std_logic;
 
 begin
+	pal_b <= mode6569 or mode8566;
+	pal_n <= mode6572 or mode8569;
+	ntsc <= mode6567old or mode6567R8 or mode8564;
+	ntsc_old <= mode6567old;
+	ntsc_new <= mode6567R8 or mode8564;
+	vic2e <= mode8564 or mode8566 or mode8569;
+
 -- -----------------------------------------------------------------------
 -- Ouput signals
 -- -----------------------------------------------------------------------
@@ -350,10 +368,10 @@ begin
 			lastLineFlag <= false;
 
 			rasterLines := 311; -- PAL
-			if mode6567old = '1' then
+			if ntsc_old = '1' then
 				rasterLines := 261; -- NTSC (R7 and earlier have 262 lines)
 			end if;
-			if mode6567R8 = '1' then
+			if ntsc_new = '1' then
 				rasterLines := 262; -- NTSC (R8 and newer have 263 lines)
 			end if;
 			if rasterY = rasterLines then
@@ -374,7 +392,7 @@ vicStateMachine: process(clk)
 					case vicCycle is
 					when cycleRefresh1 =>
 						vicCycle <= cycleRefresh2;
-						if ((mode6567old or mode6567R8) = '1') then
+						if (ntsc = '1') then
 							vicCycle <= cycleIdle1;
 						end if;
 					when cycleIdle1    => vicCycle <= cycleRefresh2;
@@ -383,10 +401,10 @@ vicStateMachine: process(clk)
 					when cycleRefresh4 => vicCycle <= cycleRefresh5;
 					when cycleRefresh5 => vicCycle <= cycleChar;
 					when cycleChar =>
-						if ((mode6569  = '1') and rasterX(9 downto 3) = "0101000") -- PAL
-						or ((mode6567old  = '1') and rasterX(9 downto 3) = "0101000") -- Old NTSC
-						or ((mode6567R8  = '1') and rasterX(9 downto 3) = "0101001") -- New NTSC
-						or ((mode6572  = '1') and rasterX(9 downto 3) = "0101001") then -- PAL-N
+						if (pal_b = '1' and rasterX(9 downto 3) = "0101000") -- PAL
+						or (ntsc_old = '1' and rasterX(9 downto 3) = "0101000") -- Old NTSC
+						or (ntsc_new = '1' and rasterX(9 downto 3) = "0101001") -- New NTSC
+						or (pal_n = '1' and rasterX(9 downto 3) = "0101001") then -- PAL-N
 							vicCycle <= cycleCalcSprites;
 						end if;
 					when cycleCalcSprites => vicCycle <= cycleSpriteBa1;
@@ -878,11 +896,11 @@ lightPen: process(clk)
 -- -----------------------------------------------------------------------
 -- VSync
 -- -----------------------------------------------------------------------
-doVBlanking: process(clk, mode6569, mode6567old, mode6567R8)
+doVBlanking: process(clk, ntsc)
 		variable rasterBlank : integer range 0 to 300;
 	begin
 		rasterBlank := 300;
-		if (mode6567old or mode6567R8) = '1' then
+		if ntsc = '1' then
 			rasterBlank := 12;
 		end if;
 		if rising_edge(clk) then
@@ -1545,6 +1563,7 @@ writeRegisters: process(clk)
 				spriteColors(6) <= (others => '0');
 				spriteColors(7) <= (others => '0');
 				turbo_reg <= '0';
+				test_reg <= '0';
 				k_reg <= (others => '0');
 			else
 
@@ -1566,8 +1585,13 @@ writeRegisters: process(clk)
 					when "101100" => spriteColors(5) <= diRegisters(3 downto 0);
 					when "101101" => spriteColors(6) <= diRegisters(3 downto 0);
 					when "101110" => spriteColors(7) <= diRegisters(3 downto 0);
-					when "101111" => if mode856x = '1' then k_reg <= diRegisters(2 downto 0); end if;
-					when "110000" => turbo_reg <= diRegisters(0);
+					when "101111" => if vic2e = '1' then
+											  k_reg <= diRegisters(2 downto 0);
+										  end if;
+					when "110000" => if vic2e = '1' or turbo_en = '1' then
+											  turbo_reg <= diRegisters(0);
+											  test_reg <= diRegisters(1);
+										  end if;
 					when others => null;
 					end case;
 				end if;
@@ -1702,8 +1726,16 @@ readRegisters: process(clk)
 			when "101100" => do <= "1111" & spriteColors(5);
 			when "101101" => do <= "1111" & spriteColors(6);
 			when "101110" => do <= "1111" & spriteColors(7);
-			when "101111" => if mode856x = '1' then do <= ("11111" & k_reg); else do <= (others => '1'); end if;
-			when "110000" => do <= "1111111" & (turbo_reg or not turbo_en);
+			when "101111" => if vic2e = '1' then
+			                    do <= "11111" & k_reg;
+			                 else
+			                    do <= (others => '1');
+			                 end if;
+			when "110000" => if vic2e = '1' or turbo_en ='1' then
+									  do <= "111111" & test_reg & turbo_reg;
+								  else
+								     do <= (others => '1');
+								  end if;
 			when others => do <= (others => '1');
 			end case;
 			end if;
