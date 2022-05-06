@@ -11,8 +11,8 @@ entity mmu8722 is
 	port(
 		-- config
 		sys256k: in std_logic;  -- "0" 128k system RAM, "1" 256k system RAM
-		osmode: in std_logic;   -- (debug) reset state for ossel: "0" C128, "1" C64
-		cpumode: in std_logic;  -- (debug) reset state for cpusel: "0" Z80, "1" 8502
+		osmode: in std_logic;   -- (debug) reset state for c128_n: "0" C128, "1" C64
+		cpumode: in std_logic;  -- (debug) reset state for z80_n: "0" Z80, "1" 8502
 
 		-- bus
 		clk: in std_logic;
@@ -40,8 +40,8 @@ entity mmu8722 is
 		fsdiro: out std_logic;
 
 		-- system config
-		ossel: out std_logic;           -- "0" C128, "1" C64
-		cpusel: out std_logic;          -- "0" Z80, "1" 8502
+		c128_n: out std_logic;         -- "0" C128, "1" C64
+		z80_n: out std_logic;          -- "0" Z80, "1" 8502
 
 		-- translated address bus
 		tAddr: out unsigned(15 downto 0);
@@ -195,8 +195,8 @@ begin
 	begin
 		if rising_edge(clk) then
 			if (cpuHasBus = '0') then
-				ossel <= reg_os;
-				cpusel <= reg_cpu;
+				c128_n <= reg_os;
+				z80_n <= reg_cpu;
 
 				if reg_os = '0' then
 					-- C128/Z80 mode

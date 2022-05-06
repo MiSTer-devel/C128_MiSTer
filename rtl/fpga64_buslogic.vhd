@@ -41,8 +41,8 @@ entity fpga64_buslogic is
 		bankSwitch  : in unsigned(2 downto 0);
 
 		-- From MMU
-		cpusel      : in std_logic;             -- "0" Z80, "1" 8502
-		ossel       : in std_logic;             -- "0" C128, "1" C64
+		z80_n       : in std_logic;             -- "0" Z80, "1" 8502
+		c128_n      : in std_logic;             -- "0" C128, "1" C64
 		mmu_memC000 : in unsigned(1 downto 0);  -- $C000-$FFFF "00" Kernal ROM, "01" Int ROM, "10" Ext. ROM, "11" RAM
 		mmu_mem8000 : in unsigned(1 downto 0);  -- $8000-$BFFF "00" Basic ROM Hi, "01" Int ROM, "10" Ext. ROM, "11" RAM
 		mmu_mem4000 : in std_logic;             -- $4000-$7FFF "0" Basic ROM Lo, "1" RAM
@@ -153,7 +153,7 @@ architecture rtl of fpga64_buslogic is
 begin
 	-- character rom
 
-	charset_a12 <= (not ossel) when cpslk_mode = '0' else cpslk_sense;
+	charset_a12 <= (not c128_n) when cpslk_mode = '0' else cpslk_sense;
 
 	chargen: entity work.dprom
 	generic map ("rtl/roms/chargen.mif", 13)
@@ -334,11 +334,11 @@ begin
 		end if;
 	end process;
 
-	ultimax <= ossel and exrom and (not game);
+	ultimax <= exrom and (not game);
 
 	process(
 		cpuHasBus, cpuAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
-		ossel, cpusel, mmu_memC000, mmu_mem8000, mmu_mem4000, mmu_memD000, cpuBank, vicBank
+		c128_n, z80_n, mmu_memC000, mmu_mem8000, mmu_mem4000, mmu_memD000, cpuBank, vicBank
 	)
 	begin
 		currentAddr <= (others => '1');
@@ -368,7 +368,7 @@ begin
 		if (cpuHasBus = '1') then
 			currentAddr <= cpuBank & cpuAddr;
 
-			if ossel = '0' then
+			if c128_n = '0' then
 				-- C128 mode
 
 				case cpuAddr(15 downto 12) is
@@ -427,22 +427,7 @@ begin
 					else
 						cs_ramLoc <= '1';
 					end if;
-				when X"A" | X"B" =>
-					if cpuWe = '0' then
-						case mmu_mem8000 is
-							when B"00" =>
-								cs_rom23Loc <= '1';
-							when B"01" =>
-								cs_romF1Loc <= '1';
-							when B"10" =>
-								cs_romHLoc <= '1';
-							when B"11" =>
-								cs_ramLoc <= '1';
-						end case;
-					else
-					  cs_ramLoc <= '1';
-					end if;
-				when X"8" | X"9" =>
+				when X"8" | X"9" | X"A" | X"B" =>
 					if cpuWe = '0' then
 						case mmu_mem8000 is
 							when B"00" =>
@@ -464,7 +449,7 @@ begin
 						cs_rom23Loc <= '1';
 					end if;
 				when X"0" =>
-					if cpuWe = '1' or cpusel = '1' or mmu_memC000 /= "00" then
+					if cpuWe = '1' or z80_n = '1' or mmu_memC000 /= "00" then
 						cs_ramLoc <= '1';
 					else
 						cs_rom4Loc <= '1';

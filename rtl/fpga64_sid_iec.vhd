@@ -164,6 +164,10 @@ port(
 	-- Memory size
 	sys256k     : in  std_logic;
 
+	-- System mode
+	c128_n      : out std_logic;
+	z80_n       : out std_logic;
+
 	--test
 	osmode      : in  std_logic;
 	cpumode     : in  std_logic
@@ -291,8 +295,8 @@ signal cpuBank      : unsigned(1 downto 0);
 signal vicBank      : unsigned(1 downto 0);
 signal exrom_mmu    : std_logic;
 signal game_mmu     : std_logic;
-signal ossel        : std_logic;
-signal cpusel       : std_logic;
+signal mmu_c128_n   : std_logic;
+signal mmu_z80_n    : std_logic;
 signal mmu_memC000  : unsigned(1 downto 0);
 signal mmu_mem8000  : unsigned(1 downto 0);
 signal mmu_mem4000  : std_logic;
@@ -520,8 +524,8 @@ port map (
 
 	fsdiri => '1',
 
-	ossel => ossel,
-	cpusel => cpusel,
+	c128_n => mmu_c128_n,
+	z80_n => mmu_z80_n,
 
 	memC000 => mmu_memC000,
 	mem8000 => mmu_mem8000,
@@ -543,8 +547,8 @@ port map (
 	aec => aec,
 
 	bankSwitch => cpuIO(2 downto 0),
-	ossel => ossel,
-	cpusel => cpusel,
+	c128_n => mmu_c128_n,
+	z80_n => mmu_z80_n,
 	mmu_memC000 => mmu_memC000,
 	mmu_mem8000 => mmu_mem8000,
 	mmu_mem4000 => mmu_mem4000,
@@ -1000,6 +1004,9 @@ cpuWe   <= cpuWe_pre   when dma_active = '0' else dma_we;
 ext_cycle <= '1' when (sysCycle >= CYCLE_DMA0 and sysCycle <= CYCLE_DMA3) else '0';
 dma_cycle <= '1' when (sysCycle >= CYCLE_CPU0 and sysCycle <= CYCLE_CPUF) and cpuHasBus = '1' and dma_active = '1' else '0';
 dma_din   <= cpuDi;
+
+c128_n <= mmu_c128_n;
+z80_n <= mmu_z80_n;
 
 -- -----------------------------------------------------------------------
 -- Keyboard

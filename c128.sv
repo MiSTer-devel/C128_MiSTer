@@ -501,6 +501,7 @@ cartridge cartridge
 
 	.cart_loading(ioctl_download && load_crt),
 	.cart_id(cart_attached ? cart_id : status[52] ? 8'd99 : 8'd255),
+	.cart_c128(cart_c128),
 	.cart_exrom(cart_exrom),
 	.cart_game(cart_game),
 	.cart_bank_laddr(cart_bank_laddr),
@@ -513,6 +514,7 @@ cartridge cartridge
 	.exrom(exrom),
 	.game(game),
 
+	.c128_n(c128_n),
 	.romL(romL),
 	.romH(romH),
 	.UMAXromH(UMAXromH),
@@ -613,6 +615,7 @@ reg [24:0] ioctl_load_addr;
 reg        ioctl_req_wr;
 
 reg [15:0] cart_id;
+reg        cart_c128;
 reg [15:0] cart_bank_laddr;
 reg [15:0] cart_bank_size;
 reg [15:0] cart_bank_num;
@@ -686,6 +689,7 @@ always @(posedge clk_sys) begin
 				cart_hdr_cnt <= 0;
 			end
 
+			if (ioctl_addr == 8'h01) cart_c128       <= ioctl_data[0];
 			if (ioctl_addr == 8'h16) cart_id[15:8]   <= ioctl_data;
 			if (ioctl_addr == 8'h17) cart_id[7:0]    <= ioctl_data;
 			if (ioctl_addr == 8'h18) cart_exrom[7:0] <= ioctl_data;
@@ -1046,7 +1050,10 @@ fpga64_sid_iec fpga64
 	.cass_write(cass_write),
 	.cass_motor(cass_motor),
 	.cass_sense(~tape_adc_act & (use_tape ? cass_sense : cass_rtc)),
-	.cass_read(tape_adc_act ? ~tape_adc : cass_read)
+	.cass_read(tape_adc_act ? ~tape_adc : cass_read),
+
+	.c128_n(c128_n),
+	.z80_n(z80_n)
 );
 
 wire [7:0] mouse_x;
@@ -1064,6 +1071,9 @@ c1351 mouse
 	.potY(mouse_y),
 	.button(mouse_btn)
 );
+
+wire       c128_n;
+wire       z80_n;
 
 wire       c64_iec_clk;
 wire       c64_iec_data;

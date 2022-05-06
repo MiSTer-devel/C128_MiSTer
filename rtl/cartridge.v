@@ -8,9 +8,11 @@ module cartridge
 (
 	input             clk32,				 	// 32mhz clock source
 	input             reset_n,					// reset signal
+	input             c128_n,              // 0: C128 mode, 1: C64 mode
 
 	input             cart_loading,
 	input      [15:0] cart_id,					// cart ID or cart type
+	input             cart_c128,  			// native C128 cart
 	input       [7:0] cart_exrom,				// CRT file EXROM status
 	input       [7:0] cart_game,				// CRT file GAME status
 	input      [15:0] cart_bank_laddr,		// bank loading address
@@ -47,7 +49,7 @@ module cartridge
 
 reg  [6:0] bank_lo;
 reg  [6:0] bank_hi;
-reg [12:0] mask_lo;
+reg [13:0] mask_lo;
 
 reg [13:0] geo_bank;
 reg  [6:0] IOE_bank;
@@ -60,6 +62,7 @@ reg        game_overide;
 assign     exrom = exrom_overide |  force_ultimax;
 assign     game  = game_overide  & ~force_ultimax;
 
+// C64 cart: 64 banks of 8K, C128 cart: 32 banks of 16K
 (* ramstyle = "logic" *) reg [6:0] lobanks[0:63];
 (* ramstyle = "logic" *) reg [6:0] hibanks[0:63];
 
@@ -71,10 +74,15 @@ always @(posedge clk32) begin
 	if(~old_loading & cart_loading) bank_cnt <= 0;
 	if(cart_bank_wr) begin
 		bank_cnt <= bank_cnt + 1'd1;
-		if(cart_bank_num<64) begin
+		if(cart_bank_num<(cart_c128 ? 32 : 64)) begin
 			if(cart_bank_laddr <= 'h8000) begin
 				lobanks[cart_bank_num[5:0]] <= cart_bank_raddr[19:13];
-				if(cart_bank_size > 'h2000) hibanks[cart_bank_num[5:0]] <= cart_bank_raddr[19:13]+1'd1;
+				if (cart_c128) begin
+					if(cart_bank_size > 'h4000) hibanks[cart_bank_num[5:0]] <= cart_bank_raddr[19:13]+2'd2;
+				end
+				else begin
+					if(cart_bank_size > 'h2000) hibanks[cart_bank_num[5:0]] <= cart_bank_raddr[19:13]+1'd1;
+				end
 			end
 			else hibanks[cart_bank_num[5:0]] <= cart_bank_raddr[19:13];
 		end
@@ -130,6 +138,7 @@ always @(posedge clk32) begin
 	reg [15:0] count;
 	reg        count_ena;
 	reg [15:0] old_id;
+	reg        old_c128;
 
 	old_freeze <= freeze_key;
 	if(freeze_req & (allow_freeze | mod_key)) nmi <= 1;
@@ -139,8 +148,9 @@ always @(posedge clk32) begin
 
 	init_n <= 1;
 	old_id <= cart_id;
+	old_c128 <= cart_c128;
 
-	if(~reset_n || (old_id != cart_id)) begin
+	if(~reset_n || (old_id != cart_id) || (old_c128 != cart_c128)) begin
 		cart_disable <= 0;
 		bank_lo <= 0;
 		bank_hi <= 0;
@@ -154,7 +164,7 @@ always @(posedge clk32) begin
 		allow_freeze <= 1;
 		nmi <= 0;
 		saved_d6 <= 0;
-		mask_lo <= 13'h1FFF;
+		mask_lo <= 14'h3FFF;
 		exrom_overide <= 1;
 		game_overide <= 1;
 		rom_kbb <= 0;
@@ -162,11 +172,11 @@ always @(posedge clk32) begin
 	end
 	else
 	case(cart_id)
-
-		// Generic 8k(exrom=0,game=1), 16k(exrom=0,game=0), ULTIMAX(exrom=1,game=0)
-		0:	begin
-				exrom_overide <= cart_exrom[0];
-				game_overide <= cart_game[0];
+		// C64: Generic 8k(exrom=0,game=1), 16k(exrom=0,game=0), ULTIMAX(exrom=1,game=0)
+		// C128: Generic external function ROM (exrom=1,game=1)
+		0: begin
+				exrom_overide <= cart_exrom[0] | cart_c128;
+				game_overide <= cart_game[0] | cart_c128;
 				bank_lo <= lobanks[0];
 				bank_hi <= hibanks[0];
 			end
@@ -704,8 +714,9 @@ assign mem_ce_out = mem_ce | (cs_ioe & stb_ioe) | (cs_iof & stb_iof);
 function [7:0] get_bank;
 	input [6:0] bank;
 	input       ram;
+	input       addr13;
 begin
-	get_bank = ram ? {5'b00001, bank[2:0]} : {1'b1, bank[6:0]};
+	get_bank = ram ? {5'b00001, bank[2:0]} : (cart_c128 ? {1'b1, bank[5:0], addr13} : {1'b1, bank[6:0]} );
 end
 endfunction
 
@@ -720,13 +731,13 @@ always begin
 	addr_out = addr_in;
 
 	if(reset_n) begin
-		if(romH & (romH_we | ~mem_write)) addr_out[24:13] =  get_bank(bank_hi, romH_we);
-		if(romL & (romL_we | ~mem_write)) addr_out        = {get_bank(bank_lo, romL_we), addr_in[12:0] & mask_lo};
+		if(romH & (romH_we | ~mem_write)) addr_out[24:13] =  get_bank(bank_hi, romH_we, addr_in[13]);
+		if(romL & (romL_we | ~mem_write)) addr_out        = {get_bank(bank_lo, romL_we, addr_in[13] & mask_lo[13]), addr_in[12:0] & mask_lo[12:0]};
 
-		if(cs_ioe) addr_out[24:13] = get_bank(IOE_bank, IOE_wr_ena); // read/write to DExx
-		if(cs_iof) addr_out[24:13] = get_bank(IOF_bank, IOF_wr_ena); // read/write to DFxx
+		if(cs_ioe) addr_out[24:13] = get_bank(IOE_bank, IOE_wr_ena, 0); // read/write to DExx
+		if(cs_iof) addr_out[24:13] = get_bank(IOF_bank, IOF_wr_ena, 0); // read/write to DFxx
 
-		if(UMAXromH) addr_out[24:12] = {get_bank(bank_hi, 0), 1'b1}; // ULTIMAX CharROM
+		if(UMAXromH) addr_out[24:12] = {get_bank(bank_hi, 0, 0), 1'b1}; // ULTIMAX CharROM
 
 		case(cart_id)
 			36: if(IOE && !(addr_in[7:0] & (clock_port ? 8'hF0 : 8'hFE)) && ~cart_disable) begin
@@ -736,11 +747,12 @@ always begin
 				end
 			54: if(rom_kbb && addr_in[15:13] == 3'b111 && !mem_write) begin
 					force_ultimax = 1;
-					addr_out[24:13] = get_bank(2, 0);
+					addr_out[24:13] = get_bank(2, 0, 0);
 				end
 			99: if(IOE) begin
 					addr_out[24:8] <= {3'b011, geo_bank};
 				end
+			255: if(romH || romL) addr_out = 0;
 		default:;
 		endcase
 	end
