@@ -145,6 +145,7 @@ architecture rtl of fpga64_buslogic is
 	signal cs_UMAXromHLoc : std_logic;
 	signal cs_UMAXnomapLoc: std_logic;
 	signal charset_a12    : std_logic;
+	signal rom23_a14      : std_logic;
 	signal ultimax        : std_logic;
 
 	signal currentAddr    : unsigned(17 downto 0);
@@ -204,7 +205,7 @@ begin
 		data => rom_data,
 		wraddress => rom_addr(14 downto 0),
 
-		rdaddress => std_logic_vector(currentAddr(14 downto 0)),
+		rdaddress => std_logic_vector(not cpuAddr(14) & cpuAddr(13 downto 0)),
 		q => rom23Data_std
 	);
 
@@ -215,7 +216,7 @@ begin
 		wrclock => clk,
 		rdclock => clk,
 
-		rdaddress => std_logic_vector(currentAddr(14 downto 0)),
+		rdaddress => std_logic_vector(cpuAddr(14 downto 0)),
 		q => rom23Data_dcr
 	);
 
@@ -238,7 +239,7 @@ begin
 		data => rom_data,
 		wraddress => rom_addr(13 downto 0),
 
-		rdaddress => std_logic_vector(currentAddr(13) & tAddr(12) & currentAddr(11 downto 0)),
+		rdaddress => std_logic_vector(cpuAddr(13) & tAddr(12) & cpuAddr(11 downto 0)),
 		q => rom4Data_std
 	);
 
@@ -249,7 +250,7 @@ begin
 		wrclock => clk,
 		rdclock => clk,
 
-		rdaddress => std_logic_vector(currentAddr(13) & tAddr(12) & currentAddr(11 downto 0)),
+		rdaddress => std_logic_vector(cpuAddr(13) & tAddr(12) & cpuAddr(11 downto 0)),
 		q => rom4Data_dcr
 	);
 
@@ -266,7 +267,7 @@ begin
 		data => rom_data,
 		wraddress => rom_addr(13 downto 0),
 
-		rdaddress => std_logic_vector(currentAddr(13 downto 0)),
+		rdaddress => std_logic_vector(cpuAddr(13 downto 0)),
 		q => romF1Data
 	);
 
