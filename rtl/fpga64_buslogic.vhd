@@ -31,6 +31,7 @@ entity fpga64_buslogic is
 
 		cpuHasBus   : in std_logic;
 		aec         : in std_logic;
+		z80io       : in std_logic;
 
 		ramData     : in unsigned(7 downto 0);
 
@@ -338,7 +339,7 @@ begin
 
 	process(
 		cpuHasBus, cpuAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
-		c128_n, z80_n, mmu_memC000, mmu_mem8000, mmu_mem4000, mmu_memD000, cpuBank, vicBank
+		c128_n, z80_n, z80io, mmu_memC000, mmu_mem8000, mmu_mem4000, mmu_memD000, cpuBank, vicBank
 	)
 	begin
 		currentAddr <= (others => '1');
@@ -368,12 +369,40 @@ begin
 		if (cpuHasBus = '1') then
 			currentAddr <= cpuBank & cpuAddr;
 
-			if c128_n = '0' then
-				-- C128 mode
+			if (z80io = '1') then
+				-- Z80 I/O
+				if cpuAddr(15 downto 12) = X"D" then
+					case cpuAddr(11 downto 8) is
+						when X"0" | X"1" | X"2" | X"3" =>
+							cs_vicLoc <= '1';
+						when X"4" =>
+							cs_sidLoc <= '1';
+						when X"5" =>
+							cs_mmuLLoc <= '1';
+						when X"6" =>
+							cs_vdcLoc <= '1';
+						when X"8" | X"9" | X"A" | X"B" =>
+							cs_colorLoc <= '1';
+						when X"C" =>
+							cs_cia1Loc <= '1';
+						when X"D" =>
+							cs_cia2Loc <= '1';
+						when X"E" =>
+							cs_ioELoc <= '1';
+						when X"F" =>
+							cs_ioFLoc <= '1';
+						when others =>
+							null;
+					end case;
+				end if;
+
+			elsif c128_n = '0' then
+				-- C128
 
 				case cpuAddr(15 downto 12) is
 				when X"C" | X"E" | X"F" =>
 					if cpuAddr(15 downto 3) = "1111111100000" and cpuAddr(2 downto 0) < X"5" then
+						-- MMU
 						cs_mmuHLoc <= '1';
 					elsif cpuWe = '0' then
 						case mmu_memC000 is
@@ -390,7 +419,8 @@ begin
 						cs_ramLoc <= '1';
 					end if;
 				when X"D" =>
-					if mmu_memD000 = '0' then
+					if (z80_n = '1' and mmu_memD000 = '0') then
+						-- TODO: can Z80 access I/O through memory too?
 						case cpuAddr(11 downto 8) is
 							when X"0" | X"1" | X"2" | X"3" =>
 								cs_vicLoc <= '1';
@@ -443,17 +473,19 @@ begin
 						cs_ramLoc <= '1';
 					end if;
 				when X"4" | X"5" | X"6" | X"7" =>
-					if cpuWe = '1' or mmu_mem4000 = '1' then
-						cs_ramLoc <= '1';
-					else
+					if cpuWe = '0' and mmu_mem4000 = '0' then
 						cs_rom23Loc <= '1';
+					else
+						cs_ramLoc <= '1';
 					end if;
 				when X"0" =>
-					if cpuWe = '1' or z80_n = '1' or mmu_memC000 /= "00" then
-						cs_ramLoc <= '1';
+					if z80_n = '0' then
+						-- TODO: can Z80 write into RAM here?
+						cs_rom4Loc <= not cpuWE;
 					else
-						cs_rom4Loc <= '1';
+						cs_ramLoc <= '1';
 					end if;
+
 				when others =>
 					cs_ramLoc <= '1';
 				end case;

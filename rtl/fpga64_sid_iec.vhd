@@ -229,13 +229,22 @@ signal cs_cia1      : std_logic;
 signal cs_cia2      : std_logic;
 signal cs_ram       : std_logic;
 signal cpuWe        : std_logic;
-signal cpuWe_pre    : std_logic;
+signal cpuWe_nd     : std_logic;
+signal cpuWe_T65    : std_logic;
+signal cpuWe_T80    : std_logic;
 signal cpuAddr      : unsigned(15 downto 0);
-signal cpuAddr_pre  : unsigned(15 downto 0);
+signal cpuAddr_nd   : unsigned(15 downto 0);
+signal cpuAddr_T65  : unsigned(15 downto 0);
+signal cpuAddr_T80  : unsigned(15 downto 0);
 signal cpuDi        : unsigned(7 downto 0);
 signal cpuDo        : unsigned(7 downto 0);
-signal cpuDo_pre    : unsigned(7 downto 0);
-signal cpuIO        : unsigned(7 downto 0);
+signal cpuDo_nd     : unsigned(7 downto 0);
+signal cpuDo_T65    : unsigned(7 downto 0);
+signal cpuDo_T80    : unsigned(7 downto 0);
+signal cpuPO        : unsigned(7 downto 0);
+signal cpuIO_T80    : std_logic;
+signal cpuIrq_n     : std_logic;
+signal cpuBusAk_T80_n: std_logic;
 signal io_data_i    : unsigned(7 downto 0);
 signal ioe_i        : std_logic;
 signal iof_i        : std_logic;
@@ -546,9 +555,10 @@ port map (
 	cpuHasBus => cpuHasBus,
 	aec => aec,
 
-	bankSwitch => cpuIO(2 downto 0),
+	bankSwitch => cpuPO(2 downto 0),
 	c128_n => mmu_c128_n,
 	z80_n => mmu_z80_n,
+	z80io => cpuIO_T80,
 	mmu_memC000 => mmu_memC000,
 	mmu_mem8000 => mmu_mem8000,
 	mmu_mem4000 => mmu_mem4000,
@@ -567,7 +577,7 @@ port map (
 	ramData => ramDin,
 
 	cpuWe => cpuWe,
-	cpuAddr => tAddr,
+	cpuAddr => cpuAddr,
 	cpuData => cpuDo,
 	vicAddr => vicAddr,
 	vicData => vicData,
@@ -935,29 +945,47 @@ begin
 end process;
 
 -- -----------------------------------------------------------------------
--- 6510 CPU / DMA
+-- CPU / DMA
 -- -----------------------------------------------------------------------
-cpu: entity work.cpu_6510
+cpuIrq_n <= irq_cia1 and irq_vic and irq_n and irq_ext_n;
+
+cpu_6510: entity work.cpu_6510
+port map (
+	clk => clk32,
+	reset => reset,
+	enable => (not cpuBusAk_T80_n) and enableCpu and not dma_active,
+	nmi_n => irq_cia2 and nmi_n,
+	nmi_ack => nmi_ack,
+	irq_n => cpuIrq_n,
+	rdy => baLoc,
+
+	di => cpuDi,
+	addr => cpuAddr_T65,
+	do => cpuDo_T65,
+	we => cpuWe_T65,
+
+	diIO => cpuPO(7) & cpuPO(6) & cpuPO(5) & cass_sense & cpuPO(3) & "111",
+	doIO => cpuPO
+);
+
+cass_motor <= cpuPO(5);
+cass_write <= cpuPO(3);
+
+cpu_z80: entity work.cpu_z80
 port map (
 	clk => clk32,
 	reset => reset,
 	enable => enableCpu and not dma_active,
-	nmi_n => irq_cia2 and nmi_n,
-	nmi_ack => nmi_ack,
-	irq_n => irq_cia1 and irq_vic and irq_n and irq_ext_n,
-	rdy => baLoc,
+	busrq_n => not mmu_z80_n,
+	busak_n => cpuBusAk_T80_n,
+	irq_n => cpuIrq_n,
 
 	di => cpuDi,
-	addr => cpuAddr_pre,
-	do => cpuDo_pre,
-	we => cpuWe_pre,
-
-	diIO => cpuIO(7) & cpuIO(6) & cpuIO(5) & cass_sense & cpuIO(3) & "111",
-	doIO => cpuIO
+	addr => cpuAddr_T80,
+	do => cpuDo_T80,
+	we => cpuWe_T80,
+	io => cpuIO_T80
 );
-
-cass_motor <= cpuIO(5);
-cass_write <= cpuIO(3);
 
 ramDout <= cpuDo;
 ramAddr <= systemAddr;
@@ -985,21 +1013,29 @@ begin
 			dma_active <= dma_req;
 			turbo_en <= turbo_mode(0);
 			turbo_m <= "000";
-			if dma_req = '0' and ((turbo_mode(0) and turbo_state) = '1' or turbo_mode(1) = '1') then
-				case turbo_speed is
-					when "00" => turbo_m <= "010";
-					when "01" => turbo_m <= "110";
-					when "10" => turbo_m <= "111";
-					when "11" => turbo_m <= "111"; -- unused
-				end case;
+			if dma_req = '0' then
+				if cpuBusAk_T80_n = '1' then
+					turbo_m <= '0' & (not cpuIO_T80) & '0';
+				elsif ((turbo_mode(0) and turbo_state) = '1' or turbo_mode(1) = '1') then
+					case turbo_speed is
+						when "00" => turbo_m <= "010";
+						when "01" => turbo_m <= "110";
+						when "10" => turbo_m <= "111";
+						when "11" => turbo_m <= "111"; -- unused
+					end case;
+				end if;
 			end if;
 		end if;
 	end if;
 end process;
 
-cpuAddr <= cpuAddr_pre when dma_active = '0' else dma_addr;
-cpuDo   <= cpuDo_pre   when dma_active = '0' else dma_dout;
-cpuWe   <= cpuWe_pre   when dma_active = '0' else dma_we;
+cpuAddr_nd <= cpuAddr_T80 when cpuBusAk_T80_n = '1' else cpuAddr_T65;
+cpuDo_nd   <= cpuDo_T80   when cpuBusAk_T80_n = '1' else cpuDo_T65;
+cpuWe_nd   <= cpuWe_T80   when cpuBusAk_T80_n = '1' else cpuWe_T65;
+
+cpuAddr <= cpuAddr_nd when dma_active = '0' else dma_addr;
+cpuDo   <= cpuDo_nd   when dma_active = '0' else dma_dout;
+cpuWe   <= cpuWe_nd   when dma_active = '0' else dma_we;
 
 ext_cycle <= '1' when (sysCycle >= CYCLE_DMA0 and sysCycle <= CYCLE_DMA3) else '0';
 dma_cycle <= '1' when (sysCycle >= CYCLE_CPU0 and sysCycle <= CYCLE_CPUF) and cpuHasBus = '1' and dma_active = '1' else '0';
