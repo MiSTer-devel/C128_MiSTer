@@ -209,18 +209,16 @@ begin
 					addrH := addr(15 downto 8);
 					crBank := "00" & reg_cr(7 downto 6) and bankmask;
 
-					if addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
-						-- When reading from $0xxx in Z80 mode, always read from $Dxxx. Buslogic will enable ROM4
-						cpuBank <= "00";
+					cpuBank <= "00";
+					if crBank = B"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
+						-- When reading from $00xxx in Z80 mode, always read from $0Dxxx. Buslogic will enable ROM4
 						ta_buf := X"D" & addr(11 downto 8);
 					elsif crBank = reg_p0h and addrH = reg_p0l then
-						cpuBank <= "00";
 						ta_buf := X"00";
 					elsif addrH = X"00" then
 						cpuBank <= reg_p0h(1 downto 0) and bankmask;
 						ta_buf := reg_p0l;
 					elsif crBank = reg_p1h and addrH = reg_p1l then
-						cpuBank <= "00";
 						ta_buf := X"01";
 					elsif addrH = X"01" then
 						cpuBank <= reg_p1h(1 downto 0) and bankmask;

@@ -479,7 +479,7 @@ begin
 						cs_ramLoc <= '1';
 					end if;
 				when X"0" =>
-					if z80_n = '0' then
+					if z80_n = '0' and cpuBank = B"00" then
 						-- TODO: can Z80 write into RAM here?
 						cs_rom4Loc <= not cpuWE;
 					else
