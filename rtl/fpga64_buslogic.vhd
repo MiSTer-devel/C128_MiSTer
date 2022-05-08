@@ -35,10 +35,10 @@ entity fpga64_buslogic is
 
 		ramData     : in unsigned(7 downto 0);
 
-		-- From CPU (64 mode only)
-		-- 2 CHAREN
-		-- 1 HIRAM
-		-- 0 LORAM
+		--   C64 mode   C128 mode
+		-- 2 CHAREN     1=Disable char rom in VIC
+		-- 1 HIRAM      VIC color bank
+		-- 0 LORAM      CPU color bank
 		bankSwitch  : in unsigned(2 downto 0);
 
 		-- From MMU
@@ -103,7 +103,11 @@ entity fpga64_buslogic is
 		cs_ioF      : out std_logic;
 		cs_romL     : out std_logic;
 		cs_romH     : out std_logic;
-		cs_UMAXromH : out std_logic
+		cs_UMAXromH : out std_logic;
+
+		-- Others
+		colorBank   : out std_logic;
+		vicCharEn   : out std_logic
 	);
 end fpga64_buslogic;
 
@@ -365,6 +369,7 @@ begin
 		cs_romHLoc <= '0'; -- external rom H
 		cs_UMAXromHLoc <= '0';		-- Ultimax flag for the VIC access - LCA
 		cs_UMAXnomapLoc <= '0';
+		colorBank <= bankSwitch(0) and not c128_n;
 
 		if (cpuHasBus = '1') then
 			currentAddr <= cpuBank & cpuAddr;
@@ -582,11 +587,14 @@ begin
 			-- The VIC-II has the bus, but only when aec is asserted
 			if aec = '1' then
 				currentAddr <= vicBank & vicAddr;
+				colorBank <= bankSwitch(1) and not c128_n;
 			else
 				currentAddr <= cpuBank & cpuAddr;
 			end if;
 
-			if ultimax = '0' and vicAddr(14 downto 12)="001" then
+			if c128_n = '0' and vicAddr(13 downto 12)="01" then
+				vicCharLoc <= not bankSwitch(2);
+			elsif ultimax = '0' and vicAddr(14 downto 12)="001" then
 				vicCharLoc <= '1';
 			elsif ultimax = '1' and vicAddr(13 downto 12)="11" then
 				-- ultimax mode changes vic addressing - LCA

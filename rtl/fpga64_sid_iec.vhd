@@ -302,6 +302,7 @@ signal mmu_do       : unsigned(7 downto 0);
 signal tAddr        : unsigned(15 downto 0);
 signal cpuBank      : unsigned(1 downto 0);
 signal vicBank      : unsigned(1 downto 0);
+signal colorBank    : std_logic;
 signal exrom_mmu    : std_logic;
 signal game_mmu     : std_logic;
 signal mmu_c128_n   : std_logic;
@@ -487,12 +488,12 @@ end process;
 colorram: entity work.spram
 generic map (
 	DATA_WIDTH => 4,
-	ADDR_WIDTH => 10
+	ADDR_WIDTH => 11
 )
 port map (
 	clk => clk32,
 	we => cs_color and pulseWr_io,
-	addr => systemAddr(9 downto 0),
+	addr => colorBank & systemAddr(9 downto 0),
 	data => cpuDo(3 downto 0),
 	q => colorData
 );
@@ -615,7 +616,9 @@ port map (
 	rom_data => rom_data,
 	rom14_wr => rom14_wr,
 	rom23_wr => rom23_wr,
-	romF1_wr => romF1_wr
+	romF1_wr => romF1_wr,
+
+	colorBank => colorBank
 );
 
 IOE <= ioe_i;
