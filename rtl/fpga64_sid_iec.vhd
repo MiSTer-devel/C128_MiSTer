@@ -218,6 +218,7 @@ signal irq_vic      : std_logic;
 signal systemWe     : std_logic;
 signal pulseWr_io   : std_logic;
 signal systemAddr   : unsigned(17 downto 0);
+signal xlatedAddr   : unsigned(17 downto 0);
 
 signal cs_vic       : std_logic;
 signal cs_sid       : std_logic;
@@ -514,7 +515,6 @@ port map (
 	cpumode => cpumode,  -- debug
 
 	we => pulseWr_io,
-	cpuHasBus => cpuHasBus,
 
 	addr => cpuAddr,
 	di => cpuDo,
@@ -592,6 +592,7 @@ port map (
 
 	systemWe => systemWe,
 	systemAddr => systemAddr,
+	xlatedAddr => xlatedAddr,
 	dataToCpu => cpuDi,
 	dataToVic => vicDi,
 
@@ -991,7 +992,7 @@ port map (
 );
 
 ramDout <= cpuDo;
-ramAddr <= systemAddr;
+ramAddr <= xlatedAddr;
 ramWE   <= systemWe when sysCycle >= CYCLE_CPU0 else '0';
 ramCE   <= cs_ram when sysCycle = CYCLE_VIC0 or cpu_cyc = '1' else '0';
 cpu_cyc <= '1' when

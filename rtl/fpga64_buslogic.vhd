@@ -85,6 +85,7 @@ entity fpga64_buslogic is
 
 		systemWe    : out std_logic;
 		systemAddr  : out unsigned(17 downto 0);
+		xlatedAddr  : out unsigned(17 downto 0);
 		dataToCpu   : out unsigned(7 downto 0);
 		dataToVic   : out unsigned(7 downto 0);
 
@@ -347,6 +348,7 @@ begin
 	)
 	begin
 		currentAddr <= (others => '1');
+		xlatedAddr <= (others => '1');
 		systemWe <= '0';
 		vicCharLoc <= '0';
 		cs_CharLoc <= '0';
@@ -373,6 +375,7 @@ begin
 
 		if (cpuHasBus = '1') then
 			currentAddr <= cpuBank & cpuAddr;
+			xlatedAddr <= cpuBank & tAddr;
 
 			if (z80io = '1') then
 				-- Z80 I/O
@@ -587,9 +590,11 @@ begin
 			-- The VIC-II has the bus, but only when aec is asserted
 			if aec = '1' then
 				currentAddr <= vicBank & vicAddr;
+				xlatedAddr <= vicBank & vicAddr;
 				colorBank <= bankSwitch(1) and not c128_n;
 			else
 				currentAddr <= cpuBank & cpuAddr;
+				xlatedAddr <= cpuBank & tAddr;
 			end if;
 
 			if c128_n = '0' and vicAddr(13 downto 12)="01" then

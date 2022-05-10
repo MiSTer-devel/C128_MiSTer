@@ -22,7 +22,6 @@ entity mmu8722 is
 		cs_lr: in std_logic;  -- select Load registers at $FF0x
 
 		we: in std_logic;
-		cpuHasBus: in std_logic;
 
 		addr: in unsigned(15 downto 0);
 		di: in unsigned(7 downto 0);
@@ -84,8 +83,7 @@ architecture rtl of mmu8722 is
 	signal exrom : std_logic;
 	signal game : std_logic;
 
-	signal bankmask : unsigned(1 downto 0);
-	signal common_mask: unsigned(7 downto 0) := "11111100";
+	signal systemMask: unsigned(1 downto 0);
 
 begin
 
@@ -111,7 +109,6 @@ begin
 				reg_commonH <= '0';
 				reg_commonL <= '0';
 				reg_commonSz <= (others => '0');
-				common_mask <= "11111100";
 				reg_p0hb <= (others => '0');
 				reg_p0h <= (others => '0');
 				reg_p0l <= (others => '0');
@@ -142,12 +139,6 @@ begin
 					              reg_commonL <= di(2);
 					              reg_commonH <= di(3);
 					              reg_vicbank <= di(7 downto 6);
-									  case reg_commonSz is
-									  when "00" => common_mask <= "11111100";
-									  when "01" => common_mask <= "11110000";
-									  when "10" => common_mask <= "11100000";
-									  when "11" => common_mask <= "11000000";
-									  end case;
 					when X"07" => reg_p0l <= di;
 					              reg_p0h <= reg_p0hb;
 					when X"08" => reg_p0hb <= di(3 downto 0);
@@ -185,66 +176,79 @@ begin
 	gameo <= game;
 	exromo <= exrom;
 	fsdiro <= fsdir;
-	bankmask <= sys256k & "1";
+	systemMask <= sys256k & "1";
 
 	translate_addr: process(clk)
+	variable cpuMask: unsigned(1 downto 0);
 	variable crBank: unsigned(3 downto 0);
-	variable ta_buf: unsigned(7 downto 0);
-	variable ta_common: unsigned(7 downto 0);
-	variable addrH: unsigned(15 downto 8);
+	variable page: unsigned(15 downto 8);
+	variable tPage: unsigned(15 downto 8);
+	variable commonPage: unsigned(7 downto 0);
+	variable commonMem: std_logic;
+	variable commonPageMask: unsigned(7 downto 0);
 	begin
+		page := addr(15 downto 8);
 		if rising_edge(clk) then
-			if (cpuHasBus = '0') then
-				c128_n <= reg_os;
-				z80_n <= reg_cpu;
+			c128_n <= reg_os;
+			z80_n <= reg_cpu;
 
-				if reg_os = '0' then
-					-- C128/Z80 mode
-					memC000 <= reg_cr(5 downto 4);
-					mem8000 <= reg_cr(3 downto 2);
-					mem4000 <= reg_cr(1);
-					memD000 <= reg_cr(0);
+			if reg_os = '0' then
+				-- C128/Z80 mode
+				memC000 <= reg_cr(5 downto 4);
+				mem8000 <= reg_cr(3 downto 2);
+				mem4000 <= reg_cr(1);
+				memD000 <= reg_cr(0);
 
-					vicBank <= reg_vicbank and bankmask;
-					addrH := addr(15 downto 8);
-					crBank := "00" & reg_cr(7 downto 6) and bankmask;
+				vicBank <= reg_vicbank and systemMask;
 
-					cpuBank <= "00";
-					if crBank = B"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
-						-- When reading from $00xxx in Z80 mode, always read from $0Dxxx. Buslogic will enable ROM4
-						ta_buf := X"D" & addr(11 downto 8);
-					elsif crBank = reg_p0h and addrH = reg_p0l then
-						ta_buf := X"00";
-					elsif addrH = X"00" then
-						cpuBank <= reg_p0h(1 downto 0) and bankmask;
-						ta_buf := reg_p0l;
-					elsif crBank = reg_p1h and addrH = reg_p1l then
-						ta_buf := X"01";
-					elsif addrH = X"01" then
-						cpuBank <= reg_p1h(1 downto 0) and bankmask;
-						ta_buf := reg_p1l;
-					else
-						cpuBank <= crBank(1 downto 0);
-						ta_buf := addrH;
-					end if;
+				case reg_commonSz is
+				when "00" => commonPageMask := "11111100"; -- 00..03 / FC..FF = 1k
+				when "01" => commonPageMask := "11110000"; -- 00..0F / F0..FF = 4k
+				when "10" => commonPageMask := "11100000"; -- 00..1F / E0..FF = 8k
+				when "11" => commonPageMask := "11000000"; -- 00..3F / C0..FF =16k
+				end case;
 
-					ta_common := ta_buf and common_mask;
-					if (reg_commonH = '1' and ta_common = common_mask) or (reg_commonL = '1' and ta_common = "00000000") then
-						cpuBank <= "00";
-					end if;
-
-					tAddr <= ta_buf & addr(7 downto 0);
+				commonPage := page and commonPageMask;
+				if (reg_commonH = '1' and commonPage = commonPageMask) or (reg_commonL = '1' and commonPage = "00000000") then
+					cpuMask := "00";
+					crBank := "0000";
 				else
-					-- C64 mode
-					memC000 <= "00";
-					mem8000 <= "00";
-					mem4000 <= '0';
-					memD000 <= '0';
-					vicBank <= "00";
-					cpuBank <= "00";
-
-					tAddr <= addr;
+					cpuMask := systemMask;
+					crBank := "00" & reg_cr(7 downto 6) and systemMask;
 				end if;
+
+				cpuBank <= "00";
+				if crBank = B"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
+					-- When reading from $00xxx in Z80 mode, always read from $0Dxxx. Buslogic will enable ROM4
+					tPage := X"D" & addr(11 downto 8);
+				elsif page = X"01" then
+					cpuBank <= reg_p1h(1 downto 0) and cpuMask;
+					tPage := reg_p1l;
+				elsif page = X"00" then
+					cpuBank <= reg_p0h(1 downto 0) and cpuMask;
+					tPage := reg_p0l;
+				elsif crBank = reg_p1h and page = reg_p1l then
+					cpuBank <= reg_p1h(1 downto 0) and cpuMask;
+					tPage := X"01";
+				elsif crBank = reg_p0h and page = reg_p0l then
+					cpuBank <= reg_p0h(1 downto 0) and cpuMask;
+					tPage := X"00";
+				else
+					cpuBank <= crBank(1 downto 0);
+					tPage := page;
+				end if;
+
+				tAddr <= tPage & addr(7 downto 0);
+			else
+				-- C64 mode
+				memC000 <= "00";
+				mem8000 <= "00";
+				mem4000 <= '0';
+				memD000 <= '0';
+				vicBank <= "00";
+				cpuBank <= "00";
+
+				tAddr <= addr;
 			end if;
 		end if;
 	end process;
@@ -257,7 +261,7 @@ begin
 		if rising_edge(clk) then
 			if we = '0' and (cs_io = '1' or cs_lr = '1') then
 				case addr(7 downto 0) is
-				when X"00" => do <= (reg_cr(7 downto 6) and bankmask) & reg_cr(5 downto 0);
+				when X"00" => do <= (reg_cr(7 downto 6) and systemMask) & reg_cr(5 downto 0);
 				when X"01" => do <= reg_pcr(0);
 				when X"02" => do <= reg_pcr(1);
 				when X"03" => do <= reg_pcr(2);
