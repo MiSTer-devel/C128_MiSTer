@@ -498,6 +498,7 @@ begin
 					cs_ramLoc <= '1';
 				end case;
 
+				systemWe <= cpuWe;
 			else
 				-- C64 mode
 
@@ -582,9 +583,8 @@ begin
 					end if;
 				end case;
 
+				systemWe <= cpuWe;
 			end if;
-
-			systemWe <= cpuWe;
 
 		else
 			-- The VIC-II has the bus, but only when aec is asserted
