@@ -187,8 +187,9 @@ begin
 	variable commonMem: std_logic;
 	variable commonPageMask: unsigned(7 downto 0);
 	begin
-		page := addr(15 downto 8);
 		if rising_edge(clk) then
+			page := addr(15 downto 8);
+
 			c128_n <= reg_os;
 			z80_n <= reg_cpu;
 

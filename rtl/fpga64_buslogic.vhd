@@ -107,8 +107,7 @@ entity fpga64_buslogic is
 		cs_UMAXromH : out std_logic;
 
 		-- Others
-		colorBank   : out std_logic;
-		vicCharEn   : out std_logic
+		colorBank   : out std_logic
 	);
 end fpga64_buslogic;
 
@@ -343,7 +342,7 @@ begin
 	ultimax <= exrom and (not game);
 
 	process(
-		cpuHasBus, cpuAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
+		cpuHasBus, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
 		c128_n, z80_n, z80io, mmu_memC000, mmu_mem8000, mmu_mem4000, mmu_memD000, cpuBank, vicBank
 	)
 	begin
