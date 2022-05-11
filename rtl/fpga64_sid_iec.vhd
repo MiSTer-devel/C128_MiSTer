@@ -210,6 +210,8 @@ signal enableVdc    : std_logic;
 signal enablePixel0 : std_logic;
 signal enablePixel1 : std_logic;
 signal enableSid    : std_logic;
+signal enable8502   : std_logic;
+signal enableZ80    : std_logic;
 
 signal irq_cia1     : std_logic;
 signal irq_cia2     : std_logic;
@@ -957,7 +959,7 @@ cpu_6510: entity work.cpu_6510
 port map (
 	clk => clk32,
 	reset => reset,
-	enable => (not cpuBusAk_T80_n) and enableCpu and not dma_active,
+	enable => enable8502 and enableCpu and not dma_active,
 	nmi_n => irq_cia2 and nmi_n,
 	nmi_ack => nmi_ack,
 	irq_n => cpuIrq_n,
@@ -980,7 +982,7 @@ port map (
 	clk => clk32,
 	reset => reset,
 	enable => enableCpu and not dma_active,
-	busrq_n => not mmu_z80_n,
+	busrq_n => enableZ80,
 	busak_n => cpuBusAk_T80_n,
 	irq_n => cpuIrq_n,
 
@@ -1009,6 +1011,8 @@ begin
 		io_enable <= io_enable and not enableCpu;
 
 		if sysCycle = CYCLE_EXT0 then
+			enableZ80 <= not mmu_z80_n;
+			enable8502 <= not cpuBusAk_T80_n;
 			io_enable <= '1';
 		end if;
 
