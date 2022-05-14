@@ -1,4 +1,4 @@
-`define VDC16K  // Enable to reduce memory usage during debugging
+// `define VDC16K  // Enable to reduce memory usage during debugging
 
 module vdc_ramiface (
 	input          ram64k,   // 0 = 16kB, 1 = 64kB -- available RAM
