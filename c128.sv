@@ -192,7 +192,7 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXX XXXXXXXXXXX   XX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   XX
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -228,6 +228,7 @@ localparam CONF_STR = {
 	"P1OIJ,Stereo Mix,None,25%,50%,100%;",
 	"P1-;",
 	"P1oEF,VDC version,8563 R8,8563 R7a,8568 R9 (DCR);",
+	"P1oG,VDC memory,16k,64k;",
 
 	"P2,Hardware;",
 	"P2oPQ,Enable Drive #8,If Mounted,Always,Never;",
@@ -949,6 +950,7 @@ fpga64_sid_iec fpga64
 
 	.sys256k(status[49]),
 	.vdcVersion({status[47],~status[46]^status[47]}),
+	.vdc64k(status[48]),
 	.osmode(status[63]), // for testing, "0" C128, "1" C64
 	.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
 	.turbo_mode(2'b01),
