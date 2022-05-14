@@ -161,8 +161,9 @@ port(
 	-- VDC
 	vdcVersion  : in  unsigned(1 downto 0);
 
-	-- Memory size
+	-- Memory sizes
 	sys256k     : in  std_logic;
+	vdc64k      : in  std_logic;
 
 	-- System mode
 	c128_n      : out std_logic;
@@ -381,6 +382,8 @@ end component;
 component vdc_top
 	port (
 		version       : in  unsigned(1 downto 0);
+		ram64k        : in  std_logic;
+
 		clk           : in  std_logic;
 		reset         : in  std_logic;
 		init          : in  std_logic;
@@ -785,13 +788,14 @@ end process;
 vdc: vdc_top
 port map (
 	version => vdcVersion,
+	ram64k => vdc64k,
 
 	clk => clk32,
 	reset => reset,
 	init => '0',
 
 	cs => cs_vdc and enableVdc,
-	we => cpuWe,
+	we => pulseWr_io,
 
 	rs => tAddr(0),
 	db_in => cpuDo,

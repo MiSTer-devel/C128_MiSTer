@@ -1,6 +1,7 @@
 
 module vdc_top (
 	input    [1:0] version,   // 0=REV7A (8563), 1=REV8 (8563), 2=REV9 (8568)
+	input          ram64k,    // 0=16K RAM, 1=64K RAM
 
 	input          clk,
 	input          reset,
@@ -17,8 +18,8 @@ module vdc_top (
 );
 
 // version  chip
-//   0      8563 R7A    initial version, 16k RAM
-//   1      8563 R8     changes to R25, 16k RAM
+//   0      8563 R7A    initial version, 16k or 64k RAM
+//   1      8563 R8     changes to R25, 16k or 64k RAM
 //   2      8568 R9     adds R37, 64k RAM
 
 									 // Reg      Init value  Description
@@ -58,7 +59,7 @@ reg   [3:0] reg_fg;         // R26[7:4]    F white  Foreground RGBI
 reg   [3:0] reg_bg;         // R26[3:0]    0 black  Background RGBI
 reg   [7:0] reg_ai;         // R27        00 0      Address increment per row
 reg   [2:0] reg_cb;         // R28[7:5]    1 2000   Character set start address
-reg         reg_ram;        // R28[4]      0 4416   RAM type
+reg         reg_ram;        // R28[4]      0 4416   RAM type (0=16k accessible, 1=64k accessible)
 reg   [4:0] reg_ul;         // R29        07 7      Underline scan line
 reg   [7:0] reg_wc;         // R30                  Word count
 reg   [7:0] reg_da;         // R31                  Data (in)
@@ -75,31 +76,28 @@ reg         lpStatus;       // light pen status
 reg         vSync;          // vertical sync
 reg         hSync;          // horizontal sync
 
-wire			busy;
+wire        busy;
 
-wire        enablePixel = enablePixel0 & (~reg_dbl & enablePixel1);
+wire        enablePixel = enablePixel0 | (~reg_dbl & enablePixel1);
 
-vdc_ram ram (
-	.ramsize(version[1]),
+vdc_ramiface ram (
+	.ram64k(ram64k),
 	.clk(clk),
+	.enable(enablePixel),
 	.reset(reset),
-	.update(cs && rs && we && !busy),
-	.regSel(regSel),
+	.regA(regSel),
 	.db_in(db_in),
+	.cs(cs),
+	.rs(rs),
+	.we(we),
+	.reg_copy(reg_copy),
+	.reg_ram(reg_ram),
 	.reg_ua(reg_ua),
 	.reg_wc(reg_wc),
 	.reg_da(reg_da),
 	.reg_ba(reg_ba),
-	.reg_copy(reg_copy),
 	.busy(busy)
 );
-
-always @(posedge clk) begin
-	if (reset || init) begin
-		vSync <= 0;
-		hSync <= 0;
-	end
-end
 
 // Internal registers
 always @(posedge clk) begin
@@ -151,124 +149,122 @@ always @(posedge clk) begin
 	end
 	else if (cs)
 		if (we) begin
-			if (!busy)
-				if (!rs) begin
-					regSel <= db_in;
-				end
-				else begin
-					// writes to R18-R19 and R31-R33 are handled by the `vdc_ram` module
-					case (regSel)
-						8'd00: reg_ht        <= db_in;
-						8'd01: reg_hd        <= db_in;
-						8'd02: reg_hp        <= db_in;
-						8'd03: begin
-									 reg_vw     <= db_in[7:4];
-									 reg_hw     <= db_in[3:0];
-								 end
-						8'd04: reg_vt        <= db_in;
-						8'd05: reg_va        <= db_in[4:0];
-						8'd06: reg_vd        <= db_in;
-						8'd07: reg_vp        <= db_in;
-						8'd08: reg_im        <= db_in[1:0];
-						8'd09: reg_ctv       <= db_in[4:0];
-						8'd10: begin
-									 reg_cm     <= db_in[6:5];
-									 reg_cs     <= db_in[4:0];
-								 end
-						8'd11: reg_ce        <= db_in[4:0];
-						8'd12: reg_ds[15:8]  <= db_in;
-						8'd13: reg_ds[7:0]   <= db_in;
-						8'd14: reg_cp[15:8]  <= db_in;
-						8'd15: reg_cp[7:0]   <= db_in;
-						// R16-R17 are read-only
-						// writes to R18-R19 are handled by the ram process
-						8'd20: reg_aa[15:8]  <= db_in;
-						8'd21: reg_aa[7:0]   <= db_in;
-						8'd22: begin
-									 reg_cth    <= db_in[7:4];
-									 reg_cdh    <= db_in[3:0];
-								 end
-						8'd23: reg_cdv       <= db_in[4:0];
-						8'd24: begin
-									 reg_copy   <= db_in[7];
-									 reg_rvs    <= db_in[6];
-									 reg_cbrate <= db_in[5];
-									 reg_vss    <= db_in[4:0];
-								 end
-						8'd25: begin
-									 reg_text   <= db_in[7];
-									 reg_atr    <= db_in[6];
-									 reg_semi   <= db_in[5];
-									 reg_dbl    <= db_in[4];
-									 reg_hss    <= db_in[3:0];
-								 end
-						8'd26: begin
-									 reg_fg     <= db_in[7:4];
-									 reg_bg     <= db_in[3:0];
-								 end
-						8'd27: reg_ai        <= db_in;
-						8'd28: begin
-									 reg_cb     <= db_in[7:5];
-									 reg_ram    <= db_in[4];
-								 end
-						8'd29: reg_ul        <= db_in[4:0];
-						// writes to R30-R33 are handled by the ram process
-						8'd34: reg_deb       <= db_in;
-						8'd35: reg_dee       <= db_in;
-						8'd36: reg_drr       <= db_in[3:0];
-						// R37 only exists in 8568
-						8'd37: if (version[1]) begin
-									 reg_hspol  <= db_in[7];
-									 reg_vspol  <= db_in[6];
-								 end
-					endcase
-				end
+			if (!rs) begin
+				regSel <= db_in;
+			end
+			else if (!busy) begin
+				case (regSel)
+					 0: reg_ht       <= db_in;
+					 1: reg_hd       <= db_in;
+					 2: reg_hp       <= db_in;
+					 3: begin
+							reg_vw     <= db_in[7:4];
+							reg_hw     <= db_in[3:0];
+						end
+					 4: reg_vt       <= db_in;
+					 5: reg_va       <= db_in[4:0];
+					 6: reg_vd       <= db_in;
+					 7: reg_vp       <= db_in;
+					 8: reg_im       <= db_in[1:0];
+					 9: reg_ctv      <= db_in[4:0];
+					10: begin
+							reg_cm     <= db_in[6:5];
+							reg_cs     <= db_in[4:0];
+						end
+					11: reg_ce       <= db_in[4:0];
+					12: reg_ds[15:8] <= db_in;
+					13: reg_ds[7:0]  <= db_in;
+					14: reg_cp[15:8] <= db_in;
+					15: reg_cp[7:0]  <= db_in;
+					// R16-R17 are read-only
+					// writes to R18-R19 are handled by vdc_ramiface
+					20: reg_aa[15:8] <= db_in;
+					21: reg_aa[7:0]  <= db_in;
+					22: begin
+							reg_cth    <= db_in[7:4];
+							reg_cdh    <= db_in[3:0];
+						end
+					23: reg_cdv      <= db_in[4:0];
+					24: begin
+							reg_copy   <= db_in[7];
+							reg_rvs    <= db_in[6];
+							reg_cbrate <= db_in[5];
+							reg_vss    <= db_in[4:0];
+						end
+					25: begin
+							reg_text   <= db_in[7];
+							reg_atr    <= db_in[6];
+							reg_semi   <= db_in[5];
+							reg_dbl    <= db_in[4];
+							reg_hss    <= db_in[3:0];
+						end
+					26: begin
+							reg_fg     <= db_in[7:4];
+							reg_bg     <= db_in[3:0];
+						end
+					27: reg_ai       <= db_in;
+					28: begin
+							reg_cb     <= db_in[7:5];
+							reg_ram    <= db_in[4];
+						end
+					29: reg_ul       <= db_in[4:0];
+					// writes to R30-R33 are handled by vdc_ramiface
+					34: reg_deb      <= db_in;
+					35: reg_dee      <= db_in;
+					36: reg_drr      <= db_in[3:0];
+					// R37 only exists in 8568
+					37: if (version[1]) begin
+							reg_hspol  <= db_in[7];
+							reg_vspol  <= db_in[6];
+						end
+				endcase
+			end
 		end
 		else
 			if (!rs) begin
 				db_out <= {~busy, lpStatus, vSync, 3'b000, version};
 				lpStatus <= 0;
 			end
-			else
+			else if (!busy)
 				case (regSel)
-					8'd00: db_out <= reg_ht;
-					8'd01: db_out <= reg_hd;
-					8'd02: db_out <= reg_hp;
-					8'd03: db_out <= {reg_vw, reg_hw};
-					8'd04: db_out <= reg_vt;
-					8'd05: db_out <= {3'b111, reg_va};
-					8'd06: db_out <= reg_vd;
-					8'd07: db_out <= reg_vp;
-					8'd08: db_out <= {6'b111111, reg_im};
-					8'd09: db_out <= {3'b111, reg_ctv};
-					8'd10: db_out <= {1'b1, reg_cm, reg_cs};
-					8'd11: db_out <= {3'b111, reg_ce};
-					8'd12: db_out <= reg_ds[15:8];
-					8'd13: db_out <= reg_ds[7:0];
-					8'd14: db_out <= reg_cp[15:8];
-					8'd15: db_out <= reg_cp[7:0];
-					8'd16: db_out <= reg_lpv;
-					8'd17: db_out <= reg_lph;
-					8'd18: db_out <= reg_ua[15:8];
-					8'd19: db_out <= reg_ua[7:0];
-					8'd20: db_out <= reg_aa[15:8];
-					8'd21: db_out <= reg_aa[7:0];
-					8'd22: db_out <= reg_cth & reg_cdh;
-					8'd23: db_out <= {3'b111, reg_cdv};
-					8'd24: db_out <= {reg_copy, reg_rvs, reg_cbrate, reg_vss};
-					8'd25: db_out <= {reg_text, reg_atr, reg_semi, reg_dbl, reg_hss};
-					8'd26: db_out <= {reg_fg, reg_bg};
-					8'd27: db_out <= reg_ai;
-					8'd28: db_out <= {reg_cb, reg_ram, 4'b1111};
-					8'd29: db_out <= {3'b111, reg_ul};
-					8'd30: db_out <= reg_wc;
-					8'd31: db_out <= reg_da;
-					8'd32: db_out <= reg_ba[15:8];
-					8'd33: db_out <= reg_ba[7:0];
-					8'd34: db_out <= reg_deb;
-					8'd35: db_out <= reg_dee;
-					8'd36: db_out <= {4'b1111, reg_drr};
-					8'd37: db_out <= {reg_hspol|~version[1], reg_vspol|~version[1], 6'b111111};
+					 0: db_out <= reg_ht;
+					 1: db_out <= reg_hd;
+					 2: db_out <= reg_hp;
+					 3: db_out <= {reg_vw, reg_hw};
+					 4: db_out <= reg_vt;
+					 5: db_out <= {3'b111, reg_va};
+					 6: db_out <= reg_vd;
+					 7: db_out <= reg_vp;
+					 8: db_out <= {6'b111111, reg_im};
+					 9: db_out <= {3'b111, reg_ctv};
+					10: db_out <= {1'b1, reg_cm, reg_cs};
+					11: db_out <= {3'b111, reg_ce};
+					12: db_out <= reg_ds[15:8];
+					13: db_out <= reg_ds[7:0];
+					14: db_out <= reg_cp[15:8];
+					15: db_out <= reg_cp[7:0];
+					16: db_out <= reg_lpv;
+					17: db_out <= reg_lph;
+					18: db_out <= reg_ua[15:8];
+					19: db_out <= reg_ua[7:0];
+					20: db_out <= reg_aa[15:8];
+					21: db_out <= reg_aa[7:0];
+					22: db_out <= reg_cth & reg_cdh;
+					23: db_out <= {3'b111, reg_cdv};
+					24: db_out <= {reg_copy, reg_rvs, reg_cbrate, reg_vss};
+					25: db_out <= {reg_text, reg_atr, reg_semi, reg_dbl, reg_hss};
+					26: db_out <= {reg_fg, reg_bg};
+					27: db_out <= reg_ai;
+					28: db_out <= {reg_cb, reg_ram, 4'b1111};
+					29: db_out <= {3'b111, reg_ul};
+					30: db_out <= reg_wc;
+					31: db_out <= reg_da;
+					32: db_out <= reg_ba[15:8];
+					33: db_out <= reg_ba[7:0];
+					34: db_out <= reg_deb;
+					35: db_out <= reg_dee;
+					36: db_out <= {4'b1111, reg_drr};
+					37: db_out <= {reg_hspol|~version[1], reg_vspol|~version[1], 6'b111111};
 					default: db_out <= 8'b11111111;
 				endcase
 end

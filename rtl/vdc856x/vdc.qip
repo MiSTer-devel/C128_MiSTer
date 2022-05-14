@@ -1,2 +1,3 @@
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) vdc_top.sv ]
-set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) vdc_ram.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) vdc_ramiface.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) vdcram.v ]
