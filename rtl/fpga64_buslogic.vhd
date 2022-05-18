@@ -32,6 +32,7 @@ entity fpga64_buslogic is
 		cpuHasBus   : in std_logic;
 		aec         : in std_logic;
 		z80io       : in std_logic;
+		z80m1n      : in std_logic;
 
 		ramData     : in unsigned(7 downto 0);
 
@@ -85,7 +86,6 @@ entity fpga64_buslogic is
 
 		systemWe    : out std_logic;
 		systemAddr  : out unsigned(17 downto 0);
-		xlatedAddr  : out unsigned(17 downto 0);
 		dataToCpu   : out unsigned(7 downto 0);
 		dataToVic   : out unsigned(7 downto 0);
 
@@ -107,7 +107,7 @@ entity fpga64_buslogic is
 		cs_UMAXromH : out std_logic;
 
 		-- Others
-		colorBank   : out std_logic
+		colorA10    : out std_logic
 	);
 end fpga64_buslogic;
 
@@ -154,6 +154,7 @@ architecture rtl of fpga64_buslogic is
 	signal ultimax        : std_logic;
 
 	signal currentAddr    : unsigned(17 downto 0);
+	
 
 begin
 	-- character rom
@@ -190,7 +191,7 @@ begin
 		data => rom_data,
 		wraddress => rom_addr(13 downto 0),
 
-		rdaddress => std_logic_vector(cpuAddr(14) & cpuAddr(12 downto 0)),
+		rdaddress => std_logic_vector((cpuAddr(13) and cpuAddr(14)) & cpuAddr(12 downto 0)),
 		q => rom1Data
 	);
 
@@ -231,7 +232,8 @@ begin
 	-- rom loc -> mem loc  contents
 	-- 0000    -> C000     editor
 	-- 1000    -> 0000     z80 bios     (MMU sets tAddr(12) to 1 in Z80 mode when reading from $0xxx)
-	-- 2000    -> E000     c128 Kernal
+	-- 2000    -> E000     c128 kernal
+	-- 3000    -> F000     c128 kernal
 
 	rom4_std: entity work.dprom
 	generic map ("rtl/roms/std_kernal_C128.mif", 14)
@@ -261,20 +263,21 @@ begin
 
 	rom4Data <= rom4Data_dcr when dcr_ena = '1' else rom4Data_std;
 
-	romF1: entity work.dprom
-	-- generic map ("rtl/roms/function.mif", 14)
-	port map
-	(
-		wrclock => clk,
-		rdclock => clk,
-
-		wren => romF1_wr,
-		data => rom_data,
-		wraddress => rom_addr(13 downto 0),
-
-		rdaddress => std_logic_vector(cpuAddr(13 downto 0)),
-		q => romF1Data
-	);
+	-- romF1: entity work.dprom
+	-- -- generic map ("rtl/roms/function.mif", 14)
+	-- port map
+	-- (
+	-- 	wrclock => clk,
+	-- 	rdclock => clk,
+	--
+	-- 	wren => romF1_wr,
+	-- 	data => rom_data,
+	-- 	wraddress => rom_addr(13 downto 0),
+	--
+	-- 	rdaddress => std_logic_vector(cpuAddr(13 downto 0)),
+	-- 	q => romF1Data
+	-- );
+	romF1Data <= (others => '0');
 
 	process(clk)
 	begin
@@ -347,7 +350,7 @@ begin
 	)
 	begin
 		currentAddr <= (others => '1');
-		xlatedAddr <= (others => '1');
+		colorA10 <= '0';
 		systemWe <= '0';
 		vicCharLoc <= '0';
 		cs_CharLoc <= '0';
@@ -370,34 +373,32 @@ begin
 		cs_romHLoc <= '0'; -- external rom H
 		cs_UMAXromHLoc <= '0';		-- Ultimax flag for the VIC access - LCA
 		cs_UMAXnomapLoc <= '0';
-		colorBank <= bankSwitch(0) and not c128_n;
 
 		if (cpuHasBus = '1') then
-			currentAddr <= cpuBank & cpuAddr;
-			xlatedAddr <= cpuBank & tAddr;
+			currentAddr <= cpuBank & tAddr;
 
 			if (z80io = '1') then
-				-- Z80 I/O
+				-- Z80 I/O -- available regardless of mmu_memD000 setting
 				if cpuAddr(15 downto 12) = X"D" then
 					case cpuAddr(11 downto 8) is
 						when X"0" | X"1" | X"2" | X"3" =>
 							cs_vicLoc <= '1';
 						when X"4" =>
-							cs_sidLoc <= '1';
+							cs_sidLoc <= z80m1n;
 						when X"5" =>
 							cs_mmuLLoc <= '1';
 						when X"6" =>
-							cs_vdcLoc <= '1';
+							cs_vdcLoc <= z80m1n;
 						when X"8" | X"9" | X"A" | X"B" =>
 							cs_colorLoc <= '1';
 						when X"C" =>
-							cs_cia1Loc <= '1';
+							cs_cia1Loc <= z80m1n;
 						when X"D" =>
-							cs_cia2Loc <= '1';
+							cs_cia2Loc <= z80m1n;
 						when X"E" =>
-							cs_ioELoc <= '1';
+							cs_ioELoc <= z80m1n;
 						when X"F" =>
-							cs_ioFLoc <= '1';
+							cs_ioFLoc <= z80m1n;
 						when others =>
 							null;
 					end case;
@@ -408,8 +409,7 @@ begin
 
 				case cpuAddr(15 downto 12) is
 				when X"C" | X"E" | X"F" =>
-					if cpuAddr(15 downto 3) = "1111111100000" and cpuAddr(2 downto 0) < X"5" then
-						-- MMU
+					if cpuAddr(15 downto 4) = X"FF0" and cpuAddr(3 downto 0) < X"5" then
 						cs_mmuHLoc <= '1';
 					elsif cpuWe = '0' then
 						case mmu_memC000 is
@@ -427,26 +427,26 @@ begin
 					end if;
 				when X"D" =>
 					if (z80_n = '1' and mmu_memD000 = '0') then
-						-- TODO: can Z80 access I/O through memory too?
+						-- Memory mapped I/O, not available to Z80
 						case cpuAddr(11 downto 8) is
 							when X"0" | X"1" | X"2" | X"3" =>
 								cs_vicLoc <= '1';
 							when X"4" =>
-								cs_sidLoc <= '1';
+								cs_sidLoc <= z80m1n;
 							when X"5" =>
 								cs_mmuLLoc <= '1';
 							when X"6" =>
-								cs_vdcLoc <= '1';
+								cs_vdcLoc <= z80m1n;
 							when X"8" | X"9" | X"A" | X"B" =>
 								cs_colorLoc <= '1';
 							when X"C" =>
-								cs_cia1Loc <= '1';
+								cs_cia1Loc <= z80m1n;
 							when X"D" =>
-								cs_cia2Loc <= '1';
+								cs_cia2Loc <= z80m1n;
 							when X"E" =>
-								cs_ioELoc <= '1';
+								cs_ioELoc <= z80m1n;
 							when X"F" =>
-								cs_ioFLoc <= '1';
+								cs_ioFLoc <= z80m1n;
 							when others =>
 								null;
 						end case;
@@ -486,9 +486,8 @@ begin
 						cs_ramLoc <= '1';
 					end if;
 				when X"0" =>
-					if z80_n = '0' and cpuBank = B"00" then
-						-- TODO: can Z80 write into RAM here?
-						cs_rom4Loc <= not cpuWE;
+					if z80_n = '0' and cpuBank = B"00" and cpuWe = '0' then
+						cs_rom4Loc <= '1';
 					else
 						cs_ramLoc <= '1';
 					end if;
@@ -524,19 +523,19 @@ begin
 							when X"0" | X"1" | X"2" | X"3" =>
 								cs_vicLoc <= '1';
 							when X"4" =>
-								cs_sidLoc <= '1';
+								cs_sidLoc <= z80m1n;
 							when X"6" =>
-								cs_vdcLoc <= '1';
+								cs_vdcLoc <= z80m1n;
 							when X"8" | X"9" | X"A" | X"B" =>
 								cs_colorLoc <= '1';
 							when X"C" =>
-								cs_cia1Loc <= '1';
+								cs_cia1Loc <= z80m1n;
 							when X"D" =>
-								cs_cia2Loc <= '1';
+								cs_cia2Loc <= z80m1n;
 							when X"E" =>
-								cs_ioELoc <= '1';
+								cs_ioELoc <= z80m1n;
 							when X"F" =>
-								cs_ioFLoc <= '1';
+								cs_ioFLoc <= z80m1n;
 							when others =>
 								null;
 						end case;
@@ -589,17 +588,16 @@ begin
 			-- The VIC-II has the bus, but only when aec is asserted
 			if aec = '1' then
 				currentAddr <= vicBank & vicAddr;
-				xlatedAddr <= vicBank & vicAddr;
-				colorBank <= bankSwitch(1) and not c128_n;
 			else
-				currentAddr <= cpuBank & cpuAddr;
-				xlatedAddr <= cpuBank & tAddr;
+				currentAddr <= cpuBank & tAddr;
 			end if;
 
-			if c128_n = '0' and vicAddr(13 downto 12)="01" then
-				vicCharLoc <= not bankSwitch(2);
-			elsif ultimax = '0' and vicAddr(14 downto 12)="001" then
-				vicCharLoc <= '1';
+			if ultimax = '0' and vicAddr(13 downto 12)="01" then
+				if c128_n = '0' then
+					vicCharLoc <= not bankSwitch(2);
+				elsif vicAddr(14) = '0' then
+					vicCharLoc <= '1';
+				end if;
 			elsif ultimax = '1' and vicAddr(13 downto 12)="11" then
 				-- ultimax mode changes vic addressing - LCA
 				cs_UMAXromHLoc <= '1';
@@ -607,6 +605,15 @@ begin
 				cs_ramLoc <= '1';
 			end if;
 		end if;
+
+		if (c128_n = '0') then
+			if (cpuHasBus = '1' or aec = '0') then
+				colorA10 <= bankSwitch(0);
+			else
+				colorA10 <= bankSwitch(1);
+			end if;
+		end if;
+
 	end process;
 
 	cs_ram <= cs_ramLoc or cs_romLLoc or cs_romHLoc or cs_UMAXromHLoc or cs_UMAXnomapLoc or cs_CharLoc or cs_rom1Loc or cs_rom23Loc or cs_rom4Loc or cs_romF1Loc;
