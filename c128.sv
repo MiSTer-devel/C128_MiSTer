@@ -761,10 +761,10 @@ always @(posedge clk_sys) begin
 
 				// Initialize BASIC pointers to simulate the BASIC LOAD command
 				case(ioctl_load_addr)
-					// TXT (2B-2C)
+					// TXT (2D-2E)
 					// Set these two bytes to $01, $08 just as they would be on reset (the BASIC LOAD command does not alter these)
-					'h2B: inj_meminit_data <= 'h01;
-					'h2C: inj_meminit_data <= 'h08;
+					'h2D: inj_meminit_data <= 'h01;
+					'h2E: inj_meminit_data <= 'h1C;
 
 					// SAVE_START (AC-AD)
 					// Set these two bytes to zero just as they would be on reset (the BASIC LOAD command does not alter these)
@@ -772,8 +772,8 @@ always @(posedge clk_sys) begin
 
 					// VAR (2D-2E), ARY (2F-30), STR (31-32), LOAD_END (AE-AF)
 					// Set these just as they would be with the BASIC LOAD command (essentially they are all set to the load end address)
-					'h2D, 'h2F, 'h31, 'hAE: inj_meminit_data <= inj_end[7:0];
-					'h2E, 'h30, 'h32, 'hAF: inj_meminit_data <= inj_end[15:8];
+					'h2F, 'h31, 'h33, 'hAE: inj_meminit_data <= inj_end[7:0];
+					'h30, 'h32, 'h34, 'hAF: inj_meminit_data <= inj_end[15:8];
 
 					default: begin
 						ioctl_req_wr <= 0;
