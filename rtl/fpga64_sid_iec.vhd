@@ -31,6 +31,10 @@
 -- various fixes and tweaks
 --
 -- -----------------------------------------------------------------------
+--
+-- Erik Scheffers 2022
+--
+-- updated for C128
 
 
 library IEEE;

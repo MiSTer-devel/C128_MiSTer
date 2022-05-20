@@ -1,3 +1,9 @@
+/********************************************************************************
+ * Commodore 128 VDC
+ * 
+ * for the C128 MiSTer FPGA core, by Erik Scheffers
+ ********************************************************************************/
+
 // `define VDC16K  // Enable to reduce memory usage during debugging
 
 module vdc_ramiface (

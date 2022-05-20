@@ -1,3 +1,9 @@
+---------------------------------------------------------------------------------
+-- Commodore 128 Z80 glue logic
+-- 
+-- for the C128 MiSTer FPGA core, by Erik Scheffers
+---------------------------------------------------------------------------------
+
 library IEEE;
 use ieee.std_logic_1164.ALL;
 use ieee.numeric_std.ALL;

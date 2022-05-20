@@ -2,6 +2,7 @@
 	CRT cartridge handling for C64 L.C.Ashmore 2017
 
 	Improvements by Sorgelig
+	C128 changes by Erik Scheffers
 */
 
 module cartridge

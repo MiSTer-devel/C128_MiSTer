@@ -17,6 +17,10 @@
 -- Basic, Char and Kernel ROMs are included
 -- Original Kernel replaced by JiffyDos
 -- -----------------------------------------------------------------------
+--
+-- Erik Scheffers 2022
+--
+-- updated for C128
 
 library IEEE;
 USE ieee.std_logic_1164.ALL;
@@ -222,7 +226,7 @@ begin
 		wrclock => clk,
 		rdclock => clk,
 
-		rdaddress => std_logic_vector(cpuAddr(14 downto 0)),
+		rdaddress => std_logic_vector(not cpuAddr(14) & cpuAddr(13 downto 0)),
 		q => rom23Data_dcr
 	);
 

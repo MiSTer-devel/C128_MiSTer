@@ -14,6 +14,10 @@
 -- -----------------------------------------------------------------------
 -- Dar 08/03/2014 : shift hsync to sprite #3
 -- -----------------------------------------------------------------------
+--
+-- Erik Scheffers 2022
+--
+-- updated for C128: (vic2e) added mode85xx settings and ko output pins
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
