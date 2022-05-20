@@ -2,7 +2,11 @@ set_global_assignment -name QIP_FILE rtl/sid/sid.qip
 set_global_assignment -name QIP_FILE rtl/opl3/opl3.qip
 set_global_assignment -name QIP_FILE rtl/iec_drive/iec_drive.qip
 set_global_assignment -name QIP_FILE rtl/t65/t65.qip
+set_global_assignment -name QIP_FILE rtl/t80/t80.qip
+set_global_assignment -name QIP_FILE rtl/vdc856x/vdc.qip
 set_global_assignment -name VHDL_FILE rtl/cpu_6510.vhd
+set_global_assignment -name VHDL_FILE rtl/cpu_z80.vhd
+set_global_assignment -name VHDL_FILE rtl/mmu8722.vhd
 set_global_assignment -name VERILOG_FILE rtl/mos6526.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/rtcF83.sv
 set_global_assignment -name VERILOG_FILE rtl/sdram.v
@@ -18,4 +22,4 @@ set_global_assignment -name VHDL_FILE rtl/fpga64_rgbcolor.vhd
 set_global_assignment -name VHDL_FILE rtl/fpga64_keyboard.vhd
 set_global_assignment -name VHDL_FILE rtl/fpga64_buslogic.vhd
 set_global_assignment -name VHDL_FILE rtl/fpga64_sid_iec.vhd
-set_global_assignment -name SYSTEMVERILOG_FILE c64.sv
+set_global_assignment -name SYSTEMVERILOG_FILE c128.sv
