@@ -592,12 +592,8 @@ begin
 				currentAddr <= cpuBank & tAddr;
 			end if;
 
-			if ultimax = '0' and vicAddr(13 downto 12)="01" then
-				if c128_n = '0' then
-					vicCharLoc <= not bankSwitch(2);
-				elsif vicAddr(14) = '0' then
-					vicCharLoc <= '1';
-				end if;
+			if ultimax = '0' and vicAddr(13 downto 12)="01" and ((c128_n = '0' and bankSwitch(2) = '0') or (c128_n = '1' and vicAddr(14) = '0')) then
+				vicCharLoc <= '1';
 			elsif ultimax = '1' and vicAddr(13 downto 12)="11" then
 				-- ultimax mode changes vic addressing - LCA
 				cs_UMAXromHLoc <= '1';
