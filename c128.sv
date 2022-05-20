@@ -192,13 +192,13 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   XX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   
 
 `include "build_id.v"
 localparam CONF_STR = {
 	"C128;UART9600:2400;",
-	"oUV,Boot Mode,Z80,C128,C64;", // for testing
-	"-;",
+	//"oUV,Boot Mode,Z80,C128,C64;", // for testing
+	//"-;",
 	"H7S0,D64G64T64D81,Mount #8;",
 	"H0S1,D64G64T64D81,Mount #9;",
 	"-;",
@@ -216,10 +216,10 @@ localparam CONF_STR = {
 	"d1P1o0,Vertical Crop,No,Yes;",
 	"P1OUV,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
 	"P1-;",
-	"P1OD,Left SID,6581,8580;",
-	"D4P1o23,Left Filter,Default,Custom 1,Custom 2,Custom 3;",
-	"P1OG,Right SID,6581,8580;",
-	"D5P1o56,Right Filter,Default,Custom 1,Custom 2,Custom 3;",
+	"P1OD,Left SID,8580,6581;",
+	"d4P1o23,Left Filter,Default,Custom 1,Custom 2,Custom 3;",
+	"P1OG,Right SID,8580,6581;",
+	"d5P1o56,Right Filter,Default,Custom 1,Custom 2,Custom 3;",
 	"P1OKM,Right SID Port,Same,DE00,D420,D500,DF00;",
 	"P1FC7,FLT,Load Custom Filters;",
 	"P1-;",
@@ -228,7 +228,7 @@ localparam CONF_STR = {
 	"P1OIJ,Stereo Mix,None,25%,50%,100%;",
 	"P1-;",
 	"P1oEF,VDC version,8563 R8,8563 R7a,8568 R9 (DCR);",
-	"P1oG,VDC memory,16k,64k;",
+	"D6P1oG,VDC memory,16k,64k;",
 
 	"P2,Hardware;",
 	"P2oPQ,Enable Drive #8,If Mounted,Always,Never;",
@@ -442,7 +442,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 	.paddle_3(pd4),
 
 	.status(status),
-	.status_menumask({status[58], 1'b0, status[16], status[13], tap_loaded, 1'b0, |vcrop, status[56]}),
+	.status_menumask({1'b0, status[47], status[16], status[13], tap_loaded, 1'b0, |vcrop, status[56]}),
 	.buttons(buttons),
 	.forced_scandoubler(forced_scandoubler),
 	.gamma_bus(gamma_bus),
@@ -950,9 +950,11 @@ fpga64_sid_iec fpga64
 
 	.sys256k(status[49]),
 	.vdcVersion({status[47],~status[46]^status[47]}),
-	.vdc64k(status[48]),
-	.osmode(status[63]), // for testing, "0" C128, "1" C64
-	.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
+	.vdc64k(status[48]|status[47]),
+	//.osmode(status[63]), // for testing, "0" C128, "1" C64
+	//.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
+	.osmode(0),
+	.cpumode(0),
 	.turbo_mode(2'b01),
 	.turbo_speed(2'b00),
 
@@ -1017,7 +1019,7 @@ fpga64_sid_iec fpga64
 	.sid_ld_wr(sid_ld_wr),
 	.sid_mode(status[22:20]),
 	.sid_filter(2'b11),
-	.sid_ver({status[16],status[13]}),
+	.sid_ver({~status[16],~status[13]}),
 	.sid_cfg({status[38:37],status[35:34]}),
 	.audio_l(audio_l),
 	.audio_r(audio_r),
