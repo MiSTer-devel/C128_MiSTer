@@ -485,7 +485,9 @@ wire load_romF1 = ioctl_index == 10;
 wire load_c15xx = ioctl_index == 11;
 
 wire game;
+wire game_mmu;
 wire exrom;
+wire exrom_mmu;
 wire io_rom;
 wire cart_ce;
 wire cart_we;
@@ -513,7 +515,9 @@ cartridge cartridge
 	.cart_bank_wr(cart_hdr_wr),
 
 	.exrom(exrom),
+	.exrom_in(exrom_mmu),
 	.game(game),
+	.game_in(game_mmu),
 
 	.c128_n(c128_n),
 	.romL(romL),
@@ -975,7 +979,9 @@ fpga64_sid_iec fpga64
 	.b(b),
 
 	.game(game),
+	.game_mmu(game_mmu),
 	.exrom(exrom),
+	.exrom_mmu(exrom_mmu),
 	.UMAXromH(UMAXromH),
 	.irq_n(1),
 	.nmi_n(~nmi),

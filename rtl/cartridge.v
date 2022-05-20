@@ -23,8 +23,10 @@ module cartridge
 	input      [24:0] cart_bank_raddr,		// chip packet address
 	input             cart_bank_wr,
 
-	output            exrom,					// exrom line
-	output            game,						// game line
+	output            exrom,					// exrom line output (from cartridge)
+	input					exrom_in,				// exrom line input (to cartridge)
+	output            game,						// game line output (from cartridge)
+	input					game_in,				   // game line input (to cartridge)
 
 	input             romL,						// romL signal in
 	input             romH,						// romH signal in

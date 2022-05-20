@@ -83,7 +83,9 @@ port(
 
 	-- cartridge port
 	game        : in  std_logic;
+	game_mmu    : out std_logic;
 	exrom       : in  std_logic;
+	exrom_mmu   : out std_logic;
 	io_rom      : in  std_logic;
 	io_ext      : in  std_logic;
 	io_data     : in  unsigned(7 downto 0);
@@ -312,8 +314,8 @@ signal tAddr        : unsigned(15 downto 0);
 signal cpuBank      : unsigned(1 downto 0);
 signal vicBank      : unsigned(1 downto 0);
 signal colorA10     : std_logic;
-signal exrom_mmu    : std_logic;
-signal game_mmu     : std_logic;
+signal mmu_exrom    : std_logic;
+signal mmu_game     : std_logic;
 signal mmu_c128_n   : std_logic;
 signal mmu_z80_n    : std_logic;
 signal mmu_memC000  : unsigned(1 downto 0);
@@ -537,10 +539,10 @@ port map (
 	c4080 => '1',
 
 	exromi => exrom,
-	exromo => exrom_mmu,
+	exromo => mmu_exrom,
 
 	gamei => game,
-	gameo => game_mmu,
+	gameo => mmu_game,
 
 	fsdiri => '1',
 
@@ -580,8 +582,8 @@ port map (
 	vicBank => vicBank,
 	cpslk_sense => '1',
 
-	game => game_mmu,
-	exrom => exrom_mmu,
+	game => mmu_game,
+	exrom => mmu_exrom,
 	io_rom => io_rom,
 	io_ext => io_ext or sid_sel_r,
 	io_data => io_data_i,
@@ -1062,6 +1064,9 @@ dma_din   <= cpuDi;
 
 c128_n <= mmu_c128_n;
 z80_n <= mmu_z80_n;
+
+exrom_mmu <= mmu_exrom;
+game_mmu <= mmu_game;
 
 -- -----------------------------------------------------------------------
 -- Keyboard

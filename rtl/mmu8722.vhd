@@ -136,6 +136,8 @@ begin
 					when X"04" => reg_pcr(3) <= di;
 					when X"05" => reg_cpu <= di(0);
 					              reg_fsdir <= di(3);
+									  reg_game <= di(4);
+									  reg_exrom <= di(5);
 					              reg_os <= di(6);
 					when X"06" => reg_commonSz <= di(1 downto 0);
 					              reg_commonL <= di(2);
