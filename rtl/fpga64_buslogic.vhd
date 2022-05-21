@@ -608,9 +608,9 @@ begin
 
 		if (c128_n = '0') then
 			if (cpuHasBus = '1' or aec = '0') then
-				colorA10 <= bankSwitch(0);
+				colorA10 <= not bankSwitch(0);
 			else
-				colorA10 <= bankSwitch(1);
+				colorA10 <= not bankSwitch(1);
 			end if;
 		end if;
 
