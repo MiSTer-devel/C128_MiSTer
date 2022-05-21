@@ -204,8 +204,8 @@ begin
 	-- 0000    -> 4000     C128 Basic Low (rom2)
 	-- 4000    -> 8000     C128 Basic High (rom3)
 
-	rom23_std: entity work.dprom
-	generic map ("rtl/roms/std_basic_C128.mif", 15)
+	rom23_dcr: entity work.dprom
+	generic map ("rtl/roms/dcr_basic_C128.mif", 15)
 	port map
 	(
 		wrclock => clk,
@@ -216,18 +216,18 @@ begin
 		wraddress => rom_addr(14 downto 0),
 
 		rdaddress => std_logic_vector(not cpuAddr(14) & cpuAddr(13 downto 0)),
-		q => rom23Data_std
+		q => rom23Data_dcr
 	);
 
-	rom23_dcr: entity work.dprom
-	generic map ("rtl/roms/dcr_basic_C128.mif", 15)
+	rom23_std: entity work.dprom
+	generic map ("rtl/roms/std_basic_C128.mif", 15)
 	port map
 	(
 		wrclock => clk,
 		rdclock => clk,
 
 		rdaddress => std_logic_vector(not cpuAddr(14) & cpuAddr(13 downto 0)),
-		q => rom23Data_dcr
+		q => rom23Data_std
 	);
 
 	rom23Data <= rom23Data_dcr when dcr_ena = '1' else rom23Data_std;
@@ -239,8 +239,8 @@ begin
 	-- 2000    -> E000     c128 kernal
 	-- 3000    -> F000     c128 kernal
 
-	rom4_std: entity work.dprom
-	generic map ("rtl/roms/std_kernal_C128.mif", 14)
+	rom4_dcr: entity work.dprom
+	generic map ("rtl/roms/dcr_kernal_C128.mif", 14)
 	port map
 	(
 		wrclock => clk,
@@ -251,18 +251,18 @@ begin
 		wraddress => rom_addr(13 downto 0),
 
 		rdaddress => std_logic_vector(cpuAddr(13) & tAddr(12) & cpuAddr(11 downto 0)),
-		q => rom4Data_std
+		q => rom4Data_dcr
 	);
 
-	rom4_dcr: entity work.dprom
-	generic map ("rtl/roms/dcr_kernal_C128.mif", 14)
+	rom4_std: entity work.dprom
+	generic map ("rtl/roms/std_kernal_C128.mif", 14)
 	port map
 	(
 		wrclock => clk,
 		rdclock => clk,
 
 		rdaddress => std_logic_vector(cpuAddr(13) & tAddr(12) & cpuAddr(11 downto 0)),
-		q => rom4Data_dcr
+		q => rom4Data_std
 	);
 
 	rom4Data <= rom4Data_dcr when dcr_ena = '1' else rom4Data_std;

@@ -1,6 +1,6 @@
 //============================================================================
 //  C128 Top level for MiSTer
-//  Copyright (C) 2022
+//  Copyright (C) 2022 Erik Scheffers
 //  Based on C64 for MiSTer Copyright (C) 2017-2021 Sorgelig
 //
 //  Used DE2-35 Top level by Dar (darfpga@aol.fr)
@@ -227,8 +227,8 @@ localparam CONF_STR = {
 	"P1o89,DigiMax,Disabled,DE00,DF00;",
 	"P1OIJ,Stereo Mix,None,25%,50%,100%;",
 	"P1-;",
-	"P1oEF,VDC version,8563 R8,8563 R7a,8568 R9 (DCR);",
-	"D6P1oG,VDC memory,16k,64k;",
+	"P1oEF,VDC version,2 (8568 DCR),1 (8563 R9),0 (8563 R7a);",
+	"d6P1oG,VDC memory,16k,64k;",
 
 	"P2,Hardware;",
 	"P2oPQ,Enable Drive #8,If Mounted,Always,Never;",
@@ -245,7 +245,7 @@ localparam CONF_STR = {
 	"P2oJ,RS232 mode,UP9600,VIC-1011;",
 	"P2o1,RS232 connection,Internal,External;",
 	"P2o4,Real-Time Clock,Auto,Disabled;",
-	"P2oD,CIA Model,6526,8521;",
+	"P2oD,CIA Model,8521,6526;",
 	"P2-;",
 	"P2OQR,Pot 1/2,Joy 1 Fire 2/3,Mouse,Paddles 1/2;",
 	"P2OST,Pot 3/4,Joy 2 Fire 2/3,Mouse,Paddles 3/4;",
@@ -263,8 +263,8 @@ localparam CONF_STR = {
 	"P2-;",
 	"P2FC5,CRT,Boot Cartridge              ;",
 	"P2-;",
-	"P2OE,ROM set,Standard,128DCR;",
-	"P2OF,Char switch,64 mode,Caps Lock;",
+	"P2OE,ROM set,128DCR,Standard;",
+	"P2OF,Char switch,C64 mode,Caps Lk key;",
 	"-;",
 	"O3,Swap Joysticks,No,Yes;",
 	"-;",
@@ -442,7 +442,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 	.paddle_3(pd4),
 
 	.status(status),
-	.status_menumask({1'b0, status[47], status[16], status[13], tap_loaded, 1'b0, |vcrop, status[56]}),
+	.status_menumask({1'b0, |status[47:46], status[16], status[13], tap_loaded, 1'b0, |vcrop, status[56]}),
 	.buttons(buttons),
 	.forced_scandoubler(forced_scandoubler),
 	.gamma_bus(gamma_bus),
@@ -949,12 +949,12 @@ fpga64_sid_iec fpga64
 	.reset_n(reset_n),
 	.pause(freeze),
 	.pause_out(c64_pause),
-	.dcr(status[14]),
+	.dcr(~status[14]),
 	.cpslk_mode(status[15]),
 
 	.sys256k(status[49]),
-	.vdcVersion({status[47],~status[46]^status[47]}),
-	.vdc64k(status[48]|status[47]),
+	.vdcVersion({(~status[47])^status[46],status[46]}),
+	.vdc64k(status[48]|~(status[47]|status[46])),
 	//.osmode(status[63]), // for testing, "0" C128, "1" C64
 	//.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
 	.osmode(0),
@@ -1005,7 +1005,7 @@ fpga64_sid_iec fpga64
 	.dma_we(dma_we),
 	.irq_ext_n(~reu_irq),
 
-	.cia_mode(status[45]),
+	.cia_mode(~status[45]),
 
 	.joya({(pd12_mode && !joy[9:8]) ? joyA_c64[6:5] : 2'b00, joyA_c64[4:0] | {1'b0, pd12_mode[1] & paddle_2_btn, pd12_mode[1] & paddle_1_btn, 2'b00} | {pd12_mode[0] & mouse_btn[0], 3'b000, pd12_mode[0] & mouse_btn[1]}}),
 	.joyb({(pd34_mode && !joy[9:8]) ? joyB_c64[6:5] : 2'b00, joyB_c64[4:0] | {1'b0, pd34_mode[1] & paddle_4_btn, pd34_mode[1] & paddle_3_btn, 2'b00} | {pd34_mode[0] & mouse_btn[0], 3'b000, pd34_mode[0] & mouse_btn[1]}}),
