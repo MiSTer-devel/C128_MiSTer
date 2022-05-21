@@ -70,6 +70,19 @@ These ROM files will *not* work with this core as they will overwrite the C128 k
 
 In OSD->Audio&Video the VDC version and memory size can be selected.
 
+## C128 cartridges
+
+To load a cartridge - "External function ROM" in C128 terms - it must be in .CRT format. To convert a binary ROM image into a .CRT, the 
+[cartconv](https://vice-emu.sourceforge.io/vice_15.html) tool from Vice can be used, usually like this:
+
+`cartconv.exe -t c128 -l 0x8000 -i cart.bin -o cart.crt`
+
+The `-t c128` option is needed to create the correct header indicating this is a C128 cartridge. Otherwise the cartridge will be detected
+as a C64 cartridge and the core will start up in C64 mode like a real C128 would do if a C64 cartridge is inserted. 
+
+The `-l 0x8000` option is needed to indicate the image should be located at address $8000. Some external ROMs might need to be located at $C000, 
+in that case `-l 0xC000` should be used.
+
 # C64 features
 
 The following is the original C64_MiSTer README. Some features still apply, others don't:
