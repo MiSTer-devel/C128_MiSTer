@@ -5,7 +5,7 @@
  ********************************************************************************/
 
 module vdc_top (
-	input    [1:0] version,   // 0=REV7A (8563), 1=REV8 (8563), 2=REV9 (8568)
+	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
 
 	input          clk,
@@ -24,8 +24,8 @@ module vdc_top (
 
 // version  chip
 //   0      8563 R7A    initial version, 16k or 64k RAM
-//   1      8563 R8     changes to R25, 16k or 64k RAM
-//   2      8568 R9     adds R37, 64k RAM
+//   1      8563 R9     changes to R25, 16k or 64k RAM
+//   2      8568        adds R37, 64k RAM
 
 									 // Reg      Init value  Description
 reg   [7:0] reg_ht;         // R0         7E 126    Horizontal total (minus 1)
@@ -72,8 +72,8 @@ reg  [15:0] reg_ba;         // R32/R33              Block copy source address
 reg   [7:0] reg_deb;        // R34        7D 125    Display enable begin
 reg   [7:0] reg_dee;        // R35        64 100    Display enable end
 reg   [3:0] reg_drr;        // R36         5 5      Ram refresh/scan line
-reg         reg_hspol = 1;  // R37[7]               [Rev 9 (8568) only], HSYnc polarity
-reg         reg_vspol = 1;  // R37[6]               [Rev 9 (8568) only], VSYnc polarity
+reg         reg_hspol = 1;  // R37[7]               [8568 only], HSYnc polarity
+reg         reg_vspol = 1;  // R37[6]               [8568 only], VSYnc polarity
 
 reg   [7:0] regSel;         // selected internal register (write to $D600)
 
