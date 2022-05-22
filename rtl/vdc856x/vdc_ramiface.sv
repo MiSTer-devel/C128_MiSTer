@@ -29,7 +29,7 @@ module vdc_ramiface (
 	output         busy
 );
 
-typedef enum {R_IDLE, R_READ, R_READ2, R_READINCR, R_READINCR2, R_WRITE, R_WRITE2, R_COPY, R_COPY2, R_COPY3} rState_t;
+typedef enum {R_IDLE, R_READ[2], R_READINCR[2], R_WRITE[2], R_FILL[3], R_COPY[3]} rState_t;
 typedef enum {D_IDLE} dState_t;
 
 rState_t regState  = R_IDLE;
@@ -39,6 +39,9 @@ reg        ram_we;
 reg [15:0] ram_addr;
 reg  [7:0] ram_di;
 reg  [7:0] ram_do;
+
+reg  [7:0] counter;
+reg        started;
 
 `ifndef VDC16K
 function [15:0] shuffleAddr;
@@ -86,100 +89,145 @@ always @(posedge clk) begin
 	if (reset) begin
 		regState <= R_IDLE;
 		dispState <= D_IDLE;
+		busy <= 0;
+		started <= 0;
 		reg_ua <= 0;
-		reg_wc <= 1;
+		reg_wc <= 0;
 		reg_da <= 0;
 		reg_ba <= 0;
 	end
-	else if (cs && !busy) begin
-		if (!rs && we) begin
-			// Writing 31 to $D600 triggers a READ cycle without increment of UA
-			if (db_in == 31) regState <= R_READ;
-		end
-		else if (rs && !we) begin
-			// Reading from $D601 with register 31 selected triggers a READ cycle with increment of UA
-			if (regA == 31) regState <= R_READINCR;
-		end
-		else if (rs && we) begin
-			case (regA)
-				8'd18: reg_ua[15:8] <= db_in;
-				8'd19: reg_ua[7:0]  <= db_in;
-				8'd30: begin 
-							// Writing to $D601 with register 30 selected starts a COPY or WRITE block cycle
-							reg_wc     <= db_in;
-							regState   <= reg_copy ? R_COPY : R_WRITE;
-						end 
-				8'd31: begin 
-							// Writing to $D601 with register 31 selected starts one WRITE cycle
-							reg_da     <= db_in;
-							reg_wc     <= 1;
-							regState   <= R_WRITE;
-						end 
-				8'd32: reg_ba[15:8] <= db_in;
-				8'd33: reg_ba[7:0]  <= db_in;
-			endcase
-		end
-	end
-	
-	if (enable) begin
-		ram_we <= 0;
-		if (regState == R_READ) begin
-			ram_addr <= reg_ua;
-			regState <= R_READ2;
-		end
-		else if (regState == R_READ2) begin
-			reg_da   <= ram_do;
-			regState <= R_IDLE;
-		end
-		else if (regState == R_READINCR) begin
-			ram_addr <= reg_ua;
-			regState <= R_READINCR2;
-		end
-		else if (regState == R_READINCR2) begin
-			reg_ua   <= reg_ua + 16'd1;
-			reg_da   <= ram_do;
-			regState <= R_IDLE;
-		end
-		else if (regState == R_WRITE) begin
-			ram_addr <= reg_ua;
-			ram_di   <= reg_da;
-			ram_we   <= 1;
-			regState <= R_WRITE2;
-		end
-		else if (regState == R_WRITE2) begin
-			reg_ua   <= reg_ua + 16'd1;
-			ram_addr <= reg_ua;
-			ram_di   <= reg_da;
-			ram_we   <= 1;
-			if (reg_wc == 1)
-				regState <= R_IDLE;
-			else
-				reg_wc   <= reg_wc - 8'd1;
-		end
-		else if (regState == R_COPY) begin
-			ram_addr <= reg_ba;
-			regState <= R_COPY2;
-		end
-		else if (regState == R_COPY2) begin
-			ram_di   <= ram_do;
-			reg_ba   <= reg_ba + 16'd1;
-			ram_addr <= reg_ua;
-			ram_we   <= 1;
-			regState <= R_COPY3;
-		end
-		else if (regState == R_COPY3) begin
-			reg_ua   <= reg_ua + 16'd1;
-			if (reg_wc == 1) 
-				regState <= R_IDLE;
+	else if (cs) begin
+		if (rs && !busy) begin
+			if (!we) begin
+				// Reading from $D601 with register 31 selected triggers a READ cycle with increment of UA
+				if (regA == 31) begin
+					regState <= R_READINCR0;
+					busy <= 1;
+					started <= 1;
+				end
+			end
 			else begin
-				reg_wc   <= reg_wc - 8'd1;
-				ram_addr <= reg_ba;
-				regState <= R_COPY2;
+				case (regA)
+					8'd18: begin
+								// Updating UA triggers a read cycle without increment
+								reg_ua[15:8] <= db_in;
+								regState     <= R_READ0;
+								busy         <= 1;
+								started      <= 1;
+							end
+					8'd19: begin
+								// Updating UA triggers a read cycle without increment
+								reg_ua[7:0]  <= db_in;
+								regState     <= R_READ0;
+								busy         <= 1;
+								started      <= 1;
+							end
+					8'd30: begin 
+								// Writing to $D601 with register 30 selected starts a COPY or FILL block cycle
+								reg_wc       <= db_in;
+								counter      <= db_in;
+								regState     <= reg_copy ? R_COPY0 : R_FILL0;
+								busy         <= 1;
+								started      <= 1;
+							end 
+					8'd31: begin 
+								// Writing to $D601 with register 31 selected starts one WRITE followed by a READ
+								ram_di       <= db_in;
+								regState     <= R_WRITE0;
+								busy         <= 1;
+								started      <= 1;
+							end 
+					8'd32: reg_ba[15:8]   <= db_in;
+					8'd33: reg_ba[7:0]    <= db_in;
+				endcase
 			end
 		end
 	end
+	else
+		started <= 0;
+	
+	if (enable) begin
+		ram_we <= 0;
+		case (regState)
+			R_IDLE: if (!started) busy <= 0;
 
-	busy <= regState != R_IDLE;
+			// Read current UA
+			R_READ0: begin
+				ram_addr <= reg_ua;
+				regState <= R_READ1;
+			end
+			R_READ1: begin
+				reg_da   <= ram_do;
+				regState <= R_IDLE;
+			end
+
+			// Read current UA and incement UA
+			R_READINCR0: begin
+				ram_addr <= reg_ua;
+				regState <= R_READINCR1;
+			end
+			R_READINCR1: begin
+				reg_ua   <= reg_ua + 16'd1;
+				reg_da   <= ram_do;
+				regState <= R_IDLE;
+			end
+
+			// Write `ram_di` to UA, increment UA and read
+			R_WRITE0: begin
+				ram_addr <= reg_ua;
+				ram_we   <= 1;
+				regState <= R_WRITE1;
+			end
+			R_WRITE1: begin
+				reg_ua   <= reg_ua + 16'd1;
+				regState <= R_READ0;
+			end
+
+			// Fill range with `ram_di`
+			R_FILL0: begin
+				ram_addr <= reg_ua;
+				ram_we   <= 1;
+				regState <= R_FILL1;
+			end
+			R_FILL1: begin
+				reg_ua   <= reg_ua + 16'd1;
+				counter  <= counter - 8'd1;
+				regState <= R_FILL2;
+			end
+			R_FILL2: begin
+				ram_addr = reg_ua;
+				if (counter == 0)
+					regState <= R_IDLE;
+				else begin
+					ram_we <= 1;
+					regState <= R_FILL1;
+				end
+			end
+
+			// Copy range from BA to UA
+			R_COPY0: begin
+				ram_addr <= reg_ba;
+				regState <= R_COPY1;
+			end
+			R_COPY1: begin
+				ram_di   <= ram_do;
+				reg_ba   <= reg_ba + 16'd1;
+				counter  <= counter - 8'd1;
+				ram_addr <= reg_ua;
+				ram_we   <= 1;
+				regState <= R_COPY2;
+			end
+			R_COPY2: begin
+				reg_ua <= reg_ua + 16'd1;
+				if (counter == 0)
+					regState <= R_IDLE;
+				else begin
+					ram_addr <= reg_ba;
+					regState <= R_COPY1;
+				end
+			end
+		endcase
+	end
 end
 
 endmodule
