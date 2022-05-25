@@ -350,7 +350,8 @@ begin
 
 	process(
 		cpuHasBus, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
-		c128_n, z80_n, z80io, mmu_memC000, mmu_mem8000, mmu_mem4000, mmu_memD000, cpuBank, vicBank
+		c128_n, z80_n, z80io, z80m1n, 
+		mmu_memC000, mmu_mem8000, mmu_mem4000, mmu_memD000, cpuBank, vicBank
 	)
 	begin
 		currentAddr <= (others => '1');
