@@ -51,12 +51,8 @@ function [15:0] shuffleAddr;
 	input        has64k;
 	input        ena64k;
 begin
-	if (has64k & ena64k)
-		shuffleAddr = {addr[15], addr[14:9], addr[8], addr[7:0]};
-	else if (ena64k)
-		shuffleAddr = {1'b0,     addr[14:9], 1'b0,    addr[7:0]};
-	else
-		shuffleAddr = {1'b0,     addr[13:8], 1'b0,    addr[7:0]};
+	shuffleAddr = ena64k ? {has64k & addr[15], addr[14:9], has64k & addr[8], addr[7:0]} 
+ 	                     : {has64k & addr[15], addr[13:8], has64k & addr[8], addr[7:0]};
 end
 endfunction
 `else
@@ -65,10 +61,7 @@ function [13:0] shuffleAddr;
 	input        has64k;
 	input        ena64k;
 begin
-	if (ena64k)
-		shuffleAddr = {addr[14:9], addr[7:0]};
-	else
-		shuffleAddr = addr[13:0];
+	shuffleAddr = ena64k ? {addr[14:9], addr[7:0]} : addr[13:0];
 end
 endfunction
 `endif
