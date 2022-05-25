@@ -39,7 +39,7 @@ still show 122365 bytes free.
 
 ### ROM set
 
-The ROM set optionm in the OSD->Hardware menu lets you switch between standard C128 and C128DCR roms.
+The ROM set option in the OSD->Hardware menu lets you switch between standard C128 and C128DCR roms.
 
 ### Char switch
 
