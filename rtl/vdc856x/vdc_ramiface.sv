@@ -2,6 +2,8 @@
  * Commodore 128 VDC
  * 
  * for the C128 MiSTer FPGA core, by Erik Scheffers
+ *
+ * - timing not verified
  ********************************************************************************/
 
 // `define VDC16K  // Enable to reduce memory usage during debugging
@@ -15,6 +17,7 @@ module vdc_ramiface (
 
 	input    [7:0] regA,      // selected register
 	input    [7:0] db_in,     // cpu data in
+	input				enableBus,
 	input          cs,
 	input				rs,
 	input          we,        // write registers
@@ -26,14 +29,14 @@ module vdc_ramiface (
 	output   [7:0] reg_da,    // data
 	output  [15:0] reg_ba,    // block start address
 
-	output         busy
+	output    wire busy
 );
 
-typedef enum {R_IDLE, R_READ[2], R_READINCR[2], R_WRITE[2], R_FILL[3], R_COPY[3]} rState_t;
+typedef enum {R_RESET, R_IDLE, R_READNEXT[1], R_READ[2], R_WRITE[1], R_FILL[2], R_COPY[3]} rState_t;
 typedef enum {D_IDLE} dState_t;
 
-rState_t regState  = R_IDLE;
-dState_t dispState = D_IDLE;
+rState_t   regState  = R_IDLE;
+dState_t   dispState = D_IDLE;
 
 reg        ram_we;
 reg [15:0] ram_addr;
@@ -41,7 +44,6 @@ reg  [7:0] ram_di;
 reg  [7:0] ram_do;
 
 reg  [7:0] counter;
-reg        started;
 
 `ifndef VDC16K
 function [15:0] shuffleAddr;
@@ -84,130 +86,117 @@ vdcram #(8, 14) ram
 	.dao(ram_do)
 );
 
-// RAM interface registers
+function rState_t nextRegState;
+	input rState_t next;
+begin
+	if (reset)
+		nextRegState = R_RESET;
+	else
+		nextRegState = next;
+end
+endfunction	
+
 always @(posedge clk) begin
-	if (reset) begin
-		regState <= R_IDLE;
-		dispState <= D_IDLE;
-		busy <= 0;
-		started <= 0;
-		reg_ua <= 0;
-		reg_wc <= 0;
-		reg_da <= 0;
-		reg_ba <= 0;
-	end
-	else if (cs) begin
-		if (rs && !busy) begin
-			if (!we) begin
-				// Reading from $D601 with register 31 selected triggers a READ cycle with increment of UA
-				if (regA == 31) begin
-					regState <= R_READINCR0;
-					busy <= 1;
-					started <= 1;
+	if (enable) begin
+		regState <= nextRegState(R_IDLE);
+		ram_we   <= 0;
+		busy     <= 1;
+
+		case (regState)
+			R_RESET: begin
+				reg_ua   <= 0;
+				reg_wc   <= 0;
+				reg_da   <= 0;
+				reg_ba   <= 0;
+				ram_addr <= 0;
+				ram_di   <= 0;
+			end 
+
+			R_IDLE: begin
+				busy <= 0;
+				if (enableBus && cs && rs) begin
+					counter <= 1;
+
+					if (!we) begin
+						// Reading from $D601 with register 31 selected increments UA and reads
+						if (regA == 31) begin
+							regState <= nextRegState(R_READNEXT0);
+							busy     <= 1;
+						end
+					end
+					else begin
+						case (regA)
+							// Updating UA reads from new UA
+							8'd18: begin
+										reg_ua[15:8] <= db_in;
+										regState     <= nextRegState(R_READ0);
+										busy      	 <= 1;
+									end
+							8'd19: begin
+										reg_ua[7:0]  <= db_in;
+										regState     <= nextRegState(R_READ0);
+										busy      	 <= 1;
+									end
+
+							// Updating WC starts a copy or fill cycle
+							8'd30: begin 
+										reg_wc       <= db_in;
+										counter      <= db_in;
+										regState     <= nextRegState(reg_copy ? R_COPY0 : R_FILL0);
+										busy      	 <= 1;
+									end 
+
+							// Updating DA writes to UA, increments UA and reads from UA
+							8'd31: begin 
+										ram_di       <= db_in;
+										regState     <= nextRegState(R_WRITE0);
+										busy      	 <= 1;
+									end 
+
+							// Updating BA does not change state
+							8'd32: reg_ba[15:8]   <= db_in;
+							8'd33: reg_ba[7:0]    <= db_in;
+						endcase
+					end
 				end
 			end
-			else begin
-				case (regA)
-					8'd18: begin
-								// Updating UA triggers a read cycle without increment
-								reg_ua[15:8] <= db_in;
-								regState     <= R_READ0;
-								busy         <= 1;
-								started      <= 1;
-							end
-					8'd19: begin
-								// Updating UA triggers a read cycle without increment
-								reg_ua[7:0]  <= db_in;
-								regState     <= R_READ0;
-								busy         <= 1;
-								started      <= 1;
-							end
-					8'd30: begin 
-								// Writing to $D601 with register 30 selected starts a COPY or FILL block cycle
-								reg_wc       <= db_in;
-								counter      <= db_in;
-								regState     <= reg_copy ? R_COPY0 : R_FILL0;
-								busy         <= 1;
-								started      <= 1;
-							end 
-					8'd31: begin 
-								// Writing to $D601 with register 31 selected starts one WRITE followed by a READ
-								ram_di       <= db_in;
-								regState     <= R_WRITE0;
-								busy         <= 1;
-								started      <= 1;
-							end 
-					8'd32: reg_ba[15:8]   <= db_in;
-					8'd33: reg_ba[7:0]    <= db_in;
-				endcase
-			end
-		end
-	end
-	else
-		started <= 0;
-	
-	if (enable) begin
-		ram_we <= 0;
-		case (regState)
-			R_IDLE: if (!started) busy <= 0;
 
-			// Read current UA
-			R_READ0: begin
-				ram_addr <= reg_ua;
-				regState <= R_READ1;
-			end
-			R_READ1: begin
-				reg_da   <= ram_do;
-				regState <= R_IDLE;
-			end
-
-			// Read current UA and incement UA
-			R_READINCR0: begin
-				ram_addr <= reg_ua;
-				regState <= R_READINCR1;
-			end
-			R_READINCR1: begin
-				reg_ua   <= reg_ua + 16'd1;
-				reg_da   <= ram_do;
-				regState <= R_IDLE;
-			end
-
-			// Write `ram_di` to UA, increment UA and read
 			R_WRITE0: begin
 				ram_addr <= reg_ua;
 				ram_we   <= 1;
-				regState <= R_WRITE1;
+				regState <= nextRegState(R_READNEXT0);
 			end
-			R_WRITE1: begin
+			R_READNEXT0: begin
+				ram_addr <= reg_ua + 16'd1;
 				reg_ua   <= reg_ua + 16'd1;
-				regState <= R_READ0;
+				regState <= nextRegState(R_READ1);
+			end
+			R_READ0: begin
+				ram_addr <= reg_ua;
+				regState <= nextRegState(R_READ1);
+			end
+			R_READ1: begin
+				reg_da   <= ram_do;
 			end
 
-			// Fill range with `ram_di`
 			R_FILL0: begin
 				ram_addr <= reg_ua;
 				ram_we   <= 1;
-				regState <= R_FILL1;
+				regState <= nextRegState(R_FILL1);
 			end
 			R_FILL1: begin
 				reg_ua   <= reg_ua + 16'd1;
-				counter  <= counter - 8'd1;
-				regState <= R_FILL2;
-			end
-			R_FILL2: begin
-				ram_addr = reg_ua;
-				if (counter == 0)
-					regState <= R_IDLE;
-				else begin
-					ram_we <= 1;
-					regState <= R_FILL1;
+				if (counter != 1) begin
+					ram_we   <= 1;
+					ram_addr <= reg_ua + 16'd1;
+					counter  <= counter - 8'd1;
+					regState <= nextRegState(R_FILL1);
 				end
 			end
 
-			// Copy range from BA to UA
 			R_COPY0: begin
 				ram_addr <= reg_ba;
-				regState <= R_COPY1;
+				regState <= nextRegState(R_COPY1);
 			end
 			R_COPY1: begin
 				ram_di   <= ram_do;
@@ -215,15 +204,13 @@ always @(posedge clk) begin
 				counter  <= counter - 8'd1;
 				ram_addr <= reg_ua;
 				ram_we   <= 1;
-				regState <= R_COPY2;
+				regState <= nextRegState(R_COPY2);
 			end
 			R_COPY2: begin
-				reg_ua <= reg_ua + 16'd1;
-				if (counter == 0)
-					regState <= R_IDLE;
-				else begin
+				reg_ua   <= reg_ua + 16'd1;
+				if (counter > 0) begin
 					ram_addr <= reg_ba;
-					regState <= R_COPY1;
+					regState <= nextRegState(R_COPY1);
 				end
 			end
 		endcase

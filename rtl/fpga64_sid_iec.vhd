@@ -395,9 +395,11 @@ component vdc_top
 		reset         : in  std_logic;
 		init          : in  std_logic;
 
+		enableBus     : in  std_logic;
 		cs            : in  std_logic;
-		rs            : in  std_logic;
 		we            : in  std_logic;
+
+		rs            : in  std_logic;
 		db_in         : in  unsigned(7 downto 0);
 		db_out        : out unsigned(7 downto 0);
 
@@ -800,7 +802,8 @@ port map (
 	reset => reset,
 	init => '0',
 
-	cs => cs_vdc and enableVdc,
+	enableBus => enableVdc,
+	cs => cs_vdc,
 	we => pulseWr_io,
 
 	rs => tAddr(0),

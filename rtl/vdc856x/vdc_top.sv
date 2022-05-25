@@ -9,6 +9,7 @@ module vdc_top (
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
 
 	input          clk,
+	input				enableBus,
 	input          reset,
 	input          init,
 
@@ -59,7 +60,7 @@ reg         reg_text;       // R25[7]      0 text   Mode select (text/bitmap)
 reg         reg_atr;        // R25[6]      1 on     Attribute enable
 reg         reg_semi;       // R25[5]      0 off    Semi-graphic mode
 reg         reg_dbl;        // R25[4]      0 off    Pixel double width
-reg   [3:0] reg_hss;        // R25[3:0]  0/7 0/7    Smooth horizontal scroll [0 for rev 7A, 7 for rev 8/9]
+reg   [3:0] reg_hss;        // R25[3:0]  0/7 0/7    Smooth horizontal scroll [0 for v0, 7 for v1]
 reg   [3:0] reg_fg;         // R26[7:4]    F white  Foreground RGBI
 reg   [3:0] reg_bg;         // R26[3:0]    0 black  Background RGBI
 reg   [7:0] reg_ai;         // R27        00 0      Address increment per row
@@ -72,8 +73,8 @@ reg  [15:0] reg_ba;         // R32/R33              Block copy source address
 reg   [7:0] reg_deb;        // R34        7D 125    Display enable begin
 reg   [7:0] reg_dee;        // R35        64 100    Display enable end
 reg   [3:0] reg_drr;        // R36         5 5      Ram refresh/scan line
-reg         reg_hspol = 1;  // R37[7]               [8568 only], HSYnc polarity
-reg         reg_vspol = 1;  // R37[6]               [8568 only], VSYnc polarity
+reg         reg_hspol = 1;  // R37[7]               [v2 only], HSYnc polarity
+reg         reg_vspol = 1;  // R37[6]               [v2 only], VSYnc polarity
 
 reg   [7:0] regSel;         // selected internal register (write to $D600)
 
@@ -92,6 +93,7 @@ vdc_ramiface ram (
 	.reset(reset),
 	.regA(regSel),
 	.db_in(db_in),
+	.enableBus(enableBus),
 	.cs(cs),
 	.rs(rs),
 	.we(we),
@@ -154,83 +156,83 @@ always @(posedge clk) begin
 	end
 	else if (cs)
 		if (we) begin
-			if (!rs) begin
-				regSel <= db_in;
-			end
-			else if (!busy) begin
-				case (regSel)
-					 0: reg_ht       <= db_in;
-					 1: reg_hd       <= db_in;
-					 2: reg_hp       <= db_in;
-					 3: begin
-							reg_vw     <= db_in[7:4];
-							reg_hw     <= db_in[3:0];
-						end
-					 4: reg_vt       <= db_in;
-					 5: reg_va       <= db_in[4:0];
-					 6: reg_vd       <= db_in;
-					 7: reg_vp       <= db_in;
-					 8: reg_im       <= db_in[1:0];
-					 9: reg_ctv      <= db_in[4:0];
-					10: begin
-							reg_cm     <= db_in[6:5];
-							reg_cs     <= db_in[4:0];
-						end
-					11: reg_ce       <= db_in[4:0];
-					12: reg_ds[15:8] <= db_in;
-					13: reg_ds[7:0]  <= db_in;
-					14: reg_cp[15:8] <= db_in;
-					15: reg_cp[7:0]  <= db_in;
-					// R16-R17 are read-only
-					// writes to R18-R19 are handled by vdc_ramiface
-					20: reg_aa[15:8] <= db_in;
-					21: reg_aa[7:0]  <= db_in;
-					22: begin
-							reg_cth    <= db_in[7:4];
-							reg_cdh    <= db_in[3:0];
-						end
-					23: reg_cdv      <= db_in[4:0];
-					24: begin
-							reg_copy   <= db_in[7];
-							reg_rvs    <= db_in[6];
-							reg_cbrate <= db_in[5];
-							reg_vss    <= db_in[4:0];
-						end
-					25: begin
-							reg_text   <= db_in[7];
-							reg_atr    <= db_in[6];
-							reg_semi   <= db_in[5];
-							reg_dbl    <= db_in[4];
-							reg_hss    <= db_in[3:0];
-						end
-					26: begin
-							reg_fg     <= db_in[7:4];
-							reg_bg     <= db_in[3:0];
-						end
-					27: reg_ai       <= db_in;
-					28: begin
-							reg_cb     <= db_in[7:5];
-							reg_ram    <= db_in[4];
-						end
-					29: reg_ul       <= db_in[4:0];
-					// writes to R30-R33 are handled by vdc_ramiface
-					34: reg_deb      <= db_in;
-					35: reg_dee      <= db_in;
-					36: reg_drr      <= db_in[3:0];
-					// R37 only exists in 8568
-					37: if (version[1]) begin
-							reg_hspol  <= db_in[7];
-							reg_vspol  <= db_in[6];
-						end
-				endcase
+			if (enableBus) begin
+				if (!rs)
+					regSel <= db_in;
+				else 
+					case (regSel)
+						0: reg_ht       <= db_in;
+						1: reg_hd       <= db_in;
+						2: reg_hp       <= db_in;
+						3: begin
+								reg_vw     <= db_in[7:4];
+								reg_hw     <= db_in[3:0];
+							end
+						4: reg_vt       <= db_in;
+						5: reg_va       <= db_in[4:0];
+						6: reg_vd       <= db_in;
+						7: reg_vp       <= db_in;
+						8: reg_im       <= db_in[1:0];
+						9: reg_ctv      <= db_in[4:0];
+						10: begin
+								reg_cm     <= db_in[6:5];
+								reg_cs     <= db_in[4:0];
+							end
+						11: reg_ce       <= db_in[4:0];
+						12: reg_ds[15:8] <= db_in;
+						13: reg_ds[7:0]  <= db_in;
+						14: reg_cp[15:8] <= db_in;
+						15: reg_cp[7:0]  <= db_in;
+						// R16-R17 are read-only
+						// writes to R18-R19 are handled by vdc_ramiface
+						20: reg_aa[15:8] <= db_in;
+						21: reg_aa[7:0]  <= db_in;
+						22: begin
+								reg_cth    <= db_in[7:4];
+								reg_cdh    <= db_in[3:0];
+							end
+						23: reg_cdv      <= db_in[4:0];
+						24: begin
+								reg_copy   <= db_in[7];
+								reg_rvs    <= db_in[6];
+								reg_cbrate <= db_in[5];
+								reg_vss    <= db_in[4:0];
+							end
+						25: begin
+								reg_text   <= db_in[7];
+								reg_atr    <= db_in[6];
+								reg_semi   <= db_in[5];
+								reg_dbl    <= db_in[4];
+								reg_hss    <= db_in[3:0];
+							end
+						26: begin
+								reg_fg     <= db_in[7:4];
+								reg_bg     <= db_in[3:0];
+							end
+						27: reg_ai       <= db_in;
+						28: begin
+								reg_cb     <= db_in[7:5];
+								reg_ram    <= db_in[4];
+							end
+						29: reg_ul       <= db_in[4:0];
+						// writes to R30-R33 are handled by vdc_ramiface
+						34: reg_deb      <= db_in;
+						35: reg_dee      <= db_in;
+						36: reg_drr      <= db_in[3:0];
+						// R37 only exists in 8568
+						37: if (version[1]) begin
+								reg_hspol  <= db_in[7];
+								reg_vspol  <= db_in[6];
+							end
+					endcase
 			end
 		end
-		else
+		else begin
 			if (!rs) begin
 				db_out <= {~busy, lpStatus, vSync, 3'b000, version};
 				lpStatus <= 0;
 			end
-			else if (!busy)
+			else
 				case (regSel)
 					 0: db_out <= reg_ht;
 					 1: db_out <= reg_hd;
@@ -272,6 +274,7 @@ always @(posedge clk) begin
 					37: db_out <= {reg_hspol|~version[1], reg_vspol|~version[1], 6'b111111};
 					default: db_out <= 8'b11111111;
 				endcase
+		end
 end
 
 endmodule
