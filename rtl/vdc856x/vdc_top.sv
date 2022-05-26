@@ -28,53 +28,53 @@ module vdc_top (
 //   1      8563 R9     changes to R25, 16k or 64k RAM
 //   2      8568        adds R37, 64k RAM
 
-									 // Reg      Init value  Description
-reg   [7:0] reg_ht;         // R0         7E 126    Horizontal total (minus 1)
-reg   [7:0] reg_hd;         // R1         50 80     Horizontal displayed
-reg   [7:0] reg_hp;         // R2         66 102    Horizontal sync position
-reg   [3:0] reg_vw;         // R3[7:4]     4 4      Vertical sync width (plus 1)
-reg   [3:0] reg_hw;         // R3[3:0]     9 9      Horizontal sync width
-reg   [7:0] reg_vt;         // R4      20/27 32/39  Vertical total (minus 1) [32 for NTSC, 39 for PAL]
-reg   [4:0] reg_va;         // R5         00 0      Vertical total adjust
-reg   [7:0] reg_vd;         // R6         19 25     Vertical displayed
-reg   [7:0] reg_vp;         // R7      1D/20 29/32  Vertical sync position (plus 1) [29 for NTSC, 32 for PAL]
-reg   [1:0] reg_im;         // R8          0 off    Interlace mode
-reg   [4:0] reg_ctv;        // R9         07 7      Character Total Vertical (minus 1)
-reg   [1:0] reg_cm;         // R10[6:5]    1 none   Cursor mode
-reg   [4:0] reg_cs;         // R10[4:0]    0 0      Cursor scanline start
-reg   [4:0] reg_ce;         // R11        07 7      Cursor scanline end (plus 1?)
-reg  [15:0] reg_ds;         // R12/R13  0000 0000   Display start
-reg  [15:0] reg_cp;         // R14/R15  0000 0000   Cursor position
-reg   [7:0] reg_lpv;        // R16                  Light pen V position
-reg   [7:0] reg_lph;        // R17                  Light pen H position
-reg  [15:0] reg_ua;         // R18/R19       -      Update address
-reg  [15:0] reg_aa;         // R20/R21  0800 0800   Attribute start address
-reg   [3:0] reg_cth;        // R22[7:4]    7 7      Character total horizontal (minus 1)
-reg   [3:0] reg_cdh;        // R22[3:0]    8 8      Character displayed horizontal (plus 1 in double width mode)
-reg   [4:0] reg_cdv;        // R23        08 8      Character displayed vertical (minus 1)
-reg         reg_copy;       // R24[7]      0 off    Block copy mode
-reg         reg_rvs;        // R24[6]      0 off    Reverse screen
-reg         reg_cbrate;     // R24[5]      1 1/30   Character blink rate
-reg   [4:0] reg_vss;        // R24[4:0]   00 0      Vertical smooth scroll
-reg         reg_text;       // R25[7]      0 text   Mode select (text/bitmap)
-reg         reg_atr;        // R25[6]      1 on     Attribute enable
-reg         reg_semi;       // R25[5]      0 off    Semi-graphic mode
-reg         reg_dbl;        // R25[4]      0 off    Pixel double width
-reg   [3:0] reg_hss;        // R25[3:0]  0/7 0/7    Smooth horizontal scroll [0 for v0, 7 for v1]
-reg   [3:0] reg_fg;         // R26[7:4]    F white  Foreground RGBI
-reg   [3:0] reg_bg;         // R26[3:0]    0 black  Background RGBI
-reg   [7:0] reg_ai;         // R27        00 0      Address increment per row
-reg   [2:0] reg_cb;         // R28[7:5]    1 2000   Character set start address
-reg         reg_ram;        // R28[4]      0 4416   RAM type (0=16k accessible, 1=64k accessible)
-reg   [4:0] reg_ul;         // R29        07 7      Underline scan line
-reg   [7:0] reg_wc;         // R30                  Word count
-reg   [7:0] reg_da;         // R31                  Data (in)
-reg  [15:0] reg_ba;         // R32/R33              Block copy source address
-reg   [7:0] reg_deb;        // R34        7D 125    Display enable begin
-reg   [7:0] reg_dee;        // R35        64 100    Display enable end
-reg   [3:0] reg_drr;        // R36         5 5      Ram refresh/scan line
-reg         reg_hspol = 1;  // R37[7]               [v2 only], HSYnc polarity
-reg         reg_vspol = 1;  // R37[6]               [v2 only], VSYnc polarity
+									 // Reg      Init value   Description
+reg   [7:0] reg_ht;         // R0      7E/7F 126/127 Horizontal total (minus 1) [126 for original ROM, 127 for PAL on DCR]
+reg   [7:0] reg_hd;         // R1         50 80      Horizontal displayed
+reg   [7:0] reg_hp;         // R2         66 102     Horizontal sync position
+reg   [3:0] reg_vw;         // R3[7:4]     4 4       Vertical sync width (plus 1)
+reg   [3:0] reg_hw;         // R3[3:0]     9 9       Horizontal sync width
+reg   [7:0] reg_vt;         // R4      20/27 32/39   Vertical total (minus 1) [32 for NTSC, 39 for PAL]
+reg   [4:0] reg_va;         // R5         00 0       Vertical total adjust
+reg   [7:0] reg_vd;         // R6         19 25      Vertical displayed
+reg   [7:0] reg_vp;         // R7      1D/20 29/32   Vertical sync position (plus 1) [29 for NTSC, 32 for PAL]
+reg   [1:0] reg_im;         // R8          0 off     Interlace mode
+reg   [4:0] reg_ctv;        // R9         07 7       Character Total Vertical (minus 1)
+reg   [1:0] reg_cm;         // R10[6:5]    1 none    Cursor mode
+reg   [4:0] reg_cs;         // R10[4:0]    0 0       Cursor scanline start
+reg   [4:0] reg_ce;         // R11        07 7       Cursor scanline end (plus 1?)
+reg  [15:0] reg_ds;         // R12/R13  0000 0000    Display start
+reg  [15:0] reg_cp;         // R14/R15  0000 0000    Cursor position
+reg   [7:0] reg_lpv;        // R16                   Light pen V position
+reg   [7:0] reg_lph;        // R17                   Light pen H position
+reg  [15:0] reg_ua;         // R18/R19       -       Update address
+reg  [15:0] reg_aa;         // R20/R21  0800 0800    Attribute start address
+reg   [3:0] reg_cth;        // R22[7:4]    7 7       Character total horizontal (minus 1)
+reg   [3:0] reg_cdh;        // R22[3:0]    8 8       Character displayed horizontal (plus 1 in double width mode)
+reg   [4:0] reg_cdv;        // R23        08 8       Character displayed vertical (minus 1)
+reg         reg_copy;       // R24[7]      0 off     Block copy mode
+reg         reg_rvs;        // R24[6]      0 off     Reverse screen
+reg         reg_cbrate;     // R24[5]      1 1/30    Character blink rate
+reg   [4:0] reg_vss;        // R24[4:0]   00 0       Vertical smooth scroll
+reg         reg_text;       // R25[7]      0 text    Mode select (text/bitmap)
+reg         reg_atr;        // R25[6]      1 on      Attribute enable
+reg         reg_semi;       // R25[5]      0 off     Semi-graphic mode
+reg         reg_dbl;        // R25[4]      0 off     Pixel double width
+reg   [3:0] reg_hss;        // R25[3:0]  0/7 0/7     Smooth horizontal scroll [0 for v0, 7 for v1]
+reg   [3:0] reg_fg;         // R26[7:4]    F white   Foreground RGBI
+reg   [3:0] reg_bg;         // R26[3:0]    0 black   Background RGBI
+reg   [7:0] reg_ai;         // R27        00 0       Address increment per row
+reg   [2:0] reg_cb;         // R28[7:5]    1 2000    Character set start address
+reg         reg_ram;        // R28[4]      0 4416    RAM type (0=16k accessible, 1=64k accessible)
+reg   [4:0] reg_ul;         // R29        07 7       Underline scan line
+reg   [7:0] reg_wc;         // R30                   Word count
+reg   [7:0] reg_da;         // R31                   Data (in)
+reg  [15:0] reg_ba;         // R32/R33               Block copy source address
+reg   [7:0] reg_deb;        // R34        7D 125     Display enable begin
+reg   [7:0] reg_dee;        // R35        64 100     Display enable end
+reg   [3:0] reg_drr;        // R36         5 5       Ram refresh/scan line
+reg         reg_hspol = 1;  // R37[7]                [v2 only], HSYnc polarity
+reg         reg_vspol = 1;  // R37[6]                [v2 only], VSYnc polarity
 
 reg   [5:0] regSel;         // selected internal register (write to $D600)
 
