@@ -76,7 +76,7 @@ reg   [3:0] reg_drr;        // R36         5 5      Ram refresh/scan line
 reg         reg_hspol = 1;  // R37[7]               [v2 only], HSYnc polarity
 reg         reg_vspol = 1;  // R37[6]               [v2 only], VSYnc polarity
 
-reg   [7:0] regSel;         // selected internal register (write to $D600)
+reg   [5:0] regSel;         // selected internal register (write to $D600)
 
 reg         lpStatus;       // light pen status
 reg         vSync;          // vertical sync
@@ -158,7 +158,7 @@ always @(posedge clk) begin
 		if (we) begin
 			if (enableBus) begin
 				if (!rs)
-					regSel <= db_in;
+					regSel <= db_in[5:0];
 				else 
 					case (regSel)
 						0: reg_ht       <= db_in;

@@ -15,7 +15,7 @@ module vdc_ramiface (
 	input          reset,
 	input          enable,
 
-	input    [7:0] regA,      // selected register
+	input    [5:0] regA,      // selected register
 	input    [7:0] db_in,     // cpu data in
 	input				enableBus,
 	input          cs,
