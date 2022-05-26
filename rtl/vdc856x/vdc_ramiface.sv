@@ -111,7 +111,7 @@ always @(posedge clk) begin
 					counter <= 1;
 
 					if (!we) begin
-						// Reading from $D601 with register 31 selected increments UA and reads
+						// Reading DA loads next value into DA
 						if (regA == 31) begin
 							regState <= nextRegState(R_READNEXT0);
 							busy     <= 1;
@@ -119,7 +119,7 @@ always @(posedge clk) begin
 					end
 					else begin
 						case (regA)
-							// Updating UA reads from new UA
+							// Updating UA loads value at new address into DA
 							8'd18: begin
 										reg_ua[15:8] <= db_in;
 										regState     <= nextRegState(R_READ0);
@@ -131,7 +131,8 @@ always @(posedge clk) begin
 										busy      	 <= 1;
 									end
 
-							// Updating WC starts a copy or fill cycle
+							// Updating WC starts a COPY (from BA to UA) or FILL (to UA) for WC items
+							// Does *not* change WC or DA (verified on real v1 VDC)
 							8'd30: begin 
 										reg_wc       <= db_in;
 										counter      <= db_in;
@@ -139,7 +140,7 @@ always @(posedge clk) begin
 										busy      	 <= 1;
 									end 
 
-							// Updating DA writes to UA, increments UA and reads from UA
+							// Updating DA writes databus to UA and loads next value into DA
 							8'd31: begin 
 										ram_di       <= db_in;
 										regState     <= nextRegState(R_WRITE0);
