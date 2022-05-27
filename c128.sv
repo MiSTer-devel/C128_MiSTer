@@ -192,13 +192,15 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXX  
 
 `include "build_id.v"
 localparam CONF_STR = {
 	"C128;UART9600:2400;",
 	//"oUV,Boot Mode,Z80,C128,C64;", // for testing
 	//"-;",
+	"oR,Video output,VIC (40 col),VDC (80 col);",
+	"-;",
 	"H7S0,D64G64T64D81,Mount #8;",
 	"H0S1,D64G64T64D81,Mount #9;",
 	"-;",
@@ -939,9 +941,14 @@ wire        romH;
 wire        UMAXromH;
 
 wire [17:0] audio_l,audio_r;
-wire  [7:0] r,g,b;
 
 wire        ntsc = status[2];
+
+wire        vicHsync, vicVsync;
+wire  [7:0] vicR, vicG, vicB;
+
+wire        vdcHsync, vdcVsync;
+wire  [7:0] vdcR, vdcG, vdcB;
 
 fpga64_sid_iec fpga64
 (
@@ -972,11 +979,19 @@ fpga64_sid_iec fpga64
 	.ramWE(ram_we),
 
 	.ntscmode(ntsc),
-	.hsync(hsync),
-	.vsync(vsync),
-	.r(r),
-	.g(g),
-	.b(b),
+	.c4080(~videoOutput),
+
+	.vicHsync(vicHsync),
+	.vicVsync(vicVsync),
+	.vicR(vicR),
+	.vicG(vicG),
+	.vicB(vicB),
+
+	.vdcHsync(vdcHsync),
+	.vdcVsync(vdcVsync),
+	.vdcR(vdcR),
+	.vdcG(vdcG),
+	.vdcB(vdcB),
 
 	.game(game),
 	.game_mmu(game_mmu),
@@ -1201,27 +1216,48 @@ assign USER_OUT[4] = (c64_iec_data & drive_iec_data_o) | ~ext_iec_en;
 assign USER_OUT[5] = c64_iec_atn | ~ext_iec_en;
 assign USER_OUT[6] = '1;
 
+wire vicHblank, vicVblank;
+wire vicHsync_out, vicVsync_out;
 
-wire hsync;
-wire vsync;
-wire hblank;
-wire vblank;
-wire hsync_out;
-wire vsync_out;
-
-video_sync sync
+video_sync vicSync
 (
 	.clk32(clk_sys),
 	.pause(c64_pause),
-	.hsync(hsync),
-	.vsync(vsync),
+	.hsync(vicHsync),
+	.vsync(vicVsync),
 	.ntsc(ntsc),
 	.wide(wide),
-	.hsync_out(hsync_out),
-	.vsync_out(vsync_out),
-	.hblank(hblank),
-	.vblank(vblank)
+	.hsync_out(vicHsync_out),
+	.vsync_out(vicVsync_out),
+	.hblank(vicHblank),
+	.vblank(vicVblank)
 );
+
+wire vdcHblank, vdcVblank;
+wire vdcHsync_out, vdcVsync_out;
+
+video_sync vdcSync
+(
+	.clk32(clk_sys),
+	.pause(c64_pause),
+	.hsync(vdcHsync),
+	.vsync(vdcVsync),
+	.ntsc(ntsc),
+	.wide(wide),
+	.hsync_out(vdcHsync_out),
+	.vsync_out(vdcVsync_out),
+	.hblank(vdcHblank),
+	.vblank(vdcVblank)
+);
+
+wire       videoOutput = status[59];
+wire       hsync_out   = videoOutput ? vdcHsync_out : vicHsync_out;
+wire       vsync_out   = videoOutput ? vdcVsync_out : vicVsync_out;
+wire       hblank      = videoOutput ? vdcHblank : vicHblank;
+wire       vblank      = videoOutput ? vdcVblank : vicVblank;
+wire [7:0] r           = videoOutput ? vdcR : vicR;
+wire [7:0] g           = videoOutput ? vdcG : vicG;
+wire [7:0] b           = videoOutput ? vdcB : vicB;
 
 reg hq2x160;
 always @(posedge clk_sys) begin

@@ -20,7 +20,11 @@ module vdc_top (
 	output   [7:0] db_out,    // data out
 
 	input          enablePixel0,
-	input          enablePixel1
+	input          enablePixel1,
+
+	output			vsync,
+	output			hsync,
+	output	[3:0]	rgbi		  // ordered IRGB 
 );
 
 // version  chip
@@ -73,17 +77,16 @@ reg  [15:0] reg_ba;         // R32/R33               Block copy source address
 reg   [7:0] reg_deb;        // R34        7D 125     Display enable begin
 reg   [7:0] reg_dee;        // R35        64 100     Display enable end
 reg   [3:0] reg_drr;        // R36         5 5       Ram refresh/scan line
-reg         reg_hspol = 1;  // R37[7]                [v2 only], HSYnc polarity
-reg         reg_vspol = 1;  // R37[6]                [v2 only], VSYnc polarity
+reg         reg_hspol = 0;  // R37[7]                [v2 only], HSYnc polarity
+reg         reg_vspol = 0;  // R37[6]                [v2 only], VSYnc polarity
 
 reg   [5:0] regSel;         // selected internal register (write to $D600)
 
 reg         lpStatus;       // light pen status
-reg         vSync;          // vertical sync
-reg         hSync;          // horizontal sync
+wire			vsync_pos;
+wire			hsync_pos;
 
 wire        busy;
-
 wire        enablePixel = enablePixel0 | (~reg_dbl & enablePixel1);
 
 vdc_ramiface ram (
@@ -105,6 +108,52 @@ vdc_ramiface ram (
 	.reg_ba(reg_ba),
 	.busy(busy)
 );
+
+vdc_video video (
+	.clk(clk),
+	.reset(reset),
+	.enable(enablePixel),
+
+   .reg_ht(reg_ht),
+   .reg_hd(reg_hd),
+   .reg_hp(reg_hp),
+   .reg_vw(reg_vw),
+   .reg_hw(reg_hw),
+   .reg_vt(reg_vt),
+   .reg_va(reg_va),
+   .reg_vd(reg_vd),
+   .reg_vp(reg_vp),
+   .reg_im(reg_im),
+   .reg_ctv(reg_ctv),
+   .reg_cm(reg_cm),
+   .reg_cs(reg_cs),
+   .reg_ce(reg_ce),
+   .reg_cp(reg_cp),
+   .reg_cth(reg_cth),
+   .reg_cdh(reg_cdh),
+   .reg_cdv(reg_cdv),
+   .reg_rvs(reg_rvs),
+   .reg_cbrate(reg_cbrate),
+   .reg_vss(reg_vss),
+   .reg_text(reg_text),
+   .reg_atr(reg_atr),
+   .reg_semi(reg_semi),
+   .reg_dbl(reg_dbl),
+   .reg_hss(reg_hss),
+   .reg_fg(reg_fg),
+   .reg_bg(reg_bg),
+   .reg_ai(reg_ai),
+   .reg_ul(reg_ul),
+   .reg_deb(reg_deb),
+   .reg_dee(reg_dee),
+
+	.vsync(vsync_pos),
+	.hsync(hsync_pos),
+	.rgbi(rgbi)
+);
+
+assign vsync = vsync_pos ^ (~version[1] & reg_vspol);
+assign hsync = hsync_pos ^ (~version[1] & reg_hspol);
 
 // Internal registers
 always @(posedge clk) begin
@@ -151,8 +200,8 @@ always @(posedge clk) begin
 		reg_deb <= 0;
 		reg_dee <= 0;
 		reg_drr <= 0;
-		reg_hspol <= 1;
-		reg_vspol <= 1;
+		reg_hspol <= 0;
+		reg_vspol <= 0;
 	end
 	else if (cs)
 		if (we) begin
@@ -229,7 +278,7 @@ always @(posedge clk) begin
 		end
 		else begin
 			if (!rs) begin
-				db_out <= {~busy, lpStatus, vSync, 3'b000, version};
+				db_out <= {~busy, lpStatus, vsync, 3'b000, version};
 				lpStatus <= 0;
 			end
 			else
