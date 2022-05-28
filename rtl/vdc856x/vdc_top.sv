@@ -24,6 +24,8 @@ module vdc_top (
 
 	output			vsync,
 	output			hsync,
+	output			vblank,
+	output			hblank,
 	output	[3:0]	rgbi		  // ordered IRGB 
 );
 
@@ -36,8 +38,8 @@ module vdc_top (
 reg   [7:0] reg_ht;         // R0      7E/7F 126/127 Horizontal total (minus 1) [126 for original ROM, 127 for PAL on DCR]
 reg   [7:0] reg_hd;         // R1         50 80      Horizontal displayed
 reg   [7:0] reg_hp;         // R2         66 102     Horizontal sync position
-reg   [3:0] reg_vw;         // R3[7:4]     4 4       Vertical sync width (plus 1)
-reg   [3:0] reg_hw;         // R3[3:0]     9 9       Horizontal sync width
+reg   [3:0] reg_vw;         // R3[7:4]     4 4       Vertical sync width
+reg   [3:0] reg_hw;         // R3[3:0]     9 9       Horizontal sync width (plus 1)
 reg   [7:0] reg_vt;         // R4      20/27 32/39   Vertical total (minus 1) [32 for NTSC, 39 for PAL]
 reg   [4:0] reg_va;         // R5         00 0       Vertical total adjust
 reg   [7:0] reg_vd;         // R6         19 25      Vertical displayed
@@ -112,6 +114,7 @@ vdc_ramiface ram (
 vdc_video video (
 	.clk(clk),
 	.reset(reset),
+	.init(init),
 	.enable(enablePixel),
 
    .reg_ht(reg_ht),
@@ -128,6 +131,7 @@ vdc_video video (
    .reg_cm(reg_cm),
    .reg_cs(reg_cs),
    .reg_ce(reg_ce),
+	.reg_ds(reg_ds),
    .reg_cp(reg_cp),
    .reg_cth(reg_cth),
    .reg_cdh(reg_cdh),
@@ -147,6 +151,8 @@ vdc_video video (
    .reg_deb(reg_deb),
    .reg_dee(reg_dee),
 
+	.vblank(vblank),
+	.hblank(hblank),
 	.vsync(vsync_pos),
 	.hsync(hsync_pos),
 	.rgbi(rgbi)
@@ -278,7 +284,7 @@ always @(posedge clk) begin
 		end
 		else begin
 			if (!rs) begin
-				db_out <= {~busy, lpStatus, vsync, 3'b000, version};
+				db_out <= {~busy, lpStatus, vblank, 3'b000, version};
 				lpStatus <= 0;
 			end
 			else

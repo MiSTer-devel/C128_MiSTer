@@ -85,6 +85,8 @@ port(
 
 	vdcHsync    : out std_logic;
 	vdcVsync    : out std_logic;
+	vdcHblank   : out std_logic;
+	vdcVblank   : out std_logic;
 	vdcR        : out unsigned(7 downto 0);
 	vdcG        : out unsigned(7 downto 0);
 	vdcB        : out unsigned(7 downto 0);
@@ -417,6 +419,8 @@ component vdc_top
 
 		hsync         : out std_logic;
 		vsync         : out std_logic;
+		hblank        : out std_logic;
+		vblank        : out std_logic; 
 		rgbi          : out unsigned(3 downto 0)
 	);
 end component;
@@ -828,6 +832,8 @@ port map (
 
 	hsync => vdcHsync,
 	vsync => vdcVsync,
+	hblank => vdcHblank,
+	vblank => vdcVblank,
 	rgbi => vdcRGBI
 );
 

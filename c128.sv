@@ -948,6 +948,7 @@ wire        vicHsync, vicVsync;
 wire  [7:0] vicR, vicG, vicB;
 
 wire        vdcHsync, vdcVsync;
+wire        vdcHblank, vdcVblank;
 wire  [7:0] vdcR, vdcG, vdcB;
 
 fpga64_sid_iec fpga64
@@ -989,6 +990,8 @@ fpga64_sid_iec fpga64
 
 	.vdcHsync(vdcHsync),
 	.vdcVsync(vdcVsync),
+	.vdcHblank(vdcHblank),
+	.vdcVblank(vdcVblank),
 	.vdcR(vdcR),
 	.vdcG(vdcG),
 	.vdcB(vdcB),
@@ -1233,26 +1236,9 @@ video_sync vicSync
 	.vblank(vicVblank)
 );
 
-wire vdcHblank, vdcVblank;
-wire vdcHsync_out, vdcVsync_out;
-
-video_sync vdcSync
-(
-	.clk32(clk_sys),
-	.pause(c64_pause),
-	.hsync(vdcHsync),
-	.vsync(vdcVsync),
-	.ntsc(ntsc),
-	.wide(wide),
-	.hsync_out(vdcHsync_out),
-	.vsync_out(vdcVsync_out),
-	.hblank(vdcHblank),
-	.vblank(vdcVblank)
-);
-
 wire       videoOutput = status[59];
-wire       hsync_out   = videoOutput ? vdcHsync_out : vicHsync_out;
-wire       vsync_out   = videoOutput ? vdcVsync_out : vicVsync_out;
+wire       hsync_out   = videoOutput ? vdcHsync : vicHsync_out;
+wire       vsync_out   = videoOutput ? vdcVsync : vicVsync_out;
 wire       hblank      = videoOutput ? vdcHblank : vicHblank;
 wire       vblank      = videoOutput ? vdcVblank : vicVblank;
 wire [7:0] r           = videoOutput ? vdcR : vicR;

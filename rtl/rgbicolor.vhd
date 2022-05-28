@@ -27,20 +27,20 @@ begin
 	begin
 		case rgbi is
 		when X"0" => r <= X"00"; g <= X"00"; b <= X"00";
-		when X"1" => r <= X"00"; g <= X"00"; b <= X"7F";
-		when X"2" => r <= X"00"; g <= X"7F"; b <= X"00";
-		when X"3" => r <= X"00"; g <= X"7F"; b <= X"7F";
-		when X"4" => r <= X"7F"; g <= X"00"; b <= X"00";
-		when X"5" => r <= X"7F"; g <= X"00"; b <= X"7F";
-		when X"6" => r <= X"7F"; g <= X"3F"; b <= X"00";
-		when X"7" => r <= X"7F"; g <= X"7F"; b <= X"7F";
-		when X"8" => r <= X"3F"; g <= X"3F"; b <= X"3F";
-		when X"9" => r <= X"3F"; g <= X"3F"; b <= X"FF";
-		when X"A" => r <= X"3F"; g <= X"FF"; b <= X"3F";
-		when X"B" => r <= X"3F"; g <= X"FF"; b <= X"FF";
-		when X"C" => r <= X"FF"; g <= X"3F"; b <= X"3F";
-		when X"D" => r <= X"FF"; g <= X"3F"; b <= X"FF";
-		when X"E" => r <= X"FF"; g <= X"FF"; b <= X"3F";
+		when X"1" => r <= X"55"; g <= X"55"; b <= X"55";
+		when X"2" => r <= X"00"; g <= X"00"; b <= X"AA";
+		when X"3" => r <= X"55"; g <= X"55"; b <= X"FF";
+		when X"4" => r <= X"00"; g <= X"AA"; b <= X"00";
+		when X"5" => r <= X"55"; g <= X"FF"; b <= X"55";
+		when X"6" => r <= X"00"; g <= X"AA"; b <= X"AA";
+		when X"7" => r <= X"55"; g <= X"FF"; b <= X"FF";
+		when X"8" => r <= X"AA"; g <= X"00"; b <= X"00";
+		when X"9" => r <= X"FF"; g <= X"55"; b <= X"55";
+		when X"A" => r <= X"AA"; g <= X"00"; b <= X"AA";
+		when X"B" => r <= X"FF"; g <= X"55"; b <= X"FF";
+		when X"C" => r <= X"AA"; g <= X"55"; b <= X"00";
+		when X"D" => r <= X"FF"; g <= X"FF"; b <= X"55";
+		when X"E" => r <= X"AA"; g <= X"AA"; b <= X"AA";
 		when X"F" => r <= X"FF"; g <= X"FF"; b <= X"FF";
 		end case;
 	end process;
