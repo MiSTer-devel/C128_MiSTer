@@ -4,7 +4,11 @@
  * for the C128 MiSTer FPGA core, by Erik Scheffers
  ********************************************************************************/
 
-module vdc_top (
+module vdc_top #(
+	parameter 		S_LATCH_WIDTH = 128,
+	parameter 		A_LATCH_WIDTH = 80,
+	parameter 		C_LATCH_WIDTH = 128
+)(
 	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
 
@@ -84,34 +88,70 @@ reg         reg_vspol = 0;  // R37[6]                [v2 only], VSYnc polarity
 
 reg   [5:0] regSel;         // selected internal register (write to $D600)
 
+reg         newFrame;
+reg         newLine;
+reg         newRow;
+reg         newCol;
+
+reg         currbuf;
+reg   [7:0] scrnbuf[2][S_LATCH_WIDTH];
+reg   [7:0] attrbuf[2][A_LATCH_WIDTH];
+reg   [7:0] charbuf[C_LATCH_WIDTH];
+
 reg         lpStatus;       // light pen status
 wire			vsync_pos;
 wire			hsync_pos;
 
 wire        busy;
 wire        enablePixel = enablePixel0 | (~reg_dbl & enablePixel1);
+wire        visible;
 
-vdc_ramiface ram (
+vdc_ramiface #(
+	.S_LATCH_WIDTH(S_LATCH_WIDTH),
+	.A_LATCH_WIDTH(A_LATCH_WIDTH),
+	.C_LATCH_WIDTH(C_LATCH_WIDTH)
+) ram (
 	.ram64k(ram64k),
+
 	.clk(clk),
-	.enable(enablePixel),
 	.reset(reset),
+
+	.enable(enablePixel),
+	.enableBus(enableBus),
+
 	.regA(regSel),
 	.db_in(db_in),
-	.enableBus(enableBus),
 	.cs(cs),
 	.rs(rs),
 	.we(we),
+
 	.reg_copy(reg_copy),
 	.reg_ram(reg_ram),
+	.reg_atr(reg_atr),
+	.reg_text(reg_text),
+	.reg_ds(reg_ds),
+	.reg_aa(reg_aa),
+	.reg_cb(reg_cb),
+
 	.reg_ua(reg_ua),
 	.reg_wc(reg_wc),
 	.reg_da(reg_da),
 	.reg_ba(reg_ba),
+
+	.newFrame(newFrame),
+	.newLine(newLine),
+	.newRow(newRow),
+	.newCol(newCol),
+
+	.currbuf(currbuf),
+	.scrnbuf(scrnbuf),
+	.attrbuf(attrbuf),
+	.charbuf(charbuf),
+
 	.busy(busy)
 );
 
-vdc_video video (
+vdc_clockgen clockgen (
 	.clk(clk),
 	.reset(reset),
 	.init(init),
@@ -151,10 +191,56 @@ vdc_video video (
    .reg_deb(reg_deb),
    .reg_dee(reg_dee),
 
+	.newFrame(newFrame),
+	.newLine(newLine),
+	.newRow(newRow),
+	.newCol(newCol),
+
+	.visible(visible),
+
 	.vblank(vblank),
 	.hblank(hblank),
 	.vsync(vsync_pos),
-	.hsync(hsync_pos),
+	.hsync(hsync_pos)
+);
+
+vdc_video #(
+	.S_LATCH_WIDTH(S_LATCH_WIDTH),
+	.A_LATCH_WIDTH(A_LATCH_WIDTH),
+	.C_LATCH_WIDTH(C_LATCH_WIDTH)
+) video (
+	.version(version),
+
+	.clk(clk),
+	.reset(reset),
+	.enable(enablePixel),
+
+	.reg_cm(reg_cm),
+	.reg_cs(reg_cs),
+	.reg_ce(reg_ce),
+	.reg_rvs(reg_rvs),
+	.reg_cbrate(reg_cbrate),
+   .reg_text(reg_text),
+   .reg_atr(reg_atr),
+   .reg_semi(reg_semi),
+	.reg_hss(reg_hss),
+	.reg_fg(reg_fg),
+	.reg_bg(reg_bg),
+	.reg_ul(reg_ul),
+
+	.newFrame(newFrame),
+	.newLine(newLine),
+	.newRow(newRow),
+	.newCol(newCol),
+
+	.visible(visible),
+	.blank(hblank || vblank),
+
+	.currbuf(currbuf),
+	.scrnbuf(scrnbuf),
+	.attrbuf(attrbuf),
+	.charbuf(charbuf),
+
 	.rgbi(rgbi)
 );
 
