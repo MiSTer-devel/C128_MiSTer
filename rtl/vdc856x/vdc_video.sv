@@ -11,7 +11,7 @@ module vdc_video #(
 	parameter 		A_LATCH_WIDTH,
 	parameter 		C_LATCH_WIDTH
 )(
-	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
+	input    [1:0] version,                    // 0=8563R7A, 1=8563R9, 2=8568
 
 	input          clk,
 	input          reset,
@@ -34,53 +34,56 @@ module vdc_video #(
    input    [4:0] reg_vss,                    // vertical smooth scroll
    input    [3:0] reg_hss,                    // horizontal smooth scroll
                
-	input          newFrame,                   // start of new frame
+	input    [1:0] newFrame,                   // start of new frame
 	input          newLine,                    // start of new line
 	input          newRow,                     // start of new visible row
 	input          newCol,                     // start of new column
+   input          endCol,                     // end of column
                
-   input          visible,                    // in visible part of display
-   input          blank,                      // in blanking part of display
-	input 			currbuf,                    // buffer containing current screen info
+   input    [1:0] visible,                    // in visible part of display
+   input          blink[2],                   // blink rates
+	input 			rowbuf,                     // buffer # containing current screen info
+   input    [7:0] col,                        // current column
+   input    [4:0] line,                       // current line
 	input    [7:0] scrnbuf[2][S_LATCH_WIDTH],  // screen codes for current and next row
 	input    [7:0] attrbuf[2][A_LATCH_WIDTH],  // latch for attributes for current and next row
 	input    [7:0] charbuf[C_LATCH_WIDTH],     // character data for current line
-   input          rowaddr,                    // address of current row
+   input   [15:0] dispaddr,                   // address of current row
 
-   output   [3:0] rgbi
+   output reg [3:0] rgbi
 );
 
+reg [7:0] bitmap;
+
+wire [7:0] vcol = col - 8'd8;
+wire [7:0] attr = attrbuf[rowbuf][vcol];
+wire [3:0]   fg = reg_atr ? attr[3:0] : reg_fg;                               // foreground color
+wire [3:0]   bg = visible[1] && reg_text && reg_atr ? attr[7:4] : reg_bg;     // background color
+wire [2:0]   ca = ~reg_text && reg_atr ? attr[6:4] : 3'b000;                  // character attributes (bit 0=blink, bit 1=underline, bit 2=reverse)
+wire        crs = (dispaddr+vcol == reg_cp);
+
+assign     rgbi = bitmap[7] ? fg : bg;
+
 always @(posedge clk) begin
-   reg  [7:0] col;
-   reg  [4:0] line;
-   reg [15:0] coladdr;
-
-   // reg [7:0] char;
-   // reg [7:0] attr;   bit 6=rvs, 5=ul, 4=blink 3:0=rgbi
-
-   if (reset) begin
-      col <= 0;
-      line <= 0;
-   end
+   if (reset)
+      bitmap = 0;
    else if (enable) begin
-      if (newLine) begin
-         col <= 0;
-         if (newRow)
-            line <= 0;
-         else
-            line <= line + 5'd1;
-      end
-
       if (newCol) begin
-         col <= col + 8'd1;
-      end
+         if (visible[1]) begin
+            if (ca[0] && blink[reg_cbrate])
+               bitmap = 8'h00;
+            else if (ca[1] && line == reg_ul)
+               bitmap = 8'hff;
+            else
+               bitmap = charbuf[vcol % C_LATCH_WIDTH];
 
-      if (blank)
-         rgbi <= 0;
-      else if (visible) 
-         rgbi <= 4'(col+line);
+            if (reg_rvs ^ ca[2] ^ crs) bitmap = ~bitmap;
+         end
+         else 
+            bitmap = 0;
+      end
       else
-         rgbi <= reg_bg;
+         bitmap = { bitmap[6:0], reg_semi & bitmap[0] };
    end
 end
 

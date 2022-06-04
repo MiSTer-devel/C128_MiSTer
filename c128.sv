@@ -963,6 +963,7 @@ fpga64_sid_iec fpga64
 	.sys256k(status[49]),
 	.vdcVersion({(~status[47])^status[46],status[46]}),
 	.vdc64k(status[48]|~(status[47]|status[46])),
+	.vdcInitRam(~status[24]),
 	//.osmode(status[63]), // for testing, "0" C128, "1" C64
 	//.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
 	.osmode(0),
@@ -1236,7 +1237,7 @@ video_sync vicSync
 	.vblank(vicVblank)
 );
 
-wire       videoOutput = status[59];
+wire       videoOutput = status[59];  // 0=vic, 1=vdc
 wire       hsync_out   = videoOutput ? vdcHsync : vicHsync_out;
 wire       vsync_out   = videoOutput ? vdcVsync : vicVsync_out;
 wire       hblank      = videoOutput ? vdcHblank : vicHblank;
@@ -1246,23 +1247,25 @@ wire [7:0] g           = videoOutput ? vdcG : vicG;
 wire [7:0] b           = videoOutput ? vdcB : vicB;
 
 reg hq2x160;
+reg hq2x320;
 always @(posedge clk_sys) begin
 	reg old_vsync;
 
 	old_vsync <= vsync_out;
 	if (!old_vsync && vsync_out) begin
+		hq2x320 <= (status[10:8] == 1);
 		hq2x160 <= (status[10:8] == 2);
 	end
 end
 
 reg ce_pix;
 always @(posedge CLK_VIDEO) begin
-	reg [2:0] div;
-	reg       lores;
+	reg [1:0] div;
+	reg [1:0] lores;
 
 	div <= div + 1'b1;
-	if(&div) lores <= ~lores;
-	ce_pix <= (~lores | ~hq2x160) && !div;
+	if (&div) lores <= lores + 1'b1;
+	ce_pix <= (~|lores | ~hq2x160) && (~lores[0] | ~hq2x320) && !div;
 end
 
 wire scandoubler = status[10:8] || forced_scandoubler;
@@ -1300,8 +1303,8 @@ video_freak video_freak
 (
 	.*,
 	.VGA_DE_IN(vga_de),
-	.ARX((!ar) ? (wide ? 12'd340 : 12'd400) : (ar - 1'd1)),
-	.ARY((!ar) ? 12'd300 : 12'd0),
+	.ARX((!ar) ? (videoOutput ? (wide ? 12'd680 : 12'd800) : (wide ? 12'd340 : 12'd400)) : (ar - 1'd1)),
+	.ARY((!ar) ? videoOutput ? 12'd600 : 12'd300 : 12'd0),
 	.CROP_SIZE(vcrop_en ? vcrop : 10'd0),
 	.CROP_OFF(0),
 	.SCALE(status[31:30])

@@ -5,12 +5,14 @@
  ********************************************************************************/
 
 module vdc_top #(
-	parameter 		S_LATCH_WIDTH = 128,
+	parameter		RAM_ADDR_WIDTH = 16,
+	parameter 		S_LATCH_WIDTH = 80,
 	parameter 		A_LATCH_WIDTH = 80,
-	parameter 		C_LATCH_WIDTH = 128
+	parameter 		C_LATCH_WIDTH = 8
 )(
 	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
+	input				initRam,   // 1=initialize RAM on reset
 
 	input          clk,
 	input				enableBus,
@@ -88,15 +90,19 @@ reg         reg_vspol = 0;  // R37[6]                [v2 only], VSYnc polarity
 
 reg   [5:0] regSel;         // selected internal register (write to $D600)
 
-reg         newFrame;
-reg         newLine;
-reg         newRow;
-reg         newCol;
+reg   [1:0] newFrame;
+wire        newLine, newRow;
+wire        newCol, endCol;
+reg   [7:0] col;
+reg   [4:0] line;
+reg         blink[2];       // The 2 blink rates: 0=16 frames, 1=30 frames
 
-reg         currbuf;
-reg   [7:0] scrnbuf[2][S_LATCH_WIDTH];
-reg   [7:0] attrbuf[2][A_LATCH_WIDTH];
-reg   [7:0] charbuf[C_LATCH_WIDTH];
+reg         rowbuf;
+reg  [15:0] dispaddr;
+
+(* ramstyle = "no_rw_check" *) reg [7:0] scrnbuf[2][S_LATCH_WIDTH];
+(* ramstyle = "no_rw_check" *) reg [7:0] attrbuf[2][A_LATCH_WIDTH];
+(* ramstyle = "no_rw_check" *) reg [7:0] charbuf[C_LATCH_WIDTH];
 
 reg         lpStatus;       // light pen status
 wire			vsync_pos;
@@ -104,52 +110,7 @@ wire			hsync_pos;
 
 wire        busy;
 wire        enablePixel = enablePixel0 | (~reg_dbl & enablePixel1);
-wire        visible;
-
-vdc_ramiface #(
-	.S_LATCH_WIDTH(S_LATCH_WIDTH),
-	.A_LATCH_WIDTH(A_LATCH_WIDTH),
-	.C_LATCH_WIDTH(C_LATCH_WIDTH)
-) ram (
-	.ram64k(ram64k),
-
-	.clk(clk),
-	.reset(reset),
-
-	.enable(enablePixel),
-	.enableBus(enableBus),
-
-	.regA(regSel),
-	.db_in(db_in),
-	.cs(cs),
-	.rs(rs),
-	.we(we),
-
-	.reg_copy(reg_copy),
-	.reg_ram(reg_ram),
-	.reg_atr(reg_atr),
-	.reg_text(reg_text),
-	.reg_ds(reg_ds),
-	.reg_aa(reg_aa),
-	.reg_cb(reg_cb),
-
-	.reg_ua(reg_ua),
-	.reg_wc(reg_wc),
-	.reg_da(reg_da),
-	.reg_ba(reg_ba),
-
-	.newFrame(newFrame),
-	.newLine(newLine),
-	.newRow(newRow),
-	.newCol(newCol),
-
-	.currbuf(currbuf),
-	.scrnbuf(scrnbuf),
-	.attrbuf(attrbuf),
-	.charbuf(charbuf),
-
-	.busy(busy)
-);
+wire  [1:0] visible;
 
 vdc_clockgen clockgen (
 	.clk(clk),
@@ -168,26 +129,14 @@ vdc_clockgen clockgen (
    .reg_vp(reg_vp),
    .reg_im(reg_im),
    .reg_ctv(reg_ctv),
-   .reg_cm(reg_cm),
-   .reg_cs(reg_cs),
-   .reg_ce(reg_ce),
-	.reg_ds(reg_ds),
    .reg_cp(reg_cp),
    .reg_cth(reg_cth),
    .reg_cdh(reg_cdh),
    .reg_cdv(reg_cdv),
-   .reg_rvs(reg_rvs),
-   .reg_cbrate(reg_cbrate),
    .reg_vss(reg_vss),
-   .reg_text(reg_text),
-   .reg_atr(reg_atr),
-   .reg_semi(reg_semi),
-   .reg_dbl(reg_dbl),
    .reg_hss(reg_hss),
    .reg_fg(reg_fg),
    .reg_bg(reg_bg),
-   .reg_ai(reg_ai),
-   .reg_ul(reg_ul),
    .reg_deb(reg_deb),
    .reg_dee(reg_dee),
 
@@ -195,13 +144,73 @@ vdc_clockgen clockgen (
 	.newLine(newLine),
 	.newRow(newRow),
 	.newCol(newCol),
+	.endCol(endCol),
+	.col(col),
+	.line(line),
 
 	.visible(visible),
+	.blink(blink),
 
 	.vblank(vblank),
 	.hblank(hblank),
 	.vsync(vsync_pos),
 	.hsync(hsync_pos)
+);
+
+vdc_ramiface #(
+	.RAM_ADDR_WIDTH(RAM_ADDR_WIDTH),
+	.S_LATCH_WIDTH(S_LATCH_WIDTH),
+	.A_LATCH_WIDTH(A_LATCH_WIDTH),
+	.C_LATCH_WIDTH(C_LATCH_WIDTH)
+) ram (
+	.ram64k(ram64k),
+	.initRam(reset),
+
+	.clk(clk),
+	.reset(reset),
+	.enable(enablePixel),
+
+	.regA(regSel),
+	.db_in(db_in),
+	.enableBus(enableBus),
+	.cs(cs),
+	.rs(rs),
+	.we(we),
+
+   .reg_ht(reg_ht),
+   .reg_hd(reg_hd),
+	.reg_ai(reg_ai),
+	.reg_copy(reg_copy),
+	.reg_ram(reg_ram),
+	.reg_atr(reg_atr),
+	.reg_text(reg_text),
+	.reg_ctv(reg_ctv),
+	.reg_ds(reg_ds),
+	.reg_aa(reg_aa),
+	.reg_cb(reg_cb),
+	.reg_drr(reg_drr),
+
+	.reg_ua(reg_ua),
+	.reg_wc(reg_wc),
+	.reg_da(reg_da),
+	.reg_ba(reg_ba),
+
+	.newFrame(newFrame),
+	.newLine(newLine),
+	.newRow(newRow),
+	.newCol(newCol),
+	.endCol(endCol),
+	.visible(visible),
+	.col(col),
+	.line(line),
+
+	.busy(busy),
+	.rowbuf(rowbuf),
+	.scrnbuf(scrnbuf),
+	.attrbuf(attrbuf),
+	.charbuf(charbuf),
+   .dispaddr(dispaddr)
+
 );
 
 vdc_video #(
@@ -232,14 +241,16 @@ vdc_video #(
 	.newLine(newLine),
 	.newRow(newRow),
 	.newCol(newCol),
-
+	.line(line),
+	.col(col),
 	.visible(visible),
-	.blank(hblank || vblank),
+	.blink(blink),
 
-	.currbuf(currbuf),
+	.rowbuf(rowbuf),
 	.scrnbuf(scrnbuf),
 	.attrbuf(attrbuf),
 	.charbuf(charbuf),
+   .dispaddr(dispaddr),
 
 	.rgbi(rgbi)
 );
@@ -306,8 +317,8 @@ always @(posedge clk) begin
 						1: reg_hd       <= db_in;
 						2: reg_hp       <= db_in;
 						3: begin
-								reg_vw     <= db_in[7:4];
-								reg_hw     <= db_in[3:0];
+								reg_vw    <= db_in[7:4];
+								reg_hw    <= db_in[3:0];
 							end
 						4: reg_vt       <= db_in;
 						5: reg_va       <= db_in[4:0];
@@ -370,7 +381,7 @@ always @(posedge clk) begin
 		end
 		else begin
 			if (!rs) begin
-				db_out <= {~busy, lpStatus, vblank, 3'b000, version};
+				db_out <= {~busy, lpStatus, ~visible[0], 3'b000, version};
 				lpStatus <= 0;
 			end
 			else

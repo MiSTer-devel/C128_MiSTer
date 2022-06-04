@@ -23,26 +23,14 @@ module vdc_clockgen (
    input   [7:0] reg_vp,         // R7      1D/20 29/32   Vertical sync position (plus 1) [29 for NTSC, 32 for PAL]
    input   [1:0] reg_im,         // R8          0 off     Interlace mode **TODO**
    input   [4:0] reg_ctv,        // R9         07 7       Character Total Vertical (minus 1)
-   input   [1:0] reg_cm,         // R10[6:5]    1 none    Cursor mode
-   input   [4:0] reg_cs,         // R10[4:0]    0 0       Cursor scanline start
-   input   [4:0] reg_ce,         // R11        07 7       Cursor scanline end (plus 1?)
-   input  [15:0] reg_ds,         // R12/R13  0000 0000    Display start
    input  [15:0] reg_cp,         // R14/R15  0000 0000    Cursor position
    input   [3:0] reg_cth,        // R22[7:4]    7 7       Character total horizontal (minus 1)
    input   [3:0] reg_cdh,        // R22[3:0]    8 8       Character displayed horizontal (plus 1 in double width mode)
    input   [4:0] reg_cdv,        // R23        08 8       Character displayed vertical (minus 1)
-   input         reg_rvs,        // R24[6]      0 off     Reverse screen
-   input         reg_cbrate,     // R24[5]      1 1/30    Character blink rate
    input   [4:0] reg_vss,        // R24[4:0]   00 0       Vertical smooth scroll
-   input         reg_text,       // R25[7]      0 text    Mode select (text/bitmap)
-   input         reg_atr,        // R25[6]      1 on      Attribute enable
-   input         reg_semi,       // R25[5]      0 off     Semi-graphic mode
-   input         reg_dbl,        // R25[4]      0 off     Pixel double width
    input   [3:0] reg_hss,        // R25[3:0]  0/7 0/7     Smooth horizontal scroll [0 for v0, 7 for v1]
    input   [3:0] reg_fg,         // R26[7:4]    F white   Foreground RGBI
    input   [3:0] reg_bg,         // R26[3:0]    0 black   Background RGBI
-   input   [7:0] reg_ai,         // R27        00 0       Address increment per row
-   input   [4:0] reg_ul,         // R29        07 7       Underline scan line
    input   [7:0] reg_deb,        // R34        7D 125     Display enable begin
    input   [7:0] reg_dee,        // R35        64 100     Display enable end
  
@@ -50,26 +38,29 @@ module vdc_clockgen (
    // output [7:0] reg_lph,        // R17                   Light pen H position
 
    // Control signals for memory interface
-   output        newFrame,       // pulses at the start of a new frame 
+   output  [1:0] newFrame,       // pulses at the start of a new frame, 11=single frame, 01=odd frame, 10=even frame
    output        newRow,         // pulses at the start of a new visible row
    output        newLine,        // pulses at the start of a new scan line
-   output        newCol,         // pulses at the start of a new column
+   output        newCol,         // pulses on first pixel of a column
+   output        endCol,         // pulses on the last pixel of a column
 
-   // Control signals for pixel generator
-   output   wire visible,
+   output  [7:0] col,            // current column
+   output  [4:0] line,           // current row line 
+
+   output wire [1:0] visible,    // 01=visible line, 11=visible line & column
+   output        blink[2],
 
    // Sync signals
    output   wire hsync,
    output   wire vsync,
    output        hblank,
-   output   wire vblank,
-   output  [3:0] rgbi
+   output   wire vblank
 );
 
 
-reg [3:0] dot, line;
+reg [4:0] pixel;
 reg [8:0] scanline;
-reg [7:0] row, col;
+reg [7:0] row;
 reg [7:0] hCnt, vCnt;
 reg [4:0] adjust;
 reg [3:0] hsCount;
@@ -78,7 +69,7 @@ reg [4:0] vsCount, vbCount;
 assign hsync = |hsCount;
 assign vsync = |vsCount;
 assign vblank = |vbCount;
-assign visible = |hCnt;
+assign visible = {|hCnt, |vCnt};
 
 wire [8:0] vbstart = 9'(((reg_ctv+1) * reg_vp) - 4);
 wire [4:0] vswidth = 5'(|reg_vw ? reg_vw : 16);
@@ -87,7 +78,7 @@ wire [4:0] vbwidth = 5'(vswidth + 8);
 // Dot, Pixel and Scanline counters
 always @(posedge clk) begin
    if (reset || init) begin
-      dot <= 0;
+      pixel <= reg_ctv;
       line <= 0;
       scanline <= 0;
       col <= 0;
@@ -100,23 +91,31 @@ always @(posedge clk) begin
       vsCount <= 0;
       vbCount <= 0;
 
-      newFrame <= 1;
+      newFrame <= 0;
       newRow <= 0;
-      newLine <= 1;
-      newCol <= 1;
+      newLine <= 0;
+      newCol <= 0;
+      endCol <= 0;
    end
    else if (enable) begin
       newFrame <= 0;
       newRow <= 0;
       newLine <= 0;
       newCol <= 0;
+      endCol <= 0;
 
-      dot <= dot + 4'd1;
+      pixel <= pixel - 5'd1;
 
-      if (dot == reg_ctv) begin
+      if (reg_ctv == 0 || pixel == 1) begin
+         // last pixel of column
+         endCol <= 1;
+      end
+
+      if (pixel == 0) begin
          // new column
          newCol <= 1;
-         dot <= 0;
+
+         pixel <= reg_ctv;
          col <= col + 8'd1;
 
          if (col == reg_ht) begin
@@ -124,14 +123,15 @@ always @(posedge clk) begin
             newLine <= 1;
             col <= 0;
             hCnt <= 0;
-            line <= line + 4'd1;
+            line <= line + 5'd1;
+            // line = line + (newFrame == 2'b11 ? 5'd1 : 5'd2);
             scanline <= scanline + 9'd1;
 
             if (|adjust) begin
                // vertical adjust
                if (adjust == 1) begin
                   // new frame
-                  newFrame <= 1;
+                  newFrame <= 2'b11;
                   row <= 0;
                   vCnt <= 0;
                   scanline <= 0;
@@ -141,17 +141,15 @@ always @(posedge clk) begin
             else if (line == reg_cth) begin
                // new row
                line <= 0;
+               // line = newFrame[1] == 0 ? 5'd1 : 5'd0;
                row <= row + 8'd1;
+               newRow <= 1;
 
-               // display starts at row 1
-               if (row == 1) begin
+               // display starts next row
+               if (row == 0)
                   vCnt <= reg_vd;
-                  newRow <= 1;
-               end
-               else if (|vCnt) begin
+               else if (|vCnt)
                   vCnt <= vCnt - 8'd1;
-                  newRow <= 1;
-               end
 
                // vertical sync start
                if (row == reg_vp) vsCount <= vswidth;
@@ -164,7 +162,7 @@ always @(posedge clk) begin
                   end
                   else begin
                      // new frame
-                     newFrame <= 1;
+                     newFrame <= 2'b11;
                      row <= 0;
                      vCnt <= 0;
                      scanline <= 0;
@@ -181,8 +179,7 @@ always @(posedge clk) begin
          end
 
          if (|vCnt) begin
-            // display starts at column 8
-            if (col == 8) hCnt <= reg_hd;
+            if (col == 7) hCnt <= reg_hd;
             else if (|hCnt) hCnt <= hCnt - 8'd1;
          end
 
@@ -194,13 +191,40 @@ always @(posedge clk) begin
          if (col == reg_dee) hblank <= 1;
          if (col == reg_deb) hblank <= 0;
       end
+   end
+end
 
-      if (hblank || vblank)
-         rgbi <= 0;
-      else if (visible)
-         rgbi <= 4'(col+row);
+// 16 frames blink rate
+always @(posedge clk) begin
+   reg [3:0] counter;
+
+   if (reset||init) begin
+      counter <= 0;
+      blink[0] <= 0;
+   end
+   else if (|newFrame) begin
+      if (counter == 15)
+         blink[0] <= ~blink[0];
+         
+      counter <= counter + 4'd1;
+   end
+end
+
+// 30 frames blink rate
+always @(posedge clk) begin
+   reg [4:0] counter;
+
+   if (reset||init) begin
+      counter <= 0;
+      blink[1] <= 0;
+   end
+   else if (|newFrame) begin
+      if (counter == 29) begin
+         blink[1] <= ~blink[1];
+         counter <= 0;
+      end
       else
-         rgbi <= reg_bg;
+         counter <= counter + 4'd1;
    end
 end
 

@@ -176,11 +176,11 @@ port(
 
 	-- VDC
 	vdcVersion  : in  unsigned(1 downto 0);
-
-	-- Memory sizes
-	sys256k     : in  std_logic;
 	vdc64k      : in  std_logic;
+	vdcInitRam  : in  std_logic;
 
+	-- System memory size
+	sys256k     : in  std_logic;
 	-- System mode
 	c128_n      : out std_logic;
 	z80_n       : out std_logic;
@@ -401,6 +401,7 @@ component vdc_top
 	port (
 		version       : in  unsigned(1 downto 0);
 		ram64k        : in  std_logic;
+		initRam       : in  std_logic;
 
 		clk           : in  std_logic;
 		reset         : in  std_logic;
@@ -814,6 +815,7 @@ vdc: vdc_top
 port map (
 	version => vdcVersion,
 	ram64k => vdc64k,
+	initRam => vdcInitRam,
 
 	clk => clk32,
 	reset => reset,

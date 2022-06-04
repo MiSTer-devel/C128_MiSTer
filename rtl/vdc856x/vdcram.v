@@ -7,6 +7,7 @@ parameter ADDRESS_WIDTH = 16
 )
 (
 input                           clk,
+input                           rd,
 input                           we,
 input      [ADDRESS_WIDTH-1:0]  addr,
 input      [DATA_WIDTH-1:0]     dai,
@@ -17,6 +18,7 @@ altsyncram	altsyncram_component (
 		.address_a (addr),
 		.clock0 (clk),
 		.data_a (dai),
+		.rden_a (rd),
 		.wren_a (we),
 		.q_a (dao),
 		.aclr0 (1'b0),
@@ -34,7 +36,6 @@ altsyncram	altsyncram_component (
 		.data_b (1'b1),
 		.eccstatus (),
 		.q_b (),
-		.rden_a (1'b1),
 		.rden_b (1'b1),
 		.wren_b (1'b0));
 
