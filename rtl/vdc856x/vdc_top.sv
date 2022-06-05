@@ -32,7 +32,7 @@ module vdc_top #(
 	output			hsync,
 	output			vblank,
 	output			hblank,
-	output	[3:0]	rgbi		  // ordered IRGB 
+	output	[3:0]	rgbi		  
 );
 
 // version  chip
@@ -129,7 +129,6 @@ vdc_clockgen clockgen (
    .reg_vp(reg_vp),
    .reg_im(reg_im),
    .reg_ctv(reg_ctv),
-   .reg_cp(reg_cp),
    .reg_cth(reg_cth),
    .reg_cdh(reg_cdh),
    .reg_cdv(reg_cdv),
@@ -224,29 +223,36 @@ vdc_video #(
 	.reset(reset),
 	.enable(enablePixel),
 
-	.reg_cm(reg_cm),
-	.reg_cs(reg_cs),
-	.reg_ce(reg_ce),
-	.reg_rvs(reg_rvs),
+	.reg_cth(reg_cth),
+	.reg_cdh(reg_cdh),
+	.reg_vss(reg_vss),
+	.reg_hss(reg_hss),
+
+	.reg_ul(reg_ul),
 	.reg_cbrate(reg_cbrate),
    .reg_text(reg_text),
    .reg_atr(reg_atr),
    .reg_semi(reg_semi),
-	.reg_hss(reg_hss),
+	.reg_rvs(reg_rvs),
 	.reg_fg(reg_fg),
 	.reg_bg(reg_bg),
-	.reg_ul(reg_ul),
 
+	.reg_cm(reg_cm),
+	.reg_cs(reg_cs),
+	.reg_ce(reg_ce),
+   .reg_cp(reg_cp),
+	
 	.newFrame(newFrame),
 	.newLine(newLine),
 	.newRow(newRow),
 	.newCol(newCol),
-	.line(line),
-	.col(col),
-	.visible(visible),
-	.blink(blink),
 
+	.visible(visible),
+	.blank(hblank),
+	.blink(blink),
 	.rowbuf(rowbuf),
+	.col(col),
+	.line(line),
 	.scrnbuf(scrnbuf),
 	.attrbuf(attrbuf),
 	.charbuf(charbuf),

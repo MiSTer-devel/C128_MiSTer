@@ -66,32 +66,6 @@ module vdc_ramiface #(
 	output  [15:0] dispaddr
 );
 
-// Cycles: (from https://c-128.freeforums.net/post/5516/thread)
-
-// 1: 80 C | 5 R | 40 S | 3 I		S: 40 screen bytes next character row
-// 2: 80 C | 5 R | 40 S | 3 I		S: 40 screen bytes next character row
-// 3: 80 C | 5 R | 40 A | 3 I		A: 40 attribute bytes next character row
-// 4: 80 C | 5 R | 40 A | 3 I	   A: 40 attribute bytes next character row
-// 5: 80 C | 5 R | 43 I
-// 6: 80 C | 5 R | 43 I
-// 7: 80 C | 5 R | 43 I
-// 8: 80 C | 5 R | 43 I
-
-// C: Character data bytes current line
-// S: Screen memory bytes for next character row (character pointers)
-// A: Attribute bytes for next character row
-// R: Refresh dram bytes (R36)
-// I: Internal/idle cycle ($3FFF/$FFFF on address bus)
-
-// After the last line of the last character row the screen bytes and attribute bytes for the first character row are read :
-
-//  2 I | 78 S |  5 R | 2 S | 38 A |  3 I    S:$0000-$004f	A:$0800-$0825
-//  2 I | 42 A | 36 I | 5 R | 43 I				A:$0826-$084f
-// 80 I |  5 R | 43 I
-
-// The last line shown is repeated until you get to the first line of the first character row (I didn't check all lines)
-
-
 typedef enum bit[2:0] {CA_NONE, CA_READ, CA_WRITE, CA_FILL, CA_COPY[2]} cAction_t;
 typedef enum bit[2:0] {RA_NONE, RA_CHAR, RA_SCRN, RA_ATTR, RA_CPU} rAction_t;
 
@@ -134,6 +108,7 @@ always @(posedge clk) begin
 	cAction_t cpuAction;
 	rAction_t ramAction;
 
+	reg [15:0] scrnaddr;    // screen data row address
 	reg [15:0] attraddr;    // attributes row address
 	reg  [7:0] wda, cda;    // write/copy data
 	reg  [7:0] wc;          // block word count
@@ -181,6 +156,7 @@ always @(posedge clk) begin
 			charbuf[i] <= 0;
 		end
 
+		dispaddr <= 16'hFFFF;
 	end
 	else begin
 		if (enableBus && cs && rs) begin
@@ -294,14 +270,21 @@ always @(posedge clk) begin
 				lastrowvisible <= visible[0];
 				if (visible[0] || (!visible[0] && lastrowvisible)) begin
 					rowbuf = ~rowbuf;
-					if (~reg_text) si = 0;
-					if (reg_atr)   ai = 0;
+
+					if (~reg_text) begin
+						si = 0;
+						dispaddr <= scrnaddr;
+					end
+					else
+						dispaddr <= 0;
+
+					if (reg_atr) ai = 0;
 				end
 				attraddr <= visible[0] ? attraddr + reg_hd + reg_ai : reg_aa;
 			end
 
 			if ((newLine && reg_text) || newRow) begin
-				dispaddr <= visible[0] ? dispaddr + reg_hd + reg_ai : reg_ds;
+				scrnaddr <= visible[0] ? scrnaddr + reg_hd + reg_ai : reg_ds;
 			end
 
 			if (visible[0] && col < reg_hd) begin
@@ -310,7 +293,7 @@ always @(posedge clk) begin
 
 				// TODO: unknown how hw responds to attr/scrn buffer overflow
 				if (reg_text)
-					ram_addr <= 16'(dispaddr + col);
+					ram_addr <= 16'(scrnaddr + col);
 				else if (reg_ctv[4])
 					ram_addr <= {reg_cb[2:1], reg_atr & attrbuf[rowbuf][col][7], scrnbuf[rowbuf][col], line[4:0]};
 				else
@@ -321,7 +304,7 @@ always @(posedge clk) begin
 			else if (en_scac && si < reg_hd) begin
 				// fetch screen data
 				ramAction <= RA_SCRN;
-				ram_addr  <= dispaddr + si;
+				ram_addr  <= scrnaddr + si;
 				ram_rd    <= 1;
 			end 
 			else if (en_scac && ai < reg_hd) begin

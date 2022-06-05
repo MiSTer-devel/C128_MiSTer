@@ -17,11 +17,11 @@ module vdc_video #(
 	input          reset,
 	input          enable,
 
-   input    [1:0] reg_cm,                     // cursor mode
-   input    [4:0] reg_cs,                     // cursor line start
-   input    [4:0] reg_ce,                     // cursor line end
-	input   [15:0] reg_cp,                     // cursor position address
-                 
+   input    [3:0] reg_cth,                    // character total horizontal                 
+   input    [3:0] reg_cdh,                    // character displayed horizontal                 
+   input    [4:0] reg_vss,                    // vertical smooth scroll
+   input    [3:0] reg_hss,                    // horizontal smooth scroll
+               
    input    [4:0] reg_ul,                     // underline position
    input          reg_cbrate,                 // character blink rate
 	input          reg_text,                   // text/bitmap mode
@@ -30,10 +30,12 @@ module vdc_video #(
    input          reg_rvs,                    // reverse video
    input    [3:0] reg_fg,                     // foreground color
    input    [3:0] reg_bg,                     // background color
+
+   input    [1:0] reg_cm,                     // cursor mode
+   input    [4:0] reg_cs,                     // cursor line start
+   input    [4:0] reg_ce,                     // cursor line end
+	input   [15:0] reg_cp,                     // cursor position
                  
-   input    [4:0] reg_vss,                    // vertical smooth scroll
-   input    [3:0] reg_hss,                    // horizontal smooth scroll
-               
 	input    [1:0] newFrame,                   // start of new frame
 	input          newLine,                    // start of new line
 	input          newRow,                     // start of new visible row
@@ -41,6 +43,7 @@ module vdc_video #(
    input          endCol,                     // end of column
                
    input    [1:0] visible,                    // in visible part of display
+   input          blank,                      // blanking
    input          blink[2],                   // blink rates
 	input 			rowbuf,                     // buffer # containing current screen info
    input    [7:0] col,                        // current column
@@ -50,26 +53,41 @@ module vdc_video #(
 	input    [7:0] charbuf[C_LATCH_WIDTH],     // character data for current line
    input   [15:0] dispaddr,                   // address of current row
 
-   output reg [3:0] rgbi
+   output   [3:0] rgbi
 );
 
-reg [7:0] bitmap;
-
 wire [7:0] vcol = col - 8'd8;
-wire [7:0] attr = attrbuf[rowbuf][vcol];
-wire [3:0]   fg = reg_atr ? attr[3:0] : reg_fg;                               // foreground color
-wire [3:0]   bg = visible[1] && reg_text && reg_atr ? attr[7:4] : reg_bg;     // background color
-wire [2:0]   ca = ~reg_text && reg_atr ? attr[6:4] : 3'b000;                  // character attributes (bit 0=blink, bit 1=underline, bit 2=reverse)
-wire        crs = (dispaddr+vcol == reg_cp);
-
-assign     rgbi = bitmap[7] ? fg : bg;
 
 always @(posedge clk) begin
-   if (reset)
+   reg [7:0] bitmap;
+   reg [3:0] fg, bg;
+   reg [2:0] ca;
+   reg       crs, rvs;
+
+   if (reset) begin
+      fg = 0;
+      bg = 0;
+      ca = 0;
       bitmap = 0;
+      crs = 0;
+   end
    else if (enable) begin
-      if (newCol) begin
-         if (visible[1]) begin
+      if (visible[1]) begin
+         if (newCol) begin
+            // fetch colors and attributes
+            fg = reg_atr ? attrbuf[rowbuf][vcol][3:0] : reg_fg;
+            bg = reg_text && reg_atr ? attrbuf[rowbuf][vcol][7:4] : reg_bg;
+            ca = ~reg_text && reg_atr ? attrbuf[rowbuf][vcol][6:4] : 3'b000;
+
+            // apply cursor
+            crs = (
+               ~reg_text
+               & (dispaddr+vcol == reg_cp)
+               & (reg_cm == 2'b00 || reg_cm[1] && blink[reg_cm[0]]) 
+               & reg_cs <= line && line < reg_ce
+            );
+
+            // get bitmap
             if (ca[0] && blink[reg_cbrate])
                bitmap = 8'h00;
             else if (ca[1] && line == reg_ul)
@@ -77,14 +95,21 @@ always @(posedge clk) begin
             else
                bitmap = charbuf[vcol % C_LATCH_WIDTH];
 
-            if (reg_rvs ^ ca[2] ^ crs) bitmap = ~bitmap;
+            // reversed
+            rvs = reg_rvs ^ ca[2] ^ crs;
+            if (rvs) bitmap = ~bitmap;
          end
-         else 
-            bitmap = 0;
+         else if (!(ca[1] && line == reg_ul))
+            bitmap = {bitmap[6:0], reg_semi ? bitmap[0] : rvs};
+
+         rgbi = bitmap[7] ? fg : bg;
       end
-      else
-         bitmap = { bitmap[6:0], reg_semi & bitmap[0] };
+      else if (blank)
+         rgbi = 0;
+      else 
+         rgbi = reg_bg;
    end
 end
+
 
 endmodule
