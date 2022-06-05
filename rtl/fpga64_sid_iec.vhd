@@ -410,6 +410,7 @@ component vdc_top
 		enableBus     : in  std_logic;
 		cs            : in  std_logic;
 		we            : in  std_logic;
+		lp_n			  : in  std_logic;	
 
 		rs            : in  std_logic;
 		db_in         : in  unsigned(7 downto 0);
@@ -824,6 +825,7 @@ port map (
 	enableBus => enableVdc,
 	cs => cs_vdc,
 	we => pulseWr_io,
+	lp_n => cia1_pbi(4),
 
 	rs => tAddr(0),
 	db_in => cpuDo,

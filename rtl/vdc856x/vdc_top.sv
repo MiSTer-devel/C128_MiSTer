@@ -22,6 +22,8 @@ module vdc_top #(
 	input          cs,        // chip select
 	input          rs,        // register select
 	input          we,        // write enable
+	input				lp_n,      // light pen
+
 	input    [7:0] db_in,     // data in
 	output   [7:0] db_out,    // data out
 
@@ -93,7 +95,7 @@ reg   [5:0] regSel;         // selected internal register (write to $D600)
 reg   [1:0] newFrame;
 wire        newLine, newRow;
 wire        newCol, endCol;
-reg   [7:0] col;
+reg   [7:0] col, row;
 reg   [4:0] line;
 reg         blink[2];       // The 2 blink rates: 0=16 frames, 1=30 frames
 
@@ -145,6 +147,7 @@ vdc_clockgen clockgen (
 	.newCol(newCol),
 	.endCol(endCol),
 	.col(col),
+	.row(row),
 	.line(line),
 
 	.visible(visible),
@@ -266,6 +269,8 @@ assign hsync = hsync_pos ^ (~version[1] & reg_hspol);
 
 // Internal registers
 always @(posedge clk) begin
+	reg lp_n0;
+
 	if (reset) begin
 		regSel <= 0;
 
@@ -311,6 +316,8 @@ always @(posedge clk) begin
 		reg_drr <= 0;
 		reg_hspol <= 0;
 		reg_vspol <= 0;
+
+		lp_n0 <= 0;
 	end
 	else if (cs)
 		if (we) begin
@@ -388,7 +395,6 @@ always @(posedge clk) begin
 		else begin
 			if (!rs) begin
 				db_out <= {~busy, lpStatus, ~visible[0], 3'b000, version};
-				lpStatus <= 0;
 			end
 			else
 				case (regSel)
@@ -408,8 +414,8 @@ always @(posedge clk) begin
 					13: db_out <= reg_ds[7:0];
 					14: db_out <= reg_cp[15:8];
 					15: db_out <= reg_cp[7:0];
-					16: db_out <= reg_lpv;
-					17: db_out <= reg_lph;
+					16: begin db_out <= reg_lpv; lpStatus <= 0; end
+					17: begin db_out <= reg_lph; lpStatus <= 0; end
 					18: db_out <= reg_ua[15:8];
 					19: db_out <= reg_ua[7:0];
 					20: db_out <= reg_aa[15:8];
@@ -433,6 +439,14 @@ always @(posedge clk) begin
 					default: db_out <= 8'b11111111;
 				endcase
 		end
+
+	// Light pen
+	lp_n0 <= lp_n;
+	if (~lp_n0 && lp_n && ~lpStatus) begin
+		reg_lph <= col;
+		reg_lpv <= row;
+		lpStatus <= 1;
+	end
 end
 
 endmodule
