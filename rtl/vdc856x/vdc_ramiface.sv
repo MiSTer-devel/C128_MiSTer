@@ -9,8 +9,6 @@
  * - timings not yet verified
  ********************************************************************************/
 
-// `define VDC16K  // Enable to reduce memory usage during debugging
-
 module vdc_ramiface #(
 	parameter		RAM_ADDR_BITS,
 
