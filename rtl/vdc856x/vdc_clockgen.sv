@@ -64,7 +64,7 @@ wire  [5:0] vbwidth = 6'(vswidth + (vtotal < 246 ? 0 : ((vtotal-13'd246)*17'd7)/
 // Dot, Pixel and Scanline counters
 always @(posedge clk) begin
    reg  [4:0] pixel, nline;
-   reg  [7:0] ncol, nrow;
+   reg  [7:0] nrow;
    reg [12:0] scanline;
    reg  [7:0] hCnt, vCnt;
    reg  [3:0] hsCount;
@@ -72,9 +72,8 @@ always @(posedge clk) begin
    reg  [5:0] vbCount;
 
    if (reset || init) begin
-      row <= reg_vp > 0 ? reg_vp-1 : reg_vt-1;
+      row <= reg_vp > 0 ? reg_vp-8'd1 : reg_vt-8'd1;
       line <= 0;
-      col <= 0;
       newFrame <= 0;
       newRow <= 1;
       newLine <= 1;
@@ -86,7 +85,7 @@ always @(posedge clk) begin
       visible <= 2'b00;
 
       pixel = reg_ctv;
-      ncol = 0;
+      col = 0;
       nrow = reg_vp;
       nline = reg_cth;
       scanline = vsstart;
@@ -114,16 +113,16 @@ always @(posedge clk) begin
          newCol <= 1;
 
          // horizontal blanking
-         if (ncol == reg_dee) hblank <= 1;
-         if (ncol == reg_deb) hblank <= 0;
+         if (col == reg_dee) hblank <= 1;
+         if (col == reg_deb) hblank <= 0;
 
-         if (ncol == 7) row <= nrow;
+         if (col == 7) row <= nrow;
 
-         ncol = ncol + 8'd1;
-         if (ncol == reg_ht) begin
+         col = col + 8'd1;
+         if (col == reg_ht) begin
             // new line
             newLine <= 1;
-            ncol = 0;
+            col = 0;
             hCnt = 0;
 
             if (nline == 0) begin
@@ -167,19 +166,18 @@ always @(posedge clk) begin
          end
 
          if (|vCnt) begin
-            if (ncol == 8) hCnt = reg_hd;
+            if (col == 8) hCnt = reg_hd;
             else if (|hCnt) hCnt = hCnt - 8'd1;
          end
 
          // horizontal sync
-         if (ncol == reg_hp) hsCount = reg_hw;
+         if (col == reg_hp) hsCount = reg_hw;
          if (|hsCount) hsCount = hsCount - 4'd1;
 
       end
       else
          pixel = pixel - 5'd1;
 
-      col <= ncol;
       hsync <= |hsCount;
       vsync <= |vsCount;
       vblank <= |vbCount;

@@ -12,12 +12,17 @@
 // `define VDC16K  // Enable to reduce memory usage during debugging
 
 module vdc_ramiface #(
-	parameter		RAM_ADDR_WIDTH,
+	parameter		RAM_ADDR_BITS,
+
+	parameter		C_LATCH_WIDTH,
 	parameter 		S_LATCH_WIDTH,
 	parameter 		A_LATCH_WIDTH,
-	parameter		C_LATCH_WIDTH
+
+	parameter      C_LATCH_BITS = $clog2(C_LATCH_WIDTH),
+	parameter      S_LATCH_BITS = $clog2(S_LATCH_WIDTH),
+	parameter      A_LATCH_BITS = $clog2(A_LATCH_WIDTH)
 )(
-	input          ram64k,   // 0 = 16kB, 1 = 64kB -- available RAM
+	input          ram64k,   // 0 = 16kB, 1 = 64kB -- visible RAM
 	input          initRam,  // 1 = initialize RAM on reset
 
 	input          clk,
@@ -55,6 +60,7 @@ module vdc_ramiface #(
 	input          newCol,
 	input          endCol,
 	input    [1:0] visible,
+	input    [7:0] row,
 	input    [7:0] col,
 	input    [4:0] line,
 
@@ -66,6 +72,7 @@ module vdc_ramiface #(
 	output  [15:0] dispaddr
 );
 
+
 typedef enum bit[2:0] {CA_NONE, CA_READ, CA_WRITE, CA_FILL, CA_COPY[2]} cAction_t;
 typedef enum bit[2:0] {RA_NONE, RA_CHAR, RA_SCRN, RA_ATTR, RA_CPU} rAction_t;
 
@@ -75,22 +82,22 @@ reg [15:0] ram_addr;
 reg  [7:0] ram_di;
 reg  [7:0] ram_do;
 
-function [RAM_ADDR_WIDTH-1:0] shuffleAddr;
+function [RAM_ADDR_BITS-1:0] shuffleAddr;
 	input [15:0] addr;
 	input        has64k;
 	input        ena64k;
 begin
-	if (RAM_ADDR_WIDTH > 14)
-		shuffleAddr = RAM_ADDR_WIDTH'(
+	if (RAM_ADDR_BITS > 14)
+		shuffleAddr = RAM_ADDR_BITS'(
 			ena64k ? {has64k & addr[15], addr[14:9], has64k & addr[8], addr[7:0]} 
 					 : {has64k & addr[15], addr[13:8], has64k & addr[8], addr[7:0]}
 		);
 	else
-		shuffleAddr = RAM_ADDR_WIDTH'(ena64k ? {addr[14:9], addr[7:0]} : addr[13:0]);
+		shuffleAddr = RAM_ADDR_BITS'(ena64k ? {addr[14:9], addr[7:0]} : addr[13:0]);
 end
 endfunction
 
-vdcram #(8, RAM_ADDR_WIDTH) ram
+vdcram #(8, RAM_ADDR_BITS) ram
 (
 	.clk(clk),
 	.rd(ram_rd),
@@ -112,21 +119,25 @@ always @(posedge clk) begin
 	reg [15:0] attraddr;    // attributes row address
 	reg  [7:0] wda, cda;    // write/copy data
 	reg  [7:0] wc;          // block word count
-	reg  [7:0] si, ai;      // screen, attribute index
 	reg        start_erase;
 	reg        lastrowvisible;
 	reg        erasing;
 
+	reg [C_LATCH_BITS-1:0] ci; // character index
+	reg [S_LATCH_BITS-1:0] si; // screen index
+	reg [A_LATCH_BITS-1:0] ai; // attribute index
+
 	integer    i;
 
-	busy    = erasing || start_erase || reset || cpuAction != CA_NONE;
+	busy = erasing || start_erase || reset || cpuAction != CA_NONE;
 	
 	ram_rd <= 0;
 	ram_we <= 0;
 
 	if (reset) begin
-		si     = 8'hff;
-		ai     = 8'hff;
+		ci     = 0;
+		si     = 0;
+		ai     = 0;
 		rowbuf = 0;
 
 		wc     <= 0;
@@ -204,7 +215,7 @@ always @(posedge clk) begin
 			start_erase <= 0;
 			erasing     <= 1;
 			ram_di      <= 0;
-			ram_addr    <= 16'd0;
+			ram_addr    <= 0;
 			ram_we      <= 1;
 		end
 		else if (erasing) begin
@@ -220,19 +231,21 @@ always @(posedge clk) begin
 		end 
 		else if (~enable && endCol) begin
 			case (ramAction)
-				RA_CHAR:
-					charbuf[col % C_LATCH_WIDTH] <= ram_do;
+				RA_CHAR: begin
+					charbuf[ci] <= ram_do;
+					ci = C_LATCH_BITS'((ci + 1) % C_LATCH_WIDTH);
+				end
 
 				RA_SCRN: begin
 					// TODO: unknown how hw responds to buffer overflow
 					scrnbuf[~rowbuf][si] <= ram_do;
-					si = si + 8'd1;
+					si = S_LATCH_BITS'(si + 1);
 				end
 
 				RA_ATTR:  begin
 					// TODO: unknown how hw responds to buffer overflow
 					attrbuf[~rowbuf][ai] <= ram_do;
-					ai = ai + 8'd1;
+					ai = A_LATCH_BITS'(ai + 1);
 				end
 
 				RA_CPU:
@@ -266,6 +279,10 @@ always @(posedge clk) begin
 		else if (enable && newCol) begin
 			ram_addr <= 16'hFFFF;
 
+			if (newLine) begin
+				ci = 0;
+			end;
+
 			if (newRow) begin
 				lastrowvisible <= visible[0];
 				if (visible[0] || (!visible[0] && lastrowvisible)) begin
@@ -280,11 +297,11 @@ always @(posedge clk) begin
 
 					if (reg_atr) ai = 0;
 				end
-				attraddr <= visible[0] ? attraddr + reg_hd + reg_ai : reg_aa;
+				attraddr = visible[0] ? attraddr + reg_hd + reg_ai : reg_aa;
 			end
 
 			if ((newLine && reg_text) || newRow) begin
-				scrnaddr <= visible[0] ? scrnaddr + reg_hd + reg_ai : reg_ds;
+				scrnaddr = (visible[0] && (~reg_text || |row || |line)) ? scrnaddr + reg_hd + reg_ai : reg_ds;
 			end
 
 			if (visible[0] && col < reg_hd) begin

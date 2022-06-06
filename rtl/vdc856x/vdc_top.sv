@@ -5,10 +5,10 @@
  ********************************************************************************/
 
 module vdc_top #(
-	parameter		RAM_ADDR_WIDTH = 16,
+	parameter		RAM_ADDR_BITS = 16,
+	parameter 		C_LATCH_WIDTH = 8,
 	parameter 		S_LATCH_WIDTH = 80,
-	parameter 		A_LATCH_WIDTH = 80,
-	parameter 		C_LATCH_WIDTH = 8
+	parameter 		A_LATCH_WIDTH = 80
 )(
 	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
@@ -160,7 +160,7 @@ vdc_clockgen clockgen (
 );
 
 vdc_ramiface #(
-	.RAM_ADDR_WIDTH(RAM_ADDR_WIDTH),
+	.RAM_ADDR_BITS(RAM_ADDR_BITS),
 	.S_LATCH_WIDTH(S_LATCH_WIDTH),
 	.A_LATCH_WIDTH(A_LATCH_WIDTH),
 	.C_LATCH_WIDTH(C_LATCH_WIDTH)
@@ -203,6 +203,7 @@ vdc_ramiface #(
 	.newCol(newCol),
 	.endCol(endCol),
 	.visible(visible),
+	.row(row),
 	.col(col),
 	.line(line),
 
