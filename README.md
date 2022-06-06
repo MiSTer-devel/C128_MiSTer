@@ -9,7 +9,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 ## C128 features implemented
 
 - MMU fully implemented and tested using [VICE test progs](https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/c128/)
-- VDC partially implemented: memory interface is, video output is not.
+- VDC standard modes (text & bitmap) implemented.
 - Z80 implemented. Simple uses work, but CP/M does not yet boot.
 - Booting in C64, C128 or Z80 mode
 - Automatic detection of .CRT files: C64 cartridges boot in C64 mode, C128 cartridges boot in C128 mode. C128 .CRT files must contain a [C128 CARTRIDGE](https://vice-emu.sourceforge.io/vice_17.html#SEC392) header to be detected.
@@ -18,7 +18,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 ### C128 features not (yet) implemented
 
 - C128 specific keys
-- 80 column display
+- VDC scrolling, interlace, 40 column mode, non-standard modes
 - CP/M mode
 - Internal function ROM
 - 1571 drive and fast serial for disk I/O
@@ -66,7 +66,10 @@ These ROM files will *not* work with this core as they will overwrite the C128 k
 
 **Drive rom**: Loads the ROM for the disk drive.
 
-### VDC version
+### VDC/80 column mode
+
+Video output can be selected in the menu. When switching to 80-column mode, this also sets the 40/80 col mode switch. As on a real C128 this does not immediatly switch on which screen
+BASIC is active, so a "GRAPHIC" command or pressing RUN-STOP/RESTORE (ESC+F11) is needed to activate the other screen.
 
 In OSD->Audio&Video the VDC version and memory size can be selected.
 

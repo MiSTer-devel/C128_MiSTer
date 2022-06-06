@@ -192,13 +192,15 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXX  
 
 `include "build_id.v"
 localparam CONF_STR = {
 	"C128;UART9600:2400;",
 	//"oUV,Boot Mode,Z80,C128,C64;", // for testing
 	//"-;",
+	"oR,Video output,VIC (40 col),VDC (80 col);",
+	"-;",
 	"H7S0,D64G64T64D81,Mount #8;",
 	"H0S1,D64G64T64D81,Mount #9;",
 	"-;",
@@ -939,9 +941,15 @@ wire        romH;
 wire        UMAXromH;
 
 wire [17:0] audio_l,audio_r;
-wire  [7:0] r,g,b;
 
 wire        ntsc = status[2];
+
+wire        vicHsync, vicVsync;
+wire  [7:0] vicR, vicG, vicB;
+
+wire        vdcHsync, vdcVsync;
+wire        vdcHblank, vdcVblank;
+wire  [7:0] vdcR, vdcG, vdcB;
 
 fpga64_sid_iec fpga64
 (
@@ -955,6 +963,7 @@ fpga64_sid_iec fpga64
 	.sys256k(status[49]),
 	.vdcVersion({(~status[47])^status[46],status[46]}),
 	.vdc64k(status[48]|~(status[47]|status[46])),
+	.vdcInitRam(~status[24]),
 	//.osmode(status[63]), // for testing, "0" C128, "1" C64
 	//.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
 	.osmode(0),
@@ -972,11 +981,21 @@ fpga64_sid_iec fpga64
 	.ramWE(ram_we),
 
 	.ntscmode(ntsc),
-	.hsync(hsync),
-	.vsync(vsync),
-	.r(r),
-	.g(g),
-	.b(b),
+	.c4080(~videoOutput),
+
+	.vicHsync(vicHsync),
+	.vicVsync(vicVsync),
+	.vicR(vicR),
+	.vicG(vicG),
+	.vicB(vicB),
+
+	.vdcHsync(vdcHsync),
+	.vdcVsync(vdcVsync),
+	.vdcHblank(vdcHblank),
+	.vdcVblank(vdcVblank),
+	.vdcR(vdcR),
+	.vdcG(vdcG),
+	.vdcB(vdcB),
 
 	.game(game),
 	.game_mmu(game_mmu),
@@ -1201,46 +1220,52 @@ assign USER_OUT[4] = (c64_iec_data & drive_iec_data_o) | ~ext_iec_en;
 assign USER_OUT[5] = c64_iec_atn | ~ext_iec_en;
 assign USER_OUT[6] = '1;
 
+wire vicHblank, vicVblank;
+wire vicHsync_out, vicVsync_out;
 
-wire hsync;
-wire vsync;
-wire hblank;
-wire vblank;
-wire hsync_out;
-wire vsync_out;
-
-video_sync sync
+video_sync vicSync
 (
 	.clk32(clk_sys),
 	.pause(c64_pause),
-	.hsync(hsync),
-	.vsync(vsync),
+	.hsync(vicHsync),
+	.vsync(vicVsync),
 	.ntsc(ntsc),
 	.wide(wide),
-	.hsync_out(hsync_out),
-	.vsync_out(vsync_out),
-	.hblank(hblank),
-	.vblank(vblank)
+	.hsync_out(vicHsync_out),
+	.vsync_out(vicVsync_out),
+	.hblank(vicHblank),
+	.vblank(vicVblank)
 );
 
+wire       videoOutput = status[59];  // 0=vic, 1=vdc
+wire       hsync_out   = videoOutput ? vdcHsync : vicHsync_out;
+wire       vsync_out   = videoOutput ? vdcVsync : vicVsync_out;
+wire       hblank      = videoOutput ? vdcHblank : vicHblank;
+wire       vblank      = videoOutput ? vdcVblank : vicVblank;
+wire [7:0] r           = videoOutput ? vdcR : vicR;
+wire [7:0] g           = videoOutput ? vdcG : vicG;
+wire [7:0] b           = videoOutput ? vdcB : vicB;
+
 reg hq2x160;
+reg hq2x320;
 always @(posedge clk_sys) begin
 	reg old_vsync;
 
 	old_vsync <= vsync_out;
 	if (!old_vsync && vsync_out) begin
+		hq2x320 <= (status[10:8] == 1);
 		hq2x160 <= (status[10:8] == 2);
 	end
 end
 
 reg ce_pix;
 always @(posedge CLK_VIDEO) begin
-	reg [2:0] div;
-	reg       lores;
+	reg [1:0] div;
+	reg [1:0] lores;
 
 	div <= div + 1'b1;
-	if(&div) lores <= ~lores;
-	ce_pix <= (~lores | ~hq2x160) && !div;
+	if (&div) lores <= lores + 1'b1;
+	ce_pix <= (~|lores | ~hq2x160) && (~lores[0] | ~hq2x320) && !div;
 end
 
 wire scandoubler = status[10:8] || forced_scandoubler;
@@ -1278,8 +1303,8 @@ video_freak video_freak
 (
 	.*,
 	.VGA_DE_IN(vga_de),
-	.ARX((!ar) ? (wide ? 12'd340 : 12'd400) : (ar - 1'd1)),
-	.ARY((!ar) ? 12'd300 : 12'd0),
+	.ARX((!ar) ? (videoOutput ? (wide ? 12'd680 : 12'd800) : (wide ? 12'd340 : 12'd400)) : (ar - 1'd1)),
+	.ARY((!ar) ? videoOutput ? 12'd600 : 12'd300 : 12'd0),
 	.CROP_SIZE(vcrop_en ? vcrop : 10'd0),
 	.CROP_OFF(0),
 	.SCALE(status[31:30])

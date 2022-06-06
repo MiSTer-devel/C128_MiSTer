@@ -34,7 +34,7 @@
 --
 -- Erik Scheffers 2022
 --
--- updated for C128
+-- extended for C128
 
 
 library IEEE;
@@ -75,11 +75,21 @@ port(
 
 	-- VGA/SCART interface
 	ntscMode    : in  std_logic;
-	hsync       : out std_logic;
-	vsync       : out std_logic;
-	r           : out unsigned(7 downto 0);
-	g           : out unsigned(7 downto 0);
-	b           : out unsigned(7 downto 0);
+	c4080       : in  std_logic;
+
+	vicHsync    : out std_logic;
+	vicVsync    : out std_logic;
+	vicR        : out unsigned(7 downto 0);
+	vicG        : out unsigned(7 downto 0);
+	vicB        : out unsigned(7 downto 0);
+
+	vdcHsync    : out std_logic;
+	vdcVsync    : out std_logic;
+	vdcHblank   : out std_logic;
+	vdcVblank   : out std_logic;
+	vdcR        : out unsigned(7 downto 0);
+	vdcG        : out unsigned(7 downto 0);
+	vdcB        : out unsigned(7 downto 0);
 
 	-- cartridge port
 	game        : in  std_logic;
@@ -166,11 +176,11 @@ port(
 
 	-- VDC
 	vdcVersion  : in  unsigned(1 downto 0);
-
-	-- Memory sizes
-	sys256k     : in  std_logic;
 	vdc64k      : in  std_logic;
+	vdcInitRam  : in  std_logic;
 
+	-- System memory size
+	sys256k     : in  std_logic;
 	-- System mode
 	c128_n      : out std_logic;
 	z80_n       : out std_logic;
@@ -284,7 +294,7 @@ signal cia2_pbe     : unsigned(7 downto 0);
 
 signal todclk       : std_logic;
 
--- video
+-- VIC signals
 signal vicColorIndex: unsigned(3 downto 0);
 signal vicBus       : unsigned(7 downto 0);
 signal vicDi        : unsigned(7 downto 0);
@@ -298,6 +308,10 @@ signal colorDataAec : unsigned(3 downto 0);
 signal turbo_en     : std_logic;
 signal turbo_state  : std_logic;
 signal vicKo        : unsigned(2 downto 0);
+
+-- VDC signals
+signal vdcRGBI      : unsigned(3 downto 0);
+signal vdcData      : unsigned(7 downto 0);
 
 -- SID signals
 signal sid_do       : unsigned(7 downto 0);
@@ -322,9 +336,6 @@ signal mmu_memC000  : unsigned(1 downto 0);
 signal mmu_mem8000  : unsigned(1 downto 0);
 signal mmu_mem4000  : std_logic;
 signal mmu_memD000  : std_logic;
-
--- VDC signals
-signal vdcData      : unsigned(7 downto 0);
 
 component sid_top
 	port (
@@ -390,6 +401,7 @@ component vdc_top
 	port (
 		version       : in  unsigned(1 downto 0);
 		ram64k        : in  std_logic;
+		initRam       : in  std_logic;
 
 		clk           : in  std_logic;
 		reset         : in  std_logic;
@@ -398,13 +410,20 @@ component vdc_top
 		enableBus     : in  std_logic;
 		cs            : in  std_logic;
 		we            : in  std_logic;
+		lp_n			  : in  std_logic;	
 
 		rs            : in  std_logic;
 		db_in         : in  unsigned(7 downto 0);
 		db_out        : out unsigned(7 downto 0);
 
 		enablePixel0  : in  std_logic;
-		enablePixel1  : in  std_logic
+		enablePixel1  : in  std_logic;
+
+		hsync         : out std_logic;
+		vsync         : out std_logic;
+		hblank        : out std_logic;
+		vblank        : out std_logic; 
+		rgbi          : out unsigned(3 downto 0)
 	);
 end component;
 
@@ -538,7 +557,7 @@ port map (
 	cpubank => cpubank,
 	vicbank => vicbank,
 
-	c4080 => '1',
+	c4080 => c4080,
 
 	exromi => exrom,
 	exromo => mmu_exrom,
@@ -716,19 +735,19 @@ port map (
 	vicAddr => vicAddr(13 downto 0),
 	addrValid => aec,
 
-	hsync => hSync,
-	vsync => vSync,
+	hSync => vicHsync,
+	vSync => vicVsync,
 	colorIndex => vicColorIndex,
 
 	irq_n => irq_vic
 );
 
-c64colors: entity work.fpga64_rgbcolor
+vicColors: entity work.fpga64_rgbcolor
 port map (
 	index => vicColorIndex,
-	r => r,
-	g => g,
-	b => b
+	r => vicR,
+	g => vicG,
+	b => vicB
 );
 
 process(clk32)
@@ -797,6 +816,7 @@ vdc: vdc_top
 port map (
 	version => vdcVersion,
 	ram64k => vdc64k,
+	initRam => vdcInitRam,
 
 	clk => clk32,
 	reset => reset,
@@ -805,13 +825,28 @@ port map (
 	enableBus => enableVdc,
 	cs => cs_vdc,
 	we => pulseWr_io,
+	lp_n => cia1_pbi(4),
 
 	rs => tAddr(0),
 	db_in => cpuDo,
 	db_out => vdcData,
 
 	enablePixel0 => enablePixel0,
-	enablePixel1 => enablePixel1
+	enablePixel1 => enablePixel1,
+
+	hsync => vdcHsync,
+	vsync => vdcVsync,
+	hblank => vdcHblank,
+	vblank => vdcVblank,
+	rgbi => vdcRGBI
+);
+
+vdcColors: entity work.rgbicolor
+port map (
+	rgbi => vdcRGBI,
+	r => vdcR,
+	g => vdcG,
+	b => vdcB
 );
 
 -- -----------------------------------------------------------------------
