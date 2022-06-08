@@ -68,6 +68,8 @@ entity fpga64_keyboard is
 end fpga64_keyboard;
 
 architecture rtl of fpga64_keyboard is
+	constant C_NOSCROLL_DELAY : integer := 6_000_000;  -- 32_000_000 is 1 second
+
 	signal extended: boolean;
 	signal pressed: std_logic := '0';
 
@@ -186,7 +188,7 @@ architecture rtl of fpga64_keyboard is
 	signal key_8s    : std_logic := '0';
 
 	-- switch states
-	signal noscroll_delay : integer range 0 to 16000000;
+	signal noscroll_delay : integer range 0 to C_NOSCROLL_DELAY;
 	signal noscroll_lock : std_logic := '0';
 
 	signal shift_lock : std_logic;
@@ -557,7 +559,7 @@ begin
 					when X"74" => if extended then key_right   <= pressed; else key_num6   <= pressed; end if;
 					when X"75" => if extended then key_up      <= pressed; else key_num8   <= pressed; end if;
 					when X"76" => key_runstop <= pressed;
-					when X"77" => if extended and pressed = '1' then 
+					when X"77" => if extended and pressed = '1' and ps2_key /= last_key then 
 						if noscroll_lock = '1' then
 							noscroll_lock <= '0';
 							key_noscroll <= '0'; 
@@ -568,7 +570,7 @@ begin
 						else
 							key_noscroll <= '1'; 
 						end if;
-						noscroll_delay <= 16000000; 
+						noscroll_delay <= C_NOSCROLL_DELAY; 
 					end if;
 					when X"78" => restore_key <= pressed; -- F11
 					when X"79" => key_numplus <= pressed;
