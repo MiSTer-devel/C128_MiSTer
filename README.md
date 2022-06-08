@@ -116,17 +116,46 @@ Copy the *.rbf to the root of the SD card. Copy disks/carts to C64 folder.
 ## Usage
 
 ### Keyboard
-* F2,F4,F6,F8,Left/Up keys automatically activate Shift key.
-* F9 - arrow-up key.
-* F10 - = key.
-* F11 - restore key. Also special key in AR/FC carts.
-* Alt,Tab - C= key.
-* PgUp - Tape play/pause
+* <kbd>F2</kbd>, <kbd>F4</kbd> , <kbd>F6</kbd> , <kbd>F8</kbd> , <kbd>Left</kbd>/<kbd>Up</kbd> keys automatically activate <kbd>Shift</kbd> key.
+* <kbd>F9</kbd> - arrow-up key.
+* <kbd>F10</kbd> - <kbd>=</kbd> key.
+* <kbd>F11</kbd> - <kbd>restore</kbd> key. Also special key in AR/FC carts.
+* Meta keys (Win/Apple) - <kbd>C=</kbd> key.
+* <kbd>PgUp</kbd> - Tape play/pause
+* <kbd>PgDn</kbd> - <kbd>Line feed</kbd>
+* <kbd>End</kbd> - <kbd>Help</kbd>
+* <kbd>Pause/Break</kbd> - <kbd>No Scroll</kbd> (* see note below)
+* Numpad <kbd>/</kbd> - <kbd>Esc</kbd>
+* Numpad <kbd>*</kbd> - <kbd>Display 40/80</kbd>
 
-![keyboard-mapping](https://github.com/mister-devel/C64_MiSTer/blob/master/keymap.gif)
+The <kbd>AltGr</kbd> key (right <kbd>Alt</kbd>) is used to access alternative function keys. Combined with <kbd>AltGr</kbd> the function keys are the C128 top-row special keys. To access these functions, press and hold <kbd>AltGr</kbd> while pressing any of the function keys:
+* <kbd>AltGr</kbd>+<kbd>F1</kbd> - <kbd>Esc</kbd>
+* <kbd>AltGr</kbd>+<kbd>F2</kbd> - <kbd>Alt</kbd>
+* <kbd>AltGr</kbd>+<kbd>F3</kbd> - <kbd>Tab</kbd>
+* <kbd>AltGr</kbd>+<kbd>F4</kbd> - <kbd>Caps Lock</kbd>
+* <kbd>AltGr</kbd>+<kbd>F5</kbd> - <kbd>Help</kbd>
+* <kbd>AltGr</kbd>+<kbd>F6</kbd> - <kbd>Line feed</kbd>
+* <kbd>AltGr</kbd>+<kbd>F7</kbd> - <kbd>40/80 display</kbd>
+* <kbd>AltGr</kbd>+<kbd>F8</kbd> - <kbd>No scroll</kbd>
+
+It is possible to access the C128 top-row cursor keys, and the numpad keys on a PC keyboard without numpad using <kbd>AltGr</kbd> combined with the similar keys:
+* <kbd>AltGr</kbd>+<kbd>return</kbd> - Numpad <kbd>enter</kbd>
+* <kbd>AltGr</kbd>+<kbd>1</kbd> through <kbd>0</kbd> - Numpad <kbd>1</kbd> through <kbd>0</kbd>
+* <kbd>AltGr</kbd>+<kbd>-</kbd> - Numpad <kbd>-</kbd>
+* <kbd>AltGr</kbd>+<kbd>+</kbd> - Numpad <kbd>+</kbd>
+* <kbd>AltGr</kbd>+<kbd>.</kbd> - Numpad <kbd>.</kbd>
+* <kbd>AltGr</kbd>+Cursor keys - Top row cursor keys
+
+<kbd>Shift lock</kbd> can be activated by pressing <kbd>AltGr</kbd>+<kbd>Shift</kbd>. This is a toggle, to release <kbd>Shift lock</kbd>, press the <kbd>AltGr</kbd>+<kbd>Shift</kbd> combination again.
+
+![keyboard-mapping](keymap.gif)
+
+Keys marked in blue are the keys sent when combined with <kbd>AltGr</kbd>.
+
+*): The <kbd>Pause/Break</kbd> key acts like the <kbd>No scroll</kbd> key, however the <kbd>Pause/Break</kbd> PC key is special as it does not send a signal when it is released. To solve this, when the <kbd>Pause/Break</kbd> key is pressed, the <kbd>No scroll</kbd> key signal to the C128 is pulsed for half a second. To hold <kbd>No scroll</kbd> on the C128 for longer, either use <kbd>AltGr</kbd>+<kbd>F8</kbd>, or quickly double press <kbd>Pause/break</kbd> and press any key to release <kbd>No scroll</kbd>.
 
 ### Using without keyboard
-If your joystick/gamepad has more than 4 buttons then you can have some limited usage of keybiard.
+If your joystick/gamepad has more than 4 buttons then you can have some limited usage of keyboard.
 Joystick buttons **Mod1** and **Mod2** adds 12 frequently used keys to skip the intros and start the game.
 Considering default button maps RLDU,Fire1,Fire2,Fire3,Paddle Btn, following keys are possible to enter:
 * With holding **Mod1**: Cursor RLDU, Enter, Space, Esc, Alt+ESC(LOAD"*" then RUN)
