@@ -275,6 +275,12 @@ localparam CONF_STR = {
 	"J,Fire 1,Fire 2,Fire 3,Paddle Btn,Mod1,Mod2;",
 	"jn,A,B,Y,X|P,R,L;",
 	"jp,A,B,Y,X|P,R,L;",
+	"I,",
+	"SHIFT LOCK: Off,SHIFT LOCK: On,",
+	"CAPS LOCK: Off,CAPS LOCK: On,",
+	"CHARSET: ASCII,CHARSET: DIN,",
+	"40/80 DISPLAY: 40,40/80 DISPLAY: 80,",
+	"NO SCROLL LOCK: Off,NO SCROLL LOCK: On;",
 	"V,v",`BUILD_DATE
 };
 
@@ -483,7 +489,10 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_data),
-	.ioctl_wait(ioctl_req_wr|reset_wait)
+	.ioctl_wait(ioctl_req_wr|reset_wait),
+
+	.info_req(info_req),
+	.info(info)
 );
 
 wire load_prg   = ioctl_index == 'h01;
@@ -1658,5 +1667,26 @@ always @(posedge clk_sys) begin
 end
 
 wire cass_rtc = ~(rtcF83_sda & use_rtc & cass_motor);
+
+// ------------------ OSD ----------------------------
+
+reg       info_req;
+reg [7:0] info;
+
+osdinfo osdinfo
+(
+	.clk(clk_sys),
+	.reset((~reset_n & ~status[1]) | reset_keys),
+
+	.sftlk_sense(sftlk_sense),
+	.cpslk_sense(cpslk_sense),
+	.d4080_sense(d4080_sense),
+	.noscr_sense(noscr_sense),
+
+	.cpslk_mode(status[15]),
+
+	.info_req(info_req),
+	.info(info)
+);
 
 endmodule

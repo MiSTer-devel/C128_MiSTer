@@ -57,6 +57,10 @@ port(
 	-- keyboard interface (use any ordinairy PS2 keyboard)
 	ps2_key     : in  std_logic_vector(10 downto 0);
 	kbd_reset   : in  std_logic := '0';
+	sftlk_sense : out std_logic;
+	cpslk_sense : out std_logic;
+	d4080_sense : out std_logic;
+	noscr_sense : out std_logic;
 
 	-- external memory
 	ramAddr     : out unsigned(17 downto 0);
@@ -1127,10 +1131,11 @@ port map (
 	restore_key => freeze_key,
 	tape_play => tape_play,
 	mod_key => mod_key,
-	--fnlk_sense => 
-	--sftlk_sense => 
-	--cpslk_sense =>
-	--d4080_sense =>
+	
+	sftlk_sense => sftlk_sense,
+	cpslk_sense => cpslk_sense,
+	d4080_sense => d4080_sense,
+	noscr_sense => noscr_sense,
 
 	backwardsReadingEnabled => '1'
 );
