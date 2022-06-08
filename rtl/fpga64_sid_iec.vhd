@@ -1122,10 +1122,16 @@ port map (
 	pbi => cia1_pbo,
 	pao => cia1_pai,
 	pbo => cia1_pbi,
+	ki => vicKo,
 
 	restore_key => freeze_key,
 	tape_play => tape_play,
 	mod_key => mod_key,
+	--fnlk_sense => 
+	--sftlk_sense => 
+	--cpslk_sense =>
+	--d4080_sense =>
+
 	backwardsReadingEnabled => '1'
 );
 
