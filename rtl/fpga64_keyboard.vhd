@@ -57,6 +57,7 @@ entity fpga64_keyboard is
 		sftlk_sense : out std_logic;
 		cpslk_sense : out std_logic;
 		d4080_sense : out std_logic;
+		noscr_sense : out std_logic;
 
 		-- Config
 		-- backwardsReadingEnabled = 1 allows reversal of PIA registers to still work.
@@ -185,12 +186,17 @@ architecture rtl of fpga64_keyboard is
 	signal key_8s    : std_logic := '0';
 
 	-- switch states
+	signal noscroll_delay : integer range 0 to 16000000;
+	signal noscroll_lock : std_logic := '0';
+
 	signal shift_lock : std_logic;
 	signal shift_lock_state : std_logic := '0';
 	signal capslock : std_logic;
 	signal capslock_state : std_logic := '0';
 	signal disp4080 : std_logic;
 	signal disp4080_state : std_logic := '0';
+
+	signal last_key : std_logic_vector(10 downto 0);
 
 begin
 	delay_end <= '1' when delay_cnt = 0 else '0';
@@ -232,10 +238,22 @@ begin
 	matrix: process(clk)
 	begin
 		if rising_edge(clk) then
+			last_key <= ps2_key;
 			ps2_stb <= ps2_key(10);
 
 			if delay_cnt /= 0 then
 				delay_cnt <= delay_cnt - 1;
+			end if;
+
+			if noscroll_delay /= 0 then
+				noscroll_delay <= noscroll_delay - 1;
+			else
+				if key_noscroll = '1' then
+					key_noscroll <= '0';
+				end if;
+				if noscroll_lock = '1' and pressed = '1' and ps2_key /= last_key then
+					noscroll_lock <= '0';
+				end if;
 			end if;
 
 			-- reading A, scan pattern on B
@@ -436,7 +454,7 @@ begin
 				(pai(7) or not key_runstop) and
 				(ki(0) or not (key_num1 or (key_1 and key_fn))) and
 				(ki(1) or not (key_num3 or (key_3 and key_fn))) and
-				(ki(2) or not (key_noscroll or (key_F8 and key_fn)));
+				(ki(2) or not (key_noscroll or noscroll_lock or (key_F8 and key_fn)));
 
 			if ps2_key(10) /= ps2_stb then
 				case ps2_key(7 downto 0) is
@@ -524,7 +542,19 @@ begin
 					when X"74" => if extended then key_right   <= pressed; else key_num6   <= pressed; end if;
 					when X"75" => if extended then key_up      <= pressed; else key_num8   <= pressed; end if;
 					when X"76" => key_runstop <= pressed;
-					-- when X"77" => if extended then key_noscroll <= pressed; end if;
+					when X"77" => if extended and pressed = '1' then 
+						if noscroll_lock = '1' then
+							noscroll_lock <= '0';
+							key_noscroll <= '0'; 
+						elsif noscroll_delay /= 0 then
+							if key_noscroll = '1' then
+								noscroll_lock <= '1';
+							end if;
+						else
+							key_noscroll <= '1'; 
+						end if;
+						noscroll_delay <= 16000000; 
+					end if;
 					when X"78" => restore_key <= pressed; -- F11
 					when X"79" => key_numplus <= pressed;
 					when X"7A" => if extended then key_linefeed <= pressed; else key_num3   <= pressed; end if;
@@ -633,12 +663,14 @@ begin
 					key_noscroll  <= '0';
 					key_help      <= '0';
 					key_linefeed  <= '0';
+					noscroll_lock <= '0';
 			end if;
 
 			mod_key <= key_fn;
 			sftlk_sense <= shift_lock_state;
 			cpslk_sense <= capslock_state;
 			d4080_sense <= disp4080_state;
+			noscr_sense <= noscroll_lock;
 		end if;
 	end process;
 end architecture;
