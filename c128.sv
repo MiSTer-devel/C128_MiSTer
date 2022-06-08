@@ -421,6 +421,14 @@ wire        img_readonly;
 
 wire [24:0] ps2_mouse;
 wire [10:0] ps2_key;
+wire  [2:0] ps2_kbd_led_status = {2'b00, cpslk_sense};
+wire  [2:0] ps2_kbd_led_use = 3'b001;
+
+wire        sftlk_sense;
+wire        cpslk_sense;
+wire        d4080_sense;
+wire        noscr_sense;
+
 wire  [1:0] buttons;
 wire [21:0] gamma_bus;
 
@@ -465,6 +473,8 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 
 	.ps2_key(ps2_key),
 	.ps2_mouse(ps2_mouse),
+	.ps2_kbd_led_status(ps2_kbd_led_status),
+	.ps2_kbd_led_use(ps2_kbd_led_use),
 
 	.RTC(RTC),
 
@@ -973,6 +983,10 @@ fpga64_sid_iec fpga64
 
 	.ps2_key(key),
 	.kbd_reset((~reset_n & ~status[1]) | reset_keys),
+	.sftlk_sense(sftlk_sense),
+	.cpslk_sense(cpslk_sense),
+	.d4080_sense(d4080_sense),
+	.noscr_sense(noscr_sense),
 
 	.ramAddr(c128_addr),
 	.ramDout(c128_data_out),
