@@ -172,7 +172,7 @@ architecture rtl of fpga64_keyboard is
 	signal key_d4080: std_logic := '0';
 	signal key_esc: std_logic := '0';
 	signal key_numdot: std_logic := '0';
-	signal key_numenter: std_logic := '0';
+	signal key_enter: std_logic := '0';
 	signal key_noscroll: std_logic := '0';
 	signal key_help: std_logic := '0';
 	signal key_linefeed: std_logic := '0';
@@ -412,7 +412,7 @@ begin
 				)) and
 				(pai(7) or not ((key_space and not key_fn) or not joyA(5) or not joyB(5))) and
 				(ki(0) or not (key_num2 or (key_2 and key_fn))) and
-				(ki(1) or not (key_numenter or (key_return and key_fn))) and
+				(ki(1) or not (key_enter or (key_return and key_fn))) and
 				(ki(2) or not (key_down and key_fn));
 			pbo(5) <= pbi(5) and
 				(pai(0) or not ((key_F3 or key_F4) and not key_fn)) and
@@ -528,7 +528,7 @@ begin
 					when X"55" => key_plus <= pressed;
 					when X"58" => key_capslock <= pressed;
 					when X"59" => key_shiftr <= pressed;
-					when X"5A" => key_numenter <= pressed;
+					when X"5A" => if extended then key_enter   <= pressed; else key_return <= pressed; end if;
 					when X"5B" => key_star <= pressed;
 					when X"5D" => key_pound <= pressed;
 					when X"66" => key_del <= pressed;
@@ -659,7 +659,7 @@ begin
 					key_d4080     <= '0';
 					key_esc       <= '0';
 					key_numdot    <= '0';
-					key_numenter  <= '0';
+					key_enter     <= '0';
 					key_noscroll  <= '0';
 					key_help      <= '0';
 					key_linefeed  <= '0';
