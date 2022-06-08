@@ -190,10 +190,13 @@ architecture rtl of fpga64_keyboard is
 	signal noscroll_lock : std_logic := '0';
 
 	signal shift_lock : std_logic;
+	signal shift_lock_0 : std_logic := '0';
 	signal shift_lock_state : std_logic := '0';
 	signal capslock : std_logic;
+	signal capslock_0 : std_logic := '0';
 	signal capslock_state : std_logic := '0';
 	signal disp4080 : std_logic;
+	signal disp4080_0 : std_logic := '0';
 	signal disp4080_state : std_logic := '0';
 
 	signal last_key : std_logic_vector(10 downto 0);
@@ -202,32 +205,44 @@ begin
 	delay_end <= '1' when delay_cnt = 0 else '0';
 
 	capslock <= key_capslock or (key_F4 and key_fn);
-	capslock_toggle: process(reset, capslock)
+	capslock_toggle: process(clk)
 	begin
 		if reset = '1' then
+			capslock_0 <= '0';
 			capslock_state <= '0';
-		elsif rising_edge(capslock) then
-			capslock_state <= not capslock_state;
+		elsif rising_edge(clk) then
+			capslock_0 <= capslock;
+			if (capslock = '1' and capslock_0 = '0') then
+				capslock_state <= not capslock_state;
+			end if;
 		end if;
 	end process;
 
 	disp4080 <= key_d4080 or (key_F7 and key_fn);
-	disp4080_toggle: process(reset, disp4080)
+	disp4080_toggle: process(clk)
 	begin
 		if reset = '1' then
+			disp4080_0 <= '0';
 			disp4080_state <= '0';
-		elsif rising_edge(disp4080) then
-			disp4080_state <= not disp4080_state;
+		elsif rising_edge(clk) then
+			disp4080_0 <= disp4080;
+			if (disp4080 = '1' and disp4080_0 = '0') then
+				disp4080_state <= not disp4080_state;
+			end if;
 		end if;
 	end process;
 
 	shift_lock <= key_fn and (key_shiftl or key_shiftr);
-	shift_lock_toggle: process(reset, shift_lock)
+	shift_lock_toggle: process(clk)
 	begin
 		if reset = '1' then
+			shift_lock_0 <= '0';
 			shift_lock_state <= '0';
-		elsif rising_edge(shift_lock) then
-			shift_lock_state <= not shift_lock_state;
+		elsif rising_edge(clk) then
+			shift_lock_0 <= shift_lock;
+			if (shift_lock = '1' and shift_lock_0 = '0') then
+				shift_lock_state <= not shift_lock_state;
+			end if;
 		end if;
 	end process;
 
