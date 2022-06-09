@@ -51,7 +51,7 @@ entity video_vicii_656x is
 		mode8566 : in std_logic; -- C128 VIC-II, PAL-B
 		mode8569 : in std_logic; -- C128 VIC-II, PAL-N
 
-		turbo_en: in std_logic;  -- Enable turbo mode in 64xx models
+		turbo_en: in std_logic;  -- Enable turbo mode in 65xx models
 		turbo_state: out std_logic;
 
 		reset : in std_logic;
