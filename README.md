@@ -68,7 +68,7 @@ These ROM files will *not* work with this core as they will overwrite the C128 k
 
 ### VDC/80 column mode
 
-Video output can be selected using the keyboard. Pressing <kbd>*</kbd> or <kbd>AltGr</kbd>+<kbd>F7</kbd> emulates the <kbd>40/80 display<kbd> toggle switch on the C128 keyboard.
+Video output can be selected using the keyboard. Pressing <kbd>*</kbd> or <kbd>AltGr</kbd>+<kbd>F7</kbd> emulates the <kbd>40/80 display</kbd> toggle switch on the C128 keyboard.
 This will also switch which video output is shown on the VGA/HDMI output of the MiSTer.
 
 In OSD->Audio&Video the VDC version and memory size can be selected.
