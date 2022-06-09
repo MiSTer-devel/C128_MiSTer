@@ -30,7 +30,7 @@ entity mmu8722 is
 		do: out unsigned(7 downto 0);
 
 		-- input pin
-		c4080: in std_logic;  -- "1" key up (40 col), "0" key down (80 col)
+		d4080: in std_logic;  -- "1" key up (40 col), "0" key down (80 col)
 
 		-- 6529 style bidir pins
 		exromi: in std_logic;
@@ -135,19 +135,19 @@ begin
 					when X"03" => reg_pcr(2) <= di;
 					when X"04" => reg_pcr(3) <= di;
 					when X"05" => reg_cpu <= di(0);
-					              reg_fsdir <= di(3);
+									  reg_fsdir <= di(3);
 									  reg_game <= di(4);
 									  reg_exrom <= di(5);
-					              reg_os <= di(6);
+									  reg_os <= di(6);
 					when X"06" => reg_commonSz <= di(1 downto 0);
-					              reg_commonL <= di(2);
-					              reg_commonH <= di(3);
-					              reg_vicbank <= di(7 downto 6);
+									  reg_commonL <= di(2);
+									  reg_commonH <= di(3);
+									  reg_vicbank <= di(7 downto 6);
 					when X"07" => reg_p0l <= di;
-					              reg_p0h <= reg_p0hb;
+									  reg_p0h <= reg_p0hb;
 					when X"08" => reg_p0hb <= di(3 downto 0);
 					when X"09" => reg_p1l <= di;
-					              reg_p1h <= reg_p1hb;
+									  reg_p1h <= reg_p1hb;
 					when X"0A" => reg_p1hb <= di(3 downto 0);
 					when others => null;
 					end case;
@@ -271,7 +271,7 @@ begin
 				when X"02" => do <= reg_pcr(1);
 				when X"03" => do <= reg_pcr(2);
 				when X"04" => do <= reg_pcr(3);
-				when X"05" => do <= c4080 & reg_os & exrom & game & fsdir & "11" & reg_cpu;
+				when X"05" => do <= d4080 & reg_os & exrom & game & fsdir & "11" & reg_cpu;
 				when X"06" => do <= reg_vicbank & "11" & reg_commonH & reg_commonL & reg_commonSz;
 				when X"07" => do <= reg_p0l;
 				when X"08" => do <= "1111" & reg_p0h;
