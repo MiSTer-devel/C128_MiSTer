@@ -9,15 +9,15 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 ## C128 features implemented
 
 - MMU fully implemented and tested using [VICE test progs](https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/c128/)
+- C128 specific keys
 - VDC standard modes (text & bitmap) implemented.
 - Z80 implemented. Simple uses work, but CP/M does not yet boot.
 - Booting in C64, C128 or Z80 mode
 - Automatic detection of .CRT files: C64 cartridges boot in C64 mode, C128 cartridges boot in C128 mode. C128 .CRT files must contain a [C128 CARTRIDGE](https://vice-emu.sourceforge.io/vice_17.html#SEC392) header to be detected.
 - Loading of .PRG files to the correct memory location in C128 mode.
 
-### C128 features not (yet) implemented
+### C128 features not (yet/fully) implemented
 
-- C128 specific keys
 - VDC scrolling, interlace, 40 column mode, non-standard modes
 - CP/M mode
 - Internal function ROM
@@ -28,7 +28,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - Automatic detection of C64/C128 .PRG files to boot in the appropriate mode.
 - Second SID address D500 does not work. It can't work in C128 mode because the MMU is in that location, but it could in C64 mode.
 - Re-enable 3x and 4x turbo modes for both 8502 and Z80?
-- Figure out why CP/M does not boot. Possibly due to incorrect Z80 memory map.
+- Figure out why CP/M does not work correctly. Possibly due to incorrect Z80 memory map.
 
 ## Usage
 
@@ -68,10 +68,49 @@ These ROM files will *not* work with this core as they will overwrite the C128 k
 
 ### VDC/80 column mode
 
-Video output can be selected in the menu. When switching to 80-column mode, this also sets the 40/80 col mode switch. As on a real C128 this does not immediatly switch on which screen
-BASIC is active, so a "GRAPHIC" command or pressing RUN-STOP/RESTORE (ESC+F11) is needed to activate the other screen.
+Video output can be selected using the keyboard. Pressing <kbd>*</kbd> or <kbd>AltGr</kbd>+<kbd>F7</kbd> emulates the <kbd>40/80 display<kbd> toggle switch on the C128 keyboard.
+This will also switch which video output is shown on the VGA/HDMI output of the MiSTer.
 
 In OSD->Audio&Video the VDC version and memory size can be selected.
+
+### Keyboard
+* <kbd>F2</kbd>, <kbd>F4</kbd> , <kbd>F6</kbd> , <kbd>F8</kbd> , <kbd>Left</kbd>/<kbd>Up</kbd> keys automatically activate <kbd>Shift</kbd> key.
+* <kbd>F9</kbd> - arrow-up key.
+* <kbd>F10</kbd> - <kbd>=</kbd> key.
+* <kbd>F11</kbd> - <kbd>restore</kbd> key. Also special key in AR/FC carts.
+* Meta keys (Win/Apple) - <kbd>C=</kbd> key.
+* <kbd>PgUp</kbd> - Tape play/pause
+* <kbd>PgDn</kbd> - <kbd>Line feed</kbd>
+* <kbd>End</kbd> - <kbd>Help</kbd>
+* <kbd>Pause/Break</kbd> - <kbd>No Scroll</kbd> (* see note below)
+* Numpad <kbd>/</kbd> - <kbd>Esc</kbd>
+* Numpad <kbd>*</kbd> - <kbd>Display 40/80</kbd>
+
+The <kbd>AltGr</kbd> key (right <kbd>Alt</kbd>) is used to access alternative function keys. Combined with <kbd>AltGr</kbd> the function keys are the C128 top-row special keys. To access these functions, press and hold <kbd>AltGr</kbd> while pressing any of the function keys:
+* <kbd>AltGr</kbd>+<kbd>F1</kbd> - <kbd>Esc</kbd>
+* <kbd>AltGr</kbd>+<kbd>F2</kbd> - <kbd>Alt</kbd>
+* <kbd>AltGr</kbd>+<kbd>F3</kbd> - <kbd>Tab</kbd>
+* <kbd>AltGr</kbd>+<kbd>F4</kbd> - <kbd>Caps Lock</kbd>
+* <kbd>AltGr</kbd>+<kbd>F5</kbd> - <kbd>Help</kbd>
+* <kbd>AltGr</kbd>+<kbd>F6</kbd> - <kbd>Line feed</kbd>
+* <kbd>AltGr</kbd>+<kbd>F7</kbd> - <kbd>40/80 display</kbd>
+* <kbd>AltGr</kbd>+<kbd>F8</kbd> - <kbd>No scroll</kbd>
+
+It is possible to access the C128 top-row cursor keys, and the numpad keys on a PC keyboard without numpad using <kbd>AltGr</kbd> combined with the similar keys:
+* <kbd>AltGr</kbd>+<kbd>return</kbd> - Numpad <kbd>enter</kbd>
+* <kbd>AltGr</kbd>+<kbd>1</kbd> through <kbd>0</kbd> - Numpad <kbd>1</kbd> through <kbd>0</kbd>
+* <kbd>AltGr</kbd>+<kbd>-</kbd> - Numpad <kbd>-</kbd>
+* <kbd>AltGr</kbd>+<kbd>+</kbd> - Numpad <kbd>+</kbd>
+* <kbd>AltGr</kbd>+<kbd>.</kbd> - Numpad <kbd>.</kbd>
+* <kbd>AltGr</kbd>+Cursor keys - Top row cursor keys
+
+<kbd>Shift lock</kbd> can be activated by pressing <kbd>AltGr</kbd>+<kbd>Shift</kbd>. This is a toggle, to release <kbd>Shift lock</kbd>, press the <kbd>AltGr</kbd>+<kbd>Shift</kbd> combination again.
+
+![keyboard-mapping](keymap.gif)
+
+Keys marked in blue are the keys sent when combined with <kbd>AltGr</kbd>.
+
+*): The <kbd>Pause/Break</kbd> key acts like the <kbd>No scroll</kbd> key, however the <kbd>Pause/Break</kbd> PC key is special as it does not send a signal when it is released. To solve this, when the <kbd>Pause/Break</kbd> key is pressed, the <kbd>No scroll</kbd> key signal to the C128 is pulsed for short period. To hold <kbd>No scroll</kbd> on the C128 for longer, either use <kbd>AltGr</kbd>+<kbd>F8</kbd>, or quickly double press <kbd>Pause/break</kbd> and press any key to release <kbd>No scroll</kbd>.
 
 ## C128 cartridges
 
@@ -115,18 +154,8 @@ Copy the *.rbf to the root of the SD card. Copy disks/carts to C64 folder.
 
 ## Usage
 
-### Keyboard
-* F2,F4,F6,F8,Left/Up keys automatically activate Shift key.
-* F9 - arrow-up key.
-* F10 - = key.
-* F11 - restore key. Also special key in AR/FC carts.
-* Alt,Tab - C= key.
-* PgUp - Tape play/pause
-
-![keyboard-mapping](https://github.com/mister-devel/C64_MiSTer/blob/master/keymap.gif)
-
 ### Using without keyboard
-If your joystick/gamepad has more than 4 buttons then you can have some limited usage of keybiard.
+If your joystick/gamepad has more than 4 buttons then you can have some limited usage of keyboard.
 Joystick buttons **Mod1** and **Mod2** adds 12 frequently used keys to skip the intros and start the game.
 Considering default button maps RLDU,Fire1,Fire2,Fire3,Paddle Btn, following keys are possible to enter:
 * With holding **Mod1**: Cursor RLDU, Enter, Space, Esc, Alt+ESC(LOAD"*" then RUN)

@@ -57,6 +57,10 @@ port(
 	-- keyboard interface (use any ordinairy PS2 keyboard)
 	ps2_key     : in  std_logic_vector(10 downto 0);
 	kbd_reset   : in  std_logic := '0';
+	sftlk_sense : out std_logic;
+	cpslk_sense : out std_logic;
+	d4080_sense : out std_logic;
+	noscr_sense : out std_logic;
 
 	-- external memory
 	ramAddr     : out unsigned(17 downto 0);
@@ -75,7 +79,6 @@ port(
 
 	-- VGA/SCART interface
 	ntscMode    : in  std_logic;
-	c4080       : in  std_logic;
 
 	vicHsync    : out std_logic;
 	vicVsync    : out std_logic;
@@ -337,6 +340,11 @@ signal mmu_mem8000  : unsigned(1 downto 0);
 signal mmu_mem4000  : std_logic;
 signal mmu_memD000  : std_logic;
 
+-- Keyboard signals
+signal cpslk_sense_kb  : std_logic;
+signal cpslk_sense_cpu : std_logic;
+signal d4080_sense_kb  : std_logic;
+
 component sid_top
 	port (
 		reset         : in  std_logic;
@@ -557,7 +565,7 @@ port map (
 	cpubank => cpubank,
 	vicbank => vicbank,
 
-	c4080 => c4080,
+	d4080 => d4080_sense_kb,
 
 	exromi => exrom,
 	exromo => mmu_exrom,
@@ -601,7 +609,7 @@ port map (
 	tAddr => tAddr,
 	cpuBank => cpuBank,
 	vicBank => vicBank,
-	cpslk_sense => '1',
+	cpslk_sense => cpslk_sense_cpu,
 
 	game => mmu_game,
 	exrom => mmu_exrom,
@@ -1018,10 +1026,11 @@ port map (
 	do => cpuDo_T65,
 	we => cpuWe_T65,
 
-	diIO => cpuPO(7) & cpuPO(6) & cpuPO(5) & cass_sense & cpuPO(3) & "111",
+	diIO => cpuPO(7) & cpslk_sense_kb & cpuPO(5) & cass_sense & cpuPO(3) & "111",
 	doIO => cpuPO
 );
 
+cpslk_sense_cpu <= cpuPO(6);
 cass_motor <= cpuPO(5);
 cass_write <= cpuPO(3);
 
@@ -1109,6 +1118,9 @@ game_mmu <= mmu_game;
 -- -----------------------------------------------------------------------
 -- Keyboard
 -- -----------------------------------------------------------------------
+cpslk_sense <= cpslk_sense_kb;
+d4080_sense <= d4080_sense_kb;
+
 Keyboard: entity work.fpga64_keyboard
 port map (
 	clk => clk32,
@@ -1122,10 +1134,17 @@ port map (
 	pbi => cia1_pbo,
 	pao => cia1_pai,
 	pbo => cia1_pbi,
+	ki => vicKo,
 
 	restore_key => freeze_key,
 	tape_play => tape_play,
 	mod_key => mod_key,
+	
+	sftlk_sense => sftlk_sense,
+	cpslk_sense => cpslk_sense_kb,
+	d4080_sense => d4080_sense_kb,
+	noscr_sense => noscr_sense,
+
 	backwardsReadingEnabled => '1'
 );
 

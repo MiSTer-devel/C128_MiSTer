@@ -192,15 +192,15 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXX  
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   
 
 `include "build_id.v"
 localparam CONF_STR = {
 	"C128;UART9600:2400;",
 	//"oUV,Boot Mode,Z80,C128,C64;", // for testing
 	//"-;",
-	"oR,Video output,VIC (40 col),VDC (80 col);",
-	"-;",
+	//"oR,Video output,VIC (40 col),VDC (80 col);",
+	//"-;",
 	"H7S0,D64G64T64D81,Mount #8;",
 	"H0S1,D64G64T64D81,Mount #9;",
 	"-;",
@@ -275,6 +275,12 @@ localparam CONF_STR = {
 	"J,Fire 1,Fire 2,Fire 3,Paddle Btn,Mod1,Mod2;",
 	"jn,A,B,Y,X|P,R,L;",
 	"jp,A,B,Y,X|P,R,L;",
+	"I,",
+	"SHIFT LOCK: Off,SHIFT LOCK: On,",
+	"CAPS LOCK: On,CAPS LOCK: Off,",
+	"CHARSET: DIN,CHARSET: ASCII,",
+	"40/80 DISPLAY: 80,40/80 DISPLAY: 40,",
+	"NO SCROLL LOCK: Off,NO SCROLL LOCK: On;",
 	"V,v",`BUILD_DATE
 };
 
@@ -421,6 +427,14 @@ wire        img_readonly;
 
 wire [24:0] ps2_mouse;
 wire [10:0] ps2_key;
+wire  [2:0] ps2_kbd_led_status = {2'b00, ~cpslk_sense};
+wire  [2:0] ps2_kbd_led_use = 3'b001;
+
+wire        sftlk_sense;
+wire        cpslk_sense;
+wire        d4080_sense;
+wire        noscr_sense;
+
 wire  [1:0] buttons;
 wire [21:0] gamma_bus;
 
@@ -465,6 +479,8 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 
 	.ps2_key(ps2_key),
 	.ps2_mouse(ps2_mouse),
+	.ps2_kbd_led_status(ps2_kbd_led_status),
+	.ps2_kbd_led_use(ps2_kbd_led_use),
 
 	.RTC(RTC),
 
@@ -473,7 +489,10 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_data),
-	.ioctl_wait(ioctl_req_wr|reset_wait)
+	.ioctl_wait(ioctl_req_wr|reset_wait),
+
+	.info_req(info_req),
+	.info(info)
 );
 
 wire load_prg   = ioctl_index == 'h01;
@@ -833,7 +852,7 @@ always @(posedge clk_sys) begin
 				 joy[4] ? 18'h003 : joy[5] ? 18'h00B : joy[6] ? 18'h083 : joy[7] ? 18'h00A  : 18'h0):
 				(joy[9]) ?
 				(joy[0] ? 18'h016 : joy[1] ? 18'h01E : joy[2] ? 18'h026 : joy[3] ? 18'h025  :
-			    joy[4] ? 18'h02E : joy[5] ? 18'h045 : joy[6] ? 18'h035 : joy[7] ? 18'h031  : 18'h0):
+				 joy[4] ? 18'h02E : joy[5] ? 18'h045 : joy[6] ? 18'h035 : joy[7] ? 18'h031  : 18'h0):
 				(joy[0] ? 18'h174 : joy[1] ? 18'h16B : joy[2] ? 18'h172 : joy[3] ? 18'h175  :
 				 joy[4] ? 18'h05A : joy[5] ? 18'h029 : joy[6] ? 18'h076 : joy[7] ? 18'h2276 : 18'h0);
 
@@ -973,6 +992,10 @@ fpga64_sid_iec fpga64
 
 	.ps2_key(key),
 	.kbd_reset((~reset_n & ~status[1]) | reset_keys),
+	.sftlk_sense(sftlk_sense),
+	.cpslk_sense(cpslk_sense),
+	.d4080_sense(d4080_sense),
+	.noscr_sense(noscr_sense),
 
 	.ramAddr(c128_addr),
 	.ramDout(c128_data_out),
@@ -981,7 +1004,6 @@ fpga64_sid_iec fpga64
 	.ramWE(ram_we),
 
 	.ntscmode(ntsc),
-	.c4080(~videoOutput),
 
 	.vicHsync(vicHsync),
 	.vicVsync(vicVsync),
@@ -1131,7 +1153,7 @@ iec_drive iec_drive
 (
 	.clk(clk_sys),
 	.reset({drive_reset | ((!status[56:55]) ? ~drive_mounted[1] : status[56]),
-		     drive_reset | ((!status[58:57]) ? ~drive_mounted[0] : status[58])}),
+			  drive_reset | ((!status[58:57]) ? ~drive_mounted[0] : status[58])}),
 
 	.ce(drive_ce),
 
@@ -1237,14 +1259,15 @@ video_sync vicSync
 	.vblank(vicVblank)
 );
 
-wire       videoOutput = status[59];  // 0=vic, 1=vdc
-wire       hsync_out   = videoOutput ? vdcHsync : vicHsync_out;
-wire       vsync_out   = videoOutput ? vdcVsync : vicVsync_out;
-wire       hblank      = videoOutput ? vdcHblank : vicHblank;
-wire       vblank      = videoOutput ? vdcVblank : vicVblank;
-wire [7:0] r           = videoOutput ? vdcR : vicR;
-wire [7:0] g           = videoOutput ? vdcG : vicG;
-wire [7:0] b           = videoOutput ? vdcB : vicB;
+wire		  video_out = d4080_sense;  // 1=40 col, 0=80 col
+
+wire       hsync_out = video_out ? vicHsync_out : vdcHsync;
+wire       vsync_out = video_out ? vicVsync_out : vdcVsync;
+wire       hblank    = video_out ? vicHblank : vdcHblank;
+wire       vblank    = video_out ? vicVblank : vdcVblank;
+wire [7:0] r         = video_out ? vicR : vdcR;
+wire [7:0] g         = video_out ? vicG : vdcG;
+wire [7:0] b         = video_out ? vicB : vdcB;
 
 reg hq2x160;
 reg hq2x320;
@@ -1303,8 +1326,8 @@ video_freak video_freak
 (
 	.*,
 	.VGA_DE_IN(vga_de),
-	.ARX((!ar) ? (videoOutput ? (wide ? 12'd680 : 12'd800) : (wide ? 12'd340 : 12'd400)) : (ar - 1'd1)),
-	.ARY((!ar) ? videoOutput ? 12'd600 : 12'd300 : 12'd0),
+	.ARX((!ar) ? (video_out ? (wide ? 12'd340 : 12'd400) : (wide ? 12'd680 : 12'd800)) : (ar - 1'd1)),
+	.ARY((!ar) ? video_out ? 12'd300 : 12'd600 : 12'd0),
 	.CROP_SIZE(vcrop_en ? vcrop : 10'd0),
 	.CROP_OFF(0),
 	.SCALE(status[31:30])
@@ -1644,5 +1667,26 @@ always @(posedge clk_sys) begin
 end
 
 wire cass_rtc = ~(rtcF83_sda & use_rtc & cass_motor);
+
+// ------------------ OSD ----------------------------
+
+reg       info_req;
+reg [7:0] info;
+
+osdinfo osdinfo
+(
+	.clk(clk_sys),
+	.reset((~reset_n & ~status[1]) | reset_keys),
+
+	.sftlk_sense(sftlk_sense),
+	.cpslk_sense(cpslk_sense),
+	.d4080_sense(d4080_sense),
+	.noscr_sense(noscr_sense),
+
+	.cpslk_mode(status[15]),
+
+	.info_req(info_req),
+	.info(info)
+);
 
 endmodule
