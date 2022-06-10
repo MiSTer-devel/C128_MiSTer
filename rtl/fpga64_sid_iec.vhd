@@ -335,10 +335,8 @@ signal mmu_exrom    : std_logic;
 signal mmu_game     : std_logic;
 signal mmu_c128_n   : std_logic;
 signal mmu_z80_n    : std_logic;
-signal mmu_memC000  : unsigned(1 downto 0);
-signal mmu_mem8000  : unsigned(1 downto 0);
-signal mmu_mem4000  : std_logic;
-signal mmu_memD000  : std_logic;
+signal mmu_rombank  : unsigned(1 downto 0);
+signal mmu_iosel    : std_logic;
 
 -- Keyboard signals
 signal cpslk_sense_kb  : std_logic;
@@ -578,10 +576,8 @@ port map (
 	c128_n => mmu_c128_n,
 	z80_n => mmu_z80_n,
 
-	memC000 => mmu_memC000,
-	mem8000 => mmu_mem8000,
-	mem4000 => mmu_mem4000,
-	memD000 => mmu_memD000
+	rombank => mmu_rombank,
+	iosel => mmu_iosel
 );
 
 -- -----------------------------------------------------------------------
@@ -602,10 +598,8 @@ port map (
 	z80_n => mmu_z80_n,
 	z80io => cpuIO_T80,
 	z80m1n => cpuM1n_T80,
-	mmu_memC000 => mmu_memC000,
-	mmu_mem8000 => mmu_mem8000,
-	mmu_mem4000 => mmu_mem4000,
-	mmu_memD000 => mmu_memD000,
+	mmu_rombank => mmu_rombank,
+	mmu_iosel => mmu_iosel,
 	tAddr => tAddr,
 	cpuBank => cpuBank,
 	vicBank => vicBank,

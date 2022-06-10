@@ -41,19 +41,15 @@ entity mmu8722 is
 		fsdiro: out std_logic;
 
 		-- system config
-		c128_n: out std_logic;         -- "0" C128, "1" C64
-		z80_n: out std_logic;          -- "0" Z80, "1" 8502
+		c128_n: out std_logic;       		  -- "0" C128, "1" C64
+		z80_n: out std_logic;       	 	  -- "0" Z80, "1" 8502
+		rombank: out unsigned(1 downto 0); -- "00" system rom  "01" internal rom "10" external rom "11" ram
+		iosel: out std_logic;              -- "0" select IO  "1" select rom/ram according to rombank
 
 		-- translated address bus
 		tAddr: out unsigned(15 downto 0);
 		cpuBank: out unsigned(1 downto 0);
-		vicBank: out unsigned(1 downto 0);
-
-		-- memory config
-		memC000: out unsigned(1 downto 0);  -- $C000-$FFFF "00" Kernal ROM, "01" Int ROM, "10" Ext. ROM, "11" RAM
-		mem8000: out unsigned(1 downto 0);  -- $8000-$BFFF "00" Basic ROM Hi, "01" Int ROM, "10" Ext. ROM, "11" RAM
-		mem4000: out std_logic;             -- $4000-$7FFF "0" Basic ROM Lo, "1" RAM
-		memD000: out std_logic              -- $D000-$DFFF "0" I/O, "1" RAM/ROM based on mmu_memC000
+		vicBank: out unsigned(1 downto 0)
 	);
 end mmu8722;
 
@@ -183,6 +179,7 @@ begin
 	systemMask <= sys256k & "1";
 
 	translate_addr: process(clk)
+	variable bank: unsigned(1 downto 0);
 	variable cpuMask: unsigned(1 downto 0);
 	variable crBank: unsigned(3 downto 0);
 	variable page: unsigned(15 downto 8);
@@ -199,11 +196,6 @@ begin
 
 			if reg_os = '0' then
 				-- C128/Z80 mode
-				memC000 <= reg_cr(5 downto 4);
-				mem8000 <= reg_cr(3 downto 2);
-				mem4000 <= reg_cr(1);
-				memD000 <= reg_cr(0);
-
 				vicBank <= reg_vicbank and systemMask;
 
 				case reg_commonSz is
@@ -222,36 +214,43 @@ begin
 					crBank := "00" & reg_cr(7 downto 6) and systemMask;
 				end if;
 
-				cpuBank <= "00";
+				bank := "00";
 				if crBank = B"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
 					-- When reading from $00xxx in Z80 mode, always read from $0Dxxx. Buslogic will enable ROM4
 					tPage := X"D" & addr(11 downto 8);
 				elsif page = X"01" then
-					cpuBank <= reg_p1h(1 downto 0) and cpuMask;
+					bank := reg_p1h(1 downto 0) and cpuMask;
 					tPage := reg_p1l;
 				elsif page = X"00" then
-					cpuBank <= reg_p0h(1 downto 0) and cpuMask;
+					bank := reg_p0h(1 downto 0) and cpuMask;
 					tPage := reg_p0l;
 				elsif crBank = reg_p1h and page = reg_p1l then
-					cpuBank <= reg_p1h(1 downto 0) and cpuMask;
+					bank := reg_p1h(1 downto 0) and cpuMask;
 					tPage := X"01";
 				elsif crBank = reg_p0h and page = reg_p0l then
-					cpuBank <= reg_p0h(1 downto 0) and cpuMask;
+					bank := reg_p0h(1 downto 0) and cpuMask;
 					tPage := X"00";
 				else
-					cpuBank <= crBank(1 downto 0);
+					bank := crBank(1 downto 0);
 					tPage := page;
 				end if;
+
+				cpuBank <= bank;
+				case addr(15 downto 14) is
+				when "11" => rombank <= reg_cr(5 downto 4);
+				when "10" => rombank <= reg_cr(3 downto 2);
+				when "01" => rombank <= '0' & reg_cr(1);
+				when "00" => rombank <= bank;
+				end case;
+				iosel <= reg_cr(0);
 
 				tAddr <= tPage & addr(7 downto 0);
 			else
 				-- C64 mode
-				memC000 <= "00";
-				mem8000 <= "00";
-				mem4000 <= '0';
-				memD000 <= '0';
 				vicBank <= "00";
 				cpuBank <= "00";
+				rombank <= "00";
+				iosel <= '0';
 
 				tAddr <= addr;
 			end if;
