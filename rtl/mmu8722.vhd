@@ -239,7 +239,7 @@ begin
 				case addr(15 downto 14) is
 				when "11" => rombank <= reg_cr(5 downto 4);
 				when "10" => rombank <= reg_cr(3 downto 2);
-				when "01" => rombank <= '0' & reg_cr(1);
+				when "01" => rombank <= reg_cr(1) & reg_cr(1);
 				when "00" => rombank <= bank;
 				end case;
 				iosel <= reg_cr(0);

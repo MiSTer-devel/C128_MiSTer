@@ -449,7 +449,7 @@ begin
 					else
 						cs_ramLoc <= '1';
 					end if;
-				when X"8" | X"9" | X"A" | X"B" =>
+				when X"4" | X"5" | X"6" | X"7" | X"8" | X"9" | X"A" | X"B" =>
 					if cpuWe = '0' then
 						case mmu_rombank is
 							when B"00" =>
@@ -461,12 +461,6 @@ begin
 							when B"11" =>
 								cs_ramLoc <= '1';
 						end case;
-					else
-						cs_ramLoc <= '1';
-					end if;
-				when X"4" | X"5" | X"6" | X"7" =>
-					if cpuWe = '0' and mmu_rombank(0) = '0' then
-						cs_rom23Loc <= '1';
 					else
 						cs_ramLoc <= '1';
 					end if;
