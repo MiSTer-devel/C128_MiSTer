@@ -4,6 +4,7 @@ set_global_assignment -name QIP_FILE rtl/iec_drive/iec_drive.qip
 set_global_assignment -name QIP_FILE rtl/t65/t65.qip
 set_global_assignment -name QIP_FILE rtl/t80/t80.qip
 set_global_assignment -name QIP_FILE rtl/vdc856x/vdc.qip
+set_global_assignment -name QIP_FILE rtl/65c816/65c816.qip
 set_global_assignment -name VHDL_FILE rtl/cpu_6510.vhd
 set_global_assignment -name VHDL_FILE rtl/cpu_z80.vhd
 set_global_assignment -name VHDL_FILE rtl/mmu8722.vhd

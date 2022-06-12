@@ -54,7 +54,7 @@ entity fpga64_buslogic is
 		mmu_mem4000 : in std_logic;             -- $4000-$7FFF "0" Basic ROM Lo, "1" RAM
 		mmu_memD000 : in std_logic;             -- $D000-$DFFF "0" I/O, "1" RAM/ROM based on mmu_memC000
 		tAddr       : in unsigned(15 downto 0); -- Translated address bus
-		cpuBank     : in unsigned(1 downto 0);
+		cpuBank     : in unsigned(7 downto 0);  -- 16M RAM system, 122365 BASIC bytes free
 		vicBank     : in unsigned(1 downto 0);
 
 		-- From Keyboard
@@ -89,7 +89,7 @@ entity fpga64_buslogic is
 		io_enable   : in std_logic;
 
 		systemWe    : out std_logic;
-		systemAddr  : out unsigned(17 downto 0);
+		systemAddr  : out unsigned(23 downto 0);
 		dataToCpu   : out unsigned(7 downto 0);
 		dataToVic   : out unsigned(7 downto 0);
 
@@ -157,7 +157,7 @@ architecture rtl of fpga64_buslogic is
 	signal rom23_a14      : std_logic;
 	signal ultimax        : std_logic;
 
-	signal currentAddr    : unsigned(17 downto 0);
+	signal currentAddr    : unsigned(23 downto 0);
 	
 
 begin
@@ -211,10 +211,6 @@ begin
 		wrclock => clk,
 		rdclock => clk,
 
-		wren => rom23_wr,
-		data => rom_data,
-		wraddress => rom_addr(14 downto 0),
-
 		rdaddress => std_logic_vector(not cpuAddr(14) & cpuAddr(13 downto 0)),
 		q => rom23Data_dcr
 	);
@@ -226,6 +222,10 @@ begin
 		wrclock => clk,
 		rdclock => clk,
 
+		wren => rom23_wr,
+		data => rom_data,
+		wraddress => rom_addr(14 downto 0),
+		
 		rdaddress => std_logic_vector(not cpuAddr(14) & cpuAddr(13 downto 0)),
 		q => rom23Data_std
 	);
@@ -246,10 +246,6 @@ begin
 		wrclock => clk,
 		rdclock => clk,
 
-		wren => rom14_wr and not rom_addr(15) and rom_addr(14),
-		data => rom_data,
-		wraddress => rom_addr(13 downto 0),
-
 		rdaddress => std_logic_vector(cpuAddr(13) & tAddr(12) & cpuAddr(11 downto 0)),
 		q => rom4Data_dcr
 	);
@@ -261,6 +257,10 @@ begin
 		wrclock => clk,
 		rdclock => clk,
 
+		wren => rom14_wr and not rom_addr(15) and rom_addr(14),
+		data => rom_data,
+		wraddress => rom_addr(13 downto 0),
+		
 		rdaddress => std_logic_vector(cpuAddr(13) & tAddr(12) & cpuAddr(11 downto 0)),
 		q => rom4Data_std
 	);
@@ -491,7 +491,7 @@ begin
 						cs_ramLoc <= '1';
 					end if;
 				when X"0" =>
-					if z80_n = '0' and cpuBank = B"00" and cpuWe = '0' then
+					if z80_n = '0' and cpuBank = X"00" and cpuWe = '0' then
 						cs_rom4Loc <= '1';
 					else
 						cs_ramLoc <= '1';
@@ -592,7 +592,7 @@ begin
 		else
 			-- The VIC-II has the bus, but only when aec is asserted
 			if aec = '1' then
-				currentAddr <= vicBank & vicAddr;
+				currentAddr <= "000000" & vicBank & vicAddr;
 			else
 				currentAddr <= cpuBank & tAddr;
 			end if;

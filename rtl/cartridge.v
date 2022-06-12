@@ -16,7 +16,7 @@ module cartridge
 	input             cart_c128,  			// native C128 cart
 	input       [7:0] cart_exrom,				// CRT file EXROM status
 	input       [7:0] cart_game,				// CRT file GAME status
-	input      [15:0] cart_bank_laddr,		// bank loading address
+	input      [15:0] cart_bank_laddr,	// bank loading address
 	input      [15:0] cart_bank_size,		// length of each bank
 	input      [15:0] cart_bank_num,
 	input       [7:0] cart_bank_type,
@@ -41,7 +41,7 @@ module cartridge
 	output            IO_rd,
 	output reg  [7:0] IO_data,
 	input      [17:0] addr_in,             // address from cpu
-	input       [7:0] data_in,  			   // data from cpu going to sdram
+	input       [7:0] data_in,  			     // data from cpu going to sdram
 	output reg [24:0] addr_out, 	         // translated address output
 
 	input             freeze_key,

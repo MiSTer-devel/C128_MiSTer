@@ -192,12 +192,18 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX 
+//
+// Alynna note:
+// This could be entirely converted to 128 bit status format but it 
+// seems the formats are compatible with eachother.  I have started
+// using bits 96:127.
+
 
 `include "build_id.v"
 localparam CONF_STR = {
 	"C128;UART9600:2400;",
-	//"oUV,Boot Mode,Z80,C128,C64;", // for testing
+	"o[97:96],Boot Mode,C128 (40),C128 (80),C64;",
 	//"-;",
 	//"oR,Video output,VIC (40 col),VDC (80 col);",
 	//"-;",
@@ -261,12 +267,26 @@ localparam CONF_STR = {
 	"P2FC8,ROM,Syst. ROM1/4 C64+Kernal+Char;",
 	"P2FC9,ROM,Syst. ROM2/3 C128 Basic     ;",
 	"P2FCA,ROM,Function ROM                ;",
-	"P2FCB,ROM,Drive ROM                   ;",
+	"P2FCB,ROM,1541-II & 1581 Drive ROM    ;",
 	"P2-;",
 	"P2FC5,CRT,Boot Cartridge              ;",
 	"P2-;",
 	"P2OE,ROM set,128DCR,Standard;",
 	"P2OF,Char switch,C64 mode,Caps Lk key;",
+	
+	// Please don't remove?
+	"P3,Debug;",
+	"P3-,Experimental Use at own risk;",
+	"P3-,+ May work * Likely to crash;",
+	"P3-,- Not implemented yet       ;",
+	"P3-;",
+	"P3O[98],+CPU,8502,85816;",
+	"P3O[105],+16MB RAM,No,Yes;",
+	"P3O[99],-VDC regs at $D680,No,Yes;",
+	"P3O[101:100],-VDC RAM Exposed,No,Bank 3,Bank 15,FE0000;",
+	"P3O[102],-SuperCPU registers,No,Yes;",
+	"P3O[103],-RAM @ D200-D3FF,No,Yes;",
+	"P3O[107:106],+Turbo Switch,2mhz,4mhz,8mhz,-:20mhz;",
 	"-;",
 	"O3,Swap Joysticks,No,Yes;",
 	"-;",
@@ -376,7 +396,9 @@ always @(posedge clk_sys) begin
 	old_download <= ioctl_download;
 
 	if (RESET | status[0] | status[17] | buttons[1] | !pll_locked) begin
-		if(RESET) do_erase <= 1;
+		if(RESET) begin
+		  do_erase <= 1;
+		end
 		reset_counter <= 100000;
 	end
 	else if(~old_download & ioctl_download & load_prg & ~status[50]) begin
@@ -403,7 +425,9 @@ end
 wire [15:0] joyA,joyB,joyC,joyD;
 wire [15:0] joy = joyA | joyB | joyC | joyD;
 
-wire [63:0] status;
+// wire [63:0] status;
+// We need more ...
+wire [127:0] status;
 wire        forced_scandoubler;
 
 wire        ioctl_wr;
@@ -944,7 +968,7 @@ sdram sdram
 );
 
 wire  [7:0] c128_data_out;
-wire [17:0] c128_addr;
+wire [19:0] c128_addr;
 wire        c64_pause;
 wire        refresh;
 wire        ram_ce;
@@ -959,7 +983,7 @@ wire        romL;
 wire        romH;
 wire        UMAXromH;
 
-wire [17:0] audio_l,audio_r;
+wire [19:0] audio_l,audio_r;
 
 wire        ntsc = status[2];
 
@@ -980,15 +1004,17 @@ fpga64_sid_iec fpga64
 	.cpslk_mode(status[15]),
 
 	.sys256k(status[49]),
+	.sys16mb(status[105]),
 	.vdcVersion({(~status[47])^status[46],status[46]}),
 	.vdc64k(status[48]|~(status[47]|status[46])),
 	.vdcInitRam(~status[24]),
-	//.osmode(status[63]), // for testing, "0" C128, "1" C64
+	.osmode(status[97]),               // for testing, "0" C128, "1" C64
 	//.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
-	.osmode(0),
-	.cpumode(0),
+	//.osmode(0),
+	.d4080_bootstatus(status[96]),
+	.cpumode(0|status[97]),
 	.turbo_mode(2'b01),
-	.turbo_speed(2'b00),
+	.turbo_speed(status[107:106]),
 
 	.ps2_key(key),
 	.kbd_reset((~reset_n & ~status[1]) | reset_keys),
@@ -1103,6 +1129,7 @@ fpga64_sid_iec fpga64
 	.cass_sense(~tape_adc_act & (use_tape ? cass_sense : cass_rtc)),
 	.cass_read(tape_adc_act ? ~tape_adc : cass_read),
 
+	.x816(status[98]),
 	.c128_n(c128_n),
 	.z80_n(z80_n)
 );
@@ -1687,6 +1714,12 @@ osdinfo osdinfo
 
 	.info_req(info_req),
 	.info(info)
+);
+
+// Send 40/80 key saved status
+fpga64_keyboard fpga64_keyboard
+(
+  .d4080_bootstatus(status[96])
 );
 
 endmodule

@@ -50,7 +50,6 @@ port(
 	reset_n     : in  std_logic;
 	dcr         : in  std_logic;
 	cpslk_mode  : in  std_logic;
-
 	pause       : in  std_logic := '0';
 	pause_out   : out std_logic;
 
@@ -61,9 +60,10 @@ port(
 	cpslk_sense : out std_logic;
 	d4080_sense : out std_logic;
 	noscr_sense : out std_logic;
-
+  d4080_bootstatus : in std_logic;
+	
 	-- external memory
-	ramAddr     : out unsigned(17 downto 0);
+	ramAddr     : out unsigned(23	downto 0);
 	ramDin      : in  unsigned(7 downto 0);
 	ramDout     : out unsigned(7 downto 0);
 	ramCE       : out std_logic;
@@ -184,14 +184,14 @@ port(
 
 	-- System memory size
 	sys256k     : in  std_logic;
+	sys16mb      : in  std_logic;
 	-- System mode
 	c128_n      : out std_logic;
 	z80_n       : out std_logic;
-
+  x816				: in  std_logic;
 	--test
 	osmode      : in  std_logic;
 	cpumode     : in  std_logic
-
 );
 end fpga64_sid_iec;
 
@@ -239,7 +239,7 @@ signal irq_vic      : std_logic;
 
 signal systemWe     : std_logic;
 signal pulseWr_io   : std_logic;
-signal systemAddr   : unsigned(17 downto 0);
+signal systemAddr   : unsigned(23 downto 0);
 
 signal cs_vic       : std_logic;
 signal cs_sid       : std_logic;
@@ -328,7 +328,7 @@ signal pot_y2       : std_logic_vector(7 downto 0);
 -- MMU signals
 signal mmu_do       : unsigned(7 downto 0);
 signal tAddr        : unsigned(15 downto 0);
-signal cpuBank      : unsigned(1 downto 0);
+signal cpuBank      : unsigned(7 downto 0);
 signal vicBank      : unsigned(1 downto 0);
 signal colorA10     : std_logic;
 signal mmu_exrom    : std_logic;
@@ -552,6 +552,7 @@ port map (
 	cs_lr => cs_mmuH,
 
 	sys256k => sys256k, -- "1" for 256K system memory
+	sys16mb => sys16mb, --   "1" for 1MB system memory
 	osmode => osmode,  -- debug
 	cpumode => cpumode,  -- debug
 
@@ -1020,11 +1021,11 @@ port map (
 	nmi_ack => nmi_ack,
 	irq_n => cpuIrq_n,
 	rdy => baLoc and not enableZ80,
-
 	di => cpuDi,
 	addr => cpuAddr_T65,
 	do => cpuDo_T65,
 	we => cpuWe_T65,
+	x816 => x816,
 
 	diIO => cpuPO(7) & cpslk_sense_kb & cpuPO(5) & cass_sense & cpuPO(3) & "111",
 	doIO => cpuPO
@@ -1127,7 +1128,8 @@ port map (
 
 	reset => kbd_reset,
 	ps2_key => ps2_key,
-
+	d4080_bootstatus => d4080_bootstatus,
+	
 	joyA => not unsigned(joyA(6 downto 0)),
 	joyB => not unsigned(joyB(6 downto 0)),
 	pai => cia1_pao,

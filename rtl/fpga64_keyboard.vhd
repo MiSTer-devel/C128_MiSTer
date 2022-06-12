@@ -39,7 +39,8 @@ entity fpga64_keyboard is
 	port (
 		clk     : in std_logic;
 		reset   : in std_logic;
-
+		d4080_bootstatus: in std_logic;
+		
 		ps2_key : in std_logic_vector(10 downto 0);
 		joyA    : in unsigned(6 downto 0);
 		joyB    : in unsigned(6 downto 0);
@@ -212,6 +213,7 @@ begin
 		if rising_edge(clk) then
 			if reset = '1' then
 				capslock_0 <= '0';
+				
 			else
 				capslock_0 <= capslock;
 				if (capslock = '1' and capslock_0 = '0') then
@@ -676,7 +678,7 @@ begin
 					key_num9      <= '0';
 					key_numplus   <= '0';
 					key_numminus  <= '0';
-					key_d4080     <= '0';
+					key_d4080     <= d4080_bootstatus;
 					key_esc       <= '0';
 					key_numdot    <= '0';
 					key_enter     <= '0';

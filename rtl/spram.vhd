@@ -8,7 +8,7 @@ entity spram is
 	generic 
 	(
 		DATA_WIDTH : natural := 8;
-		ADDR_WIDTH : natural := 10
+		ADDR_WIDTH : natural := 16
 	);
 
 	port 

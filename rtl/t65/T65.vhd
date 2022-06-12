@@ -134,7 +134,7 @@ library IEEE;
 entity T65 is
   port(
     Mode    : in  std_logic_vector(1 downto 0);      -- "00" => 6502, "01" => 65C02, "10" => 65C816
-    BCD_en  : in  std_logic := '1';             -- '0' => 2A03/2A07, '1' => others
+    BCD_en  : in  std_logic := '1';                  -- '0' => 2A03/2A07, '1' => others
 
     Res_n   : in  std_logic;
     Enable  : in  std_logic;
@@ -401,7 +401,7 @@ begin
 
           if Inc_S = '1' then
             S <= S + 1;
-          end if;
+          end if; 
           if Dec_S = '1' and RstCycle = '0' then
             S <= S - 1;
           end if;
