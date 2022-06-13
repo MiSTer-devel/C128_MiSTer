@@ -286,7 +286,7 @@ localparam CONF_STR = {
 	"P3O[101:100],-VDC RAM Exposed,No,Bank 3,Bank 15,FE0000;",
 	"P3O[102],-SuperCPU registers,No,Yes;",
 	"P3O[103],-RAM @ D200-D3FF,No,Yes;",
-	"P3O[107:106],+Turbo Switch,2mhz,4mhz,8mhz,-:20mhz;",
+	"P3O[107:106],*Turbo Switch,2mhz,4mhz,8mhz,- 20mhz;",
 	"-;",
 	"O3,Swap Joysticks,No,Yes;",
 	"-;",
@@ -968,7 +968,7 @@ sdram sdram
 );
 
 wire  [7:0] c128_data_out;
-wire [19:0] c128_addr;
+wire [23:0] c128_addr;
 wire        c64_pause;
 wire        refresh;
 wire        ram_ce;
@@ -983,7 +983,7 @@ wire        romL;
 wire        romH;
 wire        UMAXromH;
 
-wire [19:0] audio_l,audio_r;
+wire [23:0] audio_l,audio_r;
 
 wire        ntsc = status[2];
 

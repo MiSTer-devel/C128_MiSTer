@@ -577,12 +577,8 @@ port map (
 	fsdiri => '1',
 
 	c128_n => mmu_c128_n,
-	z80_n => mmu_z80_n,
+	z80_n => mmu_z80_n
 
-	memC000 => mmu_memC000,
-	mem8000 => mmu_mem8000,
-	mem4000 => mmu_mem4000,
-	memD000 => mmu_memD000
 );
 
 -- -----------------------------------------------------------------------
@@ -603,10 +599,6 @@ port map (
 	z80_n => mmu_z80_n,
 	z80io => cpuIO_T80,
 	z80m1n => cpuM1n_T80,
-	mmu_memC000 => mmu_memC000,
-	mmu_mem8000 => mmu_mem8000,
-	mmu_mem4000 => mmu_mem4000,
-	mmu_memD000 => mmu_memD000,
 	tAddr => tAddr,
 	cpuBank => cpuBank,
 	vicBank => vicBank,

@@ -15,7 +15,7 @@ entity mmu8722 is
 	port(
 		-- config
 		sys256k: in std_logic;  -- "0" 128k system RAM, "1" 256k system RAM
-		sys16mb: in std_logic;   -- "1" 1mb system
+		sys16mb: in std_logic;  -- "1" 16mb system
 		osmode: in std_logic;   -- (debug) reset state for c128_n: "0" C128, "1" C64
 		cpumode: in std_logic;  -- (debug) reset state for z80_n: "0" Z80, "1" 8502
 
@@ -46,19 +46,12 @@ entity mmu8722 is
 		-- system config
 		c128_n: out std_logic;         -- "0" C128, "1" C64
 		z80_n: out std_logic;          -- "0" Z80, "1" 8502
-
+		rombank: out unsigned(1 downto 0); -- "00" system rom  "01" internal rom "10" external rom "11" ram
+		iosel: out std_logic;              -- "0" select IO  "1" select rom/ram according to rombank																									 
 		-- translated address bus
 		tAddr: out unsigned(15 downto 0);
-    -- cpuBank: out unsigned(1 downto 0);
-		-- 16mb system
 		cpuBank: out unsigned(7 downto 0);
-		vicBank: out unsigned(1 downto 0);
-
-		-- memory config
-		memC000: out unsigned(1 downto 0);  -- $C000-$FFFF "00" Kernal ROM, "01" Int ROM, "10" Ext. ROM, "11" RAM
-		mem8000: out unsigned(1 downto 0);  -- $8000-$BFFF "00" Basic ROM Hi, "01" Int ROM, "10" Ext. ROM, "11" RAM
-		mem4000: out std_logic;             -- $4000-$7FFF "0" Basic ROM Lo, "1" RAM
-		memD000: out std_logic              -- $D000-$DFFF "0" I/O, "1" RAM/ROM based on mmu_memC000
+		vicBank: out unsigned(1 downto 0)
 	);
 end mmu8722;
 
@@ -153,7 +146,7 @@ begin
 					when X"06" => reg_commonSz <= di(1 downto 0);
 									  reg_commonL <= di(2);
 									  reg_commonH <= di(3);
-										reg_exram <= di(5 downto 4);
+									  reg_exram <= di(5 downto 4);
 									  reg_vicbank <= di(7 downto 6);
 					when X"07" => reg_p0l <= di;
 									  reg_p0h <= reg_p0hb;
@@ -197,6 +190,7 @@ begin
 	systemMask <= X"FF" when sys16mb = '1' else ("000000" & sys256k & "1");
 
 	translate_addr: process(clk)
+	variable bank: unsigned(1 downto 0);								 
 	variable cpuMask: unsigned(7 downto 0);
 	variable crBank: unsigned(3 downto 0);
 	variable page: unsigned(15 downto 8);
@@ -214,11 +208,6 @@ begin
 
 			if reg_os = '0' then
 				-- C128/Z80 mode
-				memC000 <= reg_cr(5 downto 4);
-				mem8000 <= reg_cr(3 downto 2);
-				mem4000 <= reg_cr(1);
-				memD000 <= reg_cr(0);
-
 				vicBank <= reg_vicbank and systemMask(1 downto 0);
 
 				case reg_commonSz is
@@ -264,15 +253,22 @@ begin
 					tPage := page;
 				end if;
 
+				cpuBank <= bank;
+				case addr(15 downto 14) is
+				when "11" => rombank <= reg_cr(5 downto 4);
+				when "10" => rombank <= reg_cr(3 downto 2);
+				when "01" => rombank <= '0' & reg_cr(1);
+				when "00" => rombank <= bank;
+				end case;
+				iosel <= reg_cr(0);
+
 				tAddr <= tPage & addr(7 downto 0);
 			else
 				-- C64 mode
-				memC000 <= "00";
-				mem8000 <= "00";
-				mem4000 <= '0';
-				memD000 <= '0';
 				vicBank <= "00";
 				cpuBank <= X"00";
+				rombank <= "00";
+				iosel <= '0';
 
 				tAddr <= addr;
 			end if;
@@ -304,10 +300,15 @@ begin
 				when X"09" => do <= reg_p1l;
 				when X"0A" => do <= "1111" & reg_p1h;
 				when X"0B" => 
+				  -- Low nybble - version number of mmu
+				  -- High nybble - 2^(hn-1) pages of RAM:
+				  -- 1 = 128k, 2 = 256k, 9 = 16384k, 15 = 2GB
+				  -- ... 16MB ought to be enough for anyone ...
 				  if sys16mb = '0' then 
+						-- Version 0 MMU, 128/256kb RAM
 						do <= "00" & sys256k & (not sys256k) & "0000";
-					else 
-						do <= "10000010"; -- Version 2 MMU - 16384k RAM
+					else-- Version 2 MMU, 16384kb RAM
+						do <= "10010010";
 				  end if;
 				when X"0C" => if sys16mb='1' then do <= reg_pg2; else do <= X"FF"; end if;
 				when X"0D" => if sys16mb='1' then do <= reg_pg3; else do <= X"FF"; end if;
@@ -316,5 +317,4 @@ begin
 			end if;
 		end if;
 	end process;
-
 end architecture;

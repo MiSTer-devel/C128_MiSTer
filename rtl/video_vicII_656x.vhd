@@ -571,7 +571,7 @@ vicStateMachine: process(clk)
 				null;
 			end case;
 			if lastLineFlag then
-				refreshCounter <= (others => '1');
+					refreshCounter <= (others => '1');
 			end if;
 		end if;
 	end process;
