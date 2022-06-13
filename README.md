@@ -23,6 +23,28 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - MFM .d81 images for CP/M (currently only .d64 or non-MFM .d81 disk images will work)
 - 1571 drive/.d71 images
 
+### Extras being worked on
+- + 16mb RAM banked into banks 2 and 3
+- - MMU has been overhauled, will register as "version 2" with "256 RAM banks".  Currently wraps at 256k, will work once I figure out why.
+- - Think, VIC page flipping with hundreds of pages available.
+- + 85816 CPU (65816 with 6510/8502 glue)
+- - CPU MUX between t65 and SNES 65816 core built.  It can even kind of boot (but BASIC freaks out and there are timing issues) yet Run/stop Restore still responsive.
+- - 16mb RAM that can be banked in on MMUv2 will be directly accessible to the 65816.
+- - CPU_6510 now makes assumptions that there is 16mb of RAM and it can only see 64k of it.
+- - I/O registers only visible at 000000-000001
+- VDC RAM exposed to CPU
+- - I don't know where it is currently mapped.  If Eric puts it somewhere in 040000-FEFFFF, then it will be able to be banked into bank 2 or 3 :)
+- - This will allow people to draw directly to the VDC RAM.
+- VDC registers exposed at $D680
+- - Accessing the entire VDC through 2 registers ($d600/$d601) was a mistake by Commodore.  Lets fix that.
+- SuperCPU 128 registers
+- - Not all will be implemented because not all make sense on MiSTer, but the SuperCPU will be faked enough to allow applications targetting it to run.
+- 20mhz mode?
+- - I hope.
+- Backporting 85816 to C64
+- - When it is stable, definitely.
++ = In progress
+
 ### Other TODOs and known issues
 
 - Automatic detection of C64/C128 .PRG files to boot in the appropriate mode.
