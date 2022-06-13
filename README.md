@@ -10,18 +10,18 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 
 - MMU fully implemented and tested using [VICE test progs](https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/c128/)
 - C128 specific keys
-- VDC standard modes (text & bitmap) implemented
-- Booting in C64, C128 or CP/M mode
+- VDC standard modes (text & bitmap) implemented.
+- Z80 implemented. Simple uses work, but CP/M does not yet boot.
+- Booting in C64, C128 or Z80 mode
 - Automatic detection of .CRT files: C64 cartridges boot in C64 mode, C128 cartridges boot in C128 mode. C128 .CRT files must contain a [C128 CARTRIDGE](https://vice-emu.sourceforge.io/vice_17.html#SEC392) header to be detected.
 - Loading of .PRG files to the correct memory location in C128 mode.
 
 ### C128 features not (yet/fully) implemented
 
 - VDC scrolling, interlace, 40 column mode, non-standard modes
+- CP/M mode
 - Internal function ROM
-- Fast serial IEC
-- MFM .d81 images for CP/M (currently only .d64 or non-MFM .d81 disk images will work)
-- 1571 drive/.d71 images
+- 1571 drive and fast serial for disk I/O
 
 ### Extras being worked on
 - 16mb RAM banked into banks 2 and 3 (mostly implemented)
@@ -52,7 +52,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - Automatic detection of C64/C128 .PRG files to boot in the appropriate mode.
 - Second SID address D500 does not work. It can't work in C128 mode because the MMU is in that location, but it could in C64 mode.
 - Re-enable 3x and 4x turbo modes for both 8502 and Z80?
-- Currently not possible to change 1541 ROM
+- Figure out why CP/M does not work correctly. Possibly due to incorrect Z80 memory map.
 
 ## Usage
 

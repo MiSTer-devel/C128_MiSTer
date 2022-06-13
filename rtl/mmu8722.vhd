@@ -3,6 +3,8 @@
 -- 
 -- for the C128 MiSTer FPGA core, by Erik Scheffers
 ---------------------------------------------------------------------------------
+--
+-- Alynna: 1mb MMU support as defined by the MMU manual :)
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -13,6 +15,7 @@ entity mmu8722 is
 	port(
 		-- config
 		sys256k: in std_logic;  -- "0" 128k system RAM, "1" 256k system RAM
+		sys16mb: in std_logic;   -- "1" 1mb system
 		osmode: in std_logic;   -- (debug) reset state for c128_n: "0" C128, "1" C64
 		cpumode: in std_logic;  -- (debug) reset state for z80_n: "0" Z80, "1" 8502
 
@@ -41,15 +44,21 @@ entity mmu8722 is
 		fsdiro: out std_logic;
 
 		-- system config
-		c128_n: out std_logic;       		  -- "0" C128, "1" C64
-		z80_n: out std_logic;       	 	  -- "0" Z80, "1" 8502
-		rombank: out unsigned(1 downto 0); -- "00" system rom  "01" internal rom "10" external rom "11" ram
-		iosel: out std_logic;              -- "0" select IO  "1" select rom/ram according to rombank
+		c128_n: out std_logic;         -- "0" C128, "1" C64
+		z80_n: out std_logic;          -- "0" Z80, "1" 8502
 
 		-- translated address bus
 		tAddr: out unsigned(15 downto 0);
-		cpuBank: out unsigned(1 downto 0);
-		vicBank: out unsigned(1 downto 0)
+    -- cpuBank: out unsigned(1 downto 0);
+		-- 16mb system
+		cpuBank: out unsigned(7 downto 0);
+		vicBank: out unsigned(1 downto 0);
+
+		-- memory config
+		memC000: out unsigned(1 downto 0);  -- $C000-$FFFF "00" Kernal ROM, "01" Int ROM, "10" Ext. ROM, "11" RAM
+		mem8000: out unsigned(1 downto 0);  -- $8000-$BFFF "00" Basic ROM Hi, "01" Int ROM, "10" Ext. ROM, "11" RAM
+		mem4000: out std_logic;             -- $4000-$7FFF "0" Basic ROM Lo, "1" RAM
+		memD000: out std_logic              -- $D000-$DFFF "0" I/O, "1" RAM/ROM based on mmu_memC000
 	);
 end mmu8722;
 
@@ -66,6 +75,7 @@ architecture rtl of mmu8722 is
 	signal reg_game : std_logic := '1';
 	signal reg_os : std_logic;
 	signal reg_vicbank : unsigned(1 downto 0);
+	signal reg_exram: unsigned(1 downto 0);
 	signal reg_commonH : std_logic;
 	signal reg_commonL : std_logic;
 	signal reg_commonSz : unsigned(1 downto 0);
@@ -76,12 +86,14 @@ architecture rtl of mmu8722 is
 	signal reg_p1hb : unsigned(3 downto 0);
 	signal reg_p1h : unsigned(3 downto 0);
 	signal reg_p1l : unsigned(7 downto 0) := X"01";
+	signal reg_pg2 : unsigned(7 downto 0) := X"02";
+	signal reg_pg3 : unsigned(7 downto 0) := X"03";
 
 	signal fsdir : std_logic;
 	signal exrom : std_logic;
 	signal game : std_logic;
 
-	signal systemMask: unsigned(1 downto 0);
+	signal systemMask: unsigned(7 downto 0);
 
 begin
 
@@ -98,6 +110,7 @@ begin
 				reg_pcr(2) <= (others => '0');
 				reg_pcr(3) <= (others => '0');
 				reg_cr <= (others => '0');
+				reg_exram <= (others => '0');
 				reg_cpu <= cpumode;
 				reg_fsdir <= '1';
 				reg_exrom <= '1';
@@ -113,6 +126,8 @@ begin
 				reg_p1hb <= (others => '0');
 				reg_p1h <= (others => '0');
 				reg_p1l <= X"01";
+				reg_pg2 <= X"02";
+				reg_pg3 <= X"03";
 			elsif (we = '1') then
 				if (cs_lr = '1') then
 					case addr(2 downto 0) is
@@ -138,6 +153,7 @@ begin
 					when X"06" => reg_commonSz <= di(1 downto 0);
 									  reg_commonL <= di(2);
 									  reg_commonH <= di(3);
+										reg_exram <= di(5 downto 4);
 									  reg_vicbank <= di(7 downto 6);
 					when X"07" => reg_p0l <= di;
 									  reg_p0h <= reg_p0hb;
@@ -145,6 +161,8 @@ begin
 					when X"09" => reg_p1l <= di;
 									  reg_p1h <= reg_p1hb;
 					when X"0A" => reg_p1hb <= di(3 downto 0);
+					when X"0C" => if sys16mb='1' then reg_pg2 <= di; end if;
+					when X"0D" => if sys16mb='1' then reg_pg3 <= di; end if;
 					when others => null;
 					end case;
 				end if;
@@ -176,17 +194,17 @@ begin
 	gameo <= game;
 	exromo <= exrom;
 	fsdiro <= fsdir;
-	systemMask <= sys256k & "1";
+	systemMask <= X"FF" when sys16mb = '1' else ("000000" & sys256k & "1");
 
 	translate_addr: process(clk)
-	variable bank: unsigned(1 downto 0);
-	variable cpuMask: unsigned(1 downto 0);
+	variable cpuMask: unsigned(7 downto 0);
 	variable crBank: unsigned(3 downto 0);
 	variable page: unsigned(15 downto 8);
 	variable tPage: unsigned(15 downto 8);
 	variable commonPage: unsigned(7 downto 0);
 	variable commonMem: std_logic;
 	variable commonPageMask: unsigned(7 downto 0);
+	
 	begin
 		if rising_edge(clk) then
 			page := addr(15 downto 8);
@@ -196,7 +214,12 @@ begin
 
 			if reg_os = '0' then
 				-- C128/Z80 mode
-				vicBank <= reg_vicbank and systemMask;
+				memC000 <= reg_cr(5 downto 4);
+				mem8000 <= reg_cr(3 downto 2);
+				mem4000 <= reg_cr(1);
+				memD000 <= reg_cr(0);
+
+				vicBank <= reg_vicbank and systemMask(1 downto 0);
 
 				case reg_commonSz is
 				when "00" => commonPageMask := "11111100"; -- 00..03 / FC..FF = 1k
@@ -206,51 +229,50 @@ begin
 				end case;
 
 				commonPage := page and commonPageMask;
-				if (reg_commonH = '1' and commonPage = commonPageMask) or (reg_commonL = '1' and commonPage = "00000000") then
-					cpuMask := "00";
+				if (reg_commonH = '1' and commonPage = commonPageMask) or (reg_commonL = '1' and commonPage = X"00") then
+					cpuMask := X"00";
 					crBank := "0000";
 				else
 					cpuMask := systemMask;
-					crBank := "00" & reg_cr(7 downto 6) and systemMask;
+					crBank := "00" & reg_cr(7 downto 6) and systemMask(3 downto 0);
 				end if;
 
-				bank := "00";
-				if crBank = B"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
+				cpuBank <= X"00";
+				if crBank = X"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
 					-- When reading from $00xxx in Z80 mode, always read from $0Dxxx. Buslogic will enable ROM4
 					tPage := X"D" & addr(11 downto 8);
-				elsif page = X"01" then
-					bank := reg_p1h(1 downto 0) and cpuMask;
+				elsif page = X"01" then -- For compatibility reasons, stack and zero page relocation only possible in first 1mb
+					cpuBank <= "0000" & reg_p1h(3 downto 0) and cpuMask;
 					tPage := reg_p1l;
 				elsif page = X"00" then
-					bank := reg_p0h(1 downto 0) and cpuMask;
+					cpuBank <= "0000" & reg_p0h(3 downto 0) and cpuMask;
 					tPage := reg_p0l;
 				elsif crBank = reg_p1h and page = reg_p1l then
-					bank := reg_p1h(1 downto 0) and cpuMask;
+					cpuBank <= "0000" & reg_p1h(3 downto 0) and cpuMask;
 					tPage := X"01";
 				elsif crBank = reg_p0h and page = reg_p0l then
-					bank := reg_p0h(1 downto 0) and cpuMask;
+					cpuBank <= "0000" & reg_p0h(3 downto 0) and cpuMask;
 					tPage := X"00";
+				elsif crBank = X"02" and sys16mb = '1' then
+					cpuBank <= reg_pg2;
+					tPage := page;
+				elsif crBank = X"03" and sys16mb = '1' then
+					cpuBank <= reg_pg3;
+					tPage := page;
 				else
-					bank := crBank(1 downto 0);
+					cpuBank <= "0000" & crBank(3 downto 0);
 					tPage := page;
 				end if;
-
-				cpuBank <= bank;
-				case addr(15 downto 14) is
-				when "11" => rombank <= reg_cr(5 downto 4);
-				when "10" => rombank <= reg_cr(3 downto 2);
-				when "01" => rombank <= '0' & reg_cr(1);
-				when "00" => rombank <= bank;
-				end case;
-				iosel <= reg_cr(0);
 
 				tAddr <= tPage & addr(7 downto 0);
 			else
 				-- C64 mode
+				memC000 <= "00";
+				mem8000 <= "00";
+				mem4000 <= '0';
+				memD000 <= '0';
 				vicBank <= "00";
-				cpuBank <= "00";
-				rombank <= "00";
-				iosel <= '0';
+				cpuBank <= X"00";
 
 				tAddr <= addr;
 			end if;
@@ -265,18 +287,30 @@ begin
 		if rising_edge(clk) then
 			if we = '0' and (cs_io = '1' or cs_lr = '1') then
 				case addr(7 downto 0) is
-				when X"00" => do <= (reg_cr(7 downto 6) and systemMask) & reg_cr(5 downto 0);
+				when X"00" => do <= (reg_cr(7 downto 6) and systemMask(1 downto 0)) & reg_cr(5 downto 0);
 				when X"01" => do <= reg_pcr(0);
 				when X"02" => do <= reg_pcr(1);
 				when X"03" => do <= reg_pcr(2);
 				when X"04" => do <= reg_pcr(3);
 				when X"05" => do <= d4080 & reg_os & exrom & game & fsdir & "11" & reg_cpu;
-				when X"06" => do <= reg_vicbank & "11" & reg_commonH & reg_commonL & reg_commonSz;
+				when X"06" => 
+					if sys16mb = '1' then 
+						do <= reg_vicbank & reg_exram & reg_commonH & reg_commonL & reg_commonSz;
+					else 
+						do <= reg_vicbank & "11" & reg_commonH & reg_commonL & reg_commonSz;
+					end if;
 				when X"07" => do <= reg_p0l;
 				when X"08" => do <= "1111" & reg_p0h;
 				when X"09" => do <= reg_p1l;
 				when X"0A" => do <= "1111" & reg_p1h;
-				when X"0B" => do <= "0" & sys256k & (not sys256k) & "00000";
+				when X"0B" => 
+				  if sys16mb = '0' then 
+						do <= "00" & sys256k & (not sys256k) & "0000";
+					else 
+						do <= "10000010"; -- Version 2 MMU - 16384k RAM
+				  end if;
+				when X"0C" => if sys16mb='1' then do <= reg_pg2; else do <= X"FF"; end if;
+				when X"0D" => if sys16mb='1' then do <= reg_pg3; else do <= X"FF"; end if;
 				when others => do <= (others => '1');
 				end case;
 			end if;
