@@ -27,6 +27,8 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - 16mb RAM banked into banks 2 and 3 (mostly implemented)
 - - MMU has been overhauled, will register as "version 2" with "256 RAM banks".  Currently wraps at 256k, will work once I figure out why.
 - - Think, VIC page flipping with hundreds of pages available.
+- - Implementation: Check for 16mb MMU ($d50b = $82)
+- - Select one of 256 RAM banks (even 0 and 1) by placing a byte in $d50c for bank 2 and $d50d in bank 3.
 - 85816 CPU (65816 with 6510/8502 glue) (partial implementation, issues)
 - - CPU MUX between t65 and SNES 65816 core built.  It can even kind of boot (but BASIC freaks out and there are timing issues) yet Run/stop Restore still responsive.
 - - 16mb RAM that can be banked in on MMUv2 will be directly accessible to the 65816.
