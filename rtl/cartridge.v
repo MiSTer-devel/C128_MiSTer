@@ -40,7 +40,7 @@ module cartridge
 	output            IO_rom,					// FLAG to enable IOE/IOF address relocation
 	output            IO_rd,
 	output reg  [7:0] IO_data,
-	input      [17:0] addr_in,             // address from cpu
+	input      [24:0] addr_in,             // address from cpu
 	input       [7:0] data_in,  			     // data from cpu going to sdram
 	output reg [24:0] addr_out, 	         // translated address output
 

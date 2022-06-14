@@ -10,50 +10,64 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 
 - MMU fully implemented and tested using [VICE test progs](https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/c128/)
 - C128 specific keys
-- VDC standard modes (text & bitmap) implemented.
-- Z80 implemented. Simple uses work, but CP/M does not yet boot.
-- Booting in C64, C128 or Z80 mode
+- VDC standard modes (text & bitmap) implemented
+- Booting in C64, C128 or CP/M mode
 - Automatic detection of .CRT files: C64 cartridges boot in C64 mode, C128 cartridges boot in C128 mode. C128 .CRT files must contain a [C128 CARTRIDGE](https://vice-emu.sourceforge.io/vice_17.html#SEC392) header to be detected.
 - Loading of .PRG files to the correct memory location in C128 mode.
 
 ### C128 features not (yet/fully) implemented
 
 - VDC scrolling, interlace, 40 column mode, non-standard modes
-- CP/M mode
 - Internal function ROM
-- 1571 drive and fast serial for disk I/O
+- Fast serial IEC
+- MFM .d81 images for CP/M (currently only .d64 or non-MFM .d81 disk images will work)
+- 1571 drive/.d71 images
 
 ### Extras being worked on
-- 16mb RAM banked into banks 2 and 3 (mostly implemented)
-- - MMU has been overhauled, will register as "version 2" with "256 RAM banks".  Currently wraps at 256k, will work once I figure out why.
+- * 16mb RAM banked into banks 2 and 3 (mostly implemented)
+- - MMU has been overhauled, will register as "version 2" with "up to 256 RAM banks".
+- - Currently wraps at 8mb, (128 RAM banks) some of the core seems to be at page 147 and above and accessing it crashes the machine.
+- - - Probably stuff in SDRAM needs to be reorganized.
 - - Think, VIC page flipping with hundreds of pages available.
-- - Implementation: Check for 16mb MMU ($d50b = $82)
-- - Select one of 256 RAM banks (even 0 and 1) by placing a byte in $d50c for bank 2 and $d50d in bank 3.
-- 85816 CPU (65816 with 6510/8502 glue) (partial implementation, issues)
+- - Implementation:
+- - - Check for 16mb MMU ($d50b = $x2)
+- - - Check how many pages have been provided ($x2) where x = 2^x pages available.
+- - Select one of available RAM banks (even 0 and 1) by placing a byte in $d50c for bank 2 and $d50d in bank 3.
+- - See the "C128MMUv2.txt" for more details.
+- + 85816 CPU (65816 with 6510/8502 glue) (partial implementation, issues)
 - - CPU MUX between t65 and SNES 65816 core built.  It can even kind of boot (but BASIC freaks out and there are timing issues) yet Run/stop Restore still responsive.
 - - 16mb RAM that can be banked in on MMUv2 will be directly accessible to the 65816.
 - - CPU_6510 now makes assumptions that there is 16mb of RAM and it can only see 64k of it.
 - - I/O registers only visible at 000000-000001
+- - Note this may end up being the 85832 (32 bit 65xx compatible) so stay tuned.
 - VDC RAM exposed to CPU (soon)
-- - I don't know where it is currently mapped.  If Eric puts it somewhere in 040000-FEFFFF, then it will be able to be banked into bank 2 or 3 :)
 - - This will allow people to draw directly to the VDC RAM.
+- - I don't know where it is currently mapped.  If Eric puts it somewhere in 040000-FEFFFF, then it will be able to be banked into bank 2 or 3 :)
+- - I will recommend its position be at $F00000 (banks 240-254) because I have plans for big VDC enhancements.
+- - Page 255 should be reserved for the 85816.
 - VDC registers exposed at $D680 (soon)
 - - Accessing the entire VDC through 2 registers ($d600/$d601) was a mistake by Commodore.  Lets fix that.
+- Enhanced VDC modes
+- - 256 color mode (CLUT)
+- - 640x400 progressive mode
+- - Maybe more ...
+- SD2IEC simulation
+- - Likely.  I feel like we should have some kind of mass storage solution lol
+- Sound .. is pretty already covered with 2 SIDs, and OPL2, and a Digimax.
+- - If there is room, might expand to 4 SIDs
 - SuperCPU 128 registers (later)
 - - Not all will be implemented because not all make sense on MiSTer, but the SuperCPU will be faked enough to allow applications targetting it to run.
 - 20mhz mode? (maybe)
-- - I hope.
-- Backporting 85816 to C64
+- - I hope.  Theres some barriers.  Depends on how fast a base clock we can have...
+- Backporting 85816/85832 to C64
 - - When it is stable, definitely.
+- - Backporting these other features, probably not, because the C128 *does* have a C64 mode.  And the C64 mode has access to much of this...
+- MMU exposed in C64 mode
+- - Is there a point?
+- Z80 SMP (Way later)
+- - Is it possible?  Writing point here to explore it...
 + = In progress
-
-### Other TODOs and known issues
-
-- Automatic detection of C64/C128 .PRG files to boot in the appropriate mode.
-- Second SID address D500 does not work. It can't work in C128 mode because the MMU is in that location, but it could in C64 mode.
-- Re-enable 3x and 4x turbo modes for both 8502 and Z80?
-- Figure out why CP/M does not work correctly. Possibly due to incorrect Z80 memory map.
-
+* = Complete
 ## Usage
 
 ### Internal memory 
@@ -267,4 +281,3 @@ To get real time in GEOS, copy CP-CLOCK64-1.3 from supplied [disk](https://githu
 
 C1541 implementation works in raw GCR mode (D64 format is converted to GCR and then back when saved), so some non-standard tracks are supported if G64 file format is used. Support formatting and some copiers using raw track copy. Speed zones aren't supported (yet), but system follows the speed setting, so variable speed within a track should work.
 Protected disk in most cases won't work yet and still require further tuning of access times to comply with different protections.
-

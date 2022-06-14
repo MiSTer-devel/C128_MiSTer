@@ -59,6 +59,10 @@ end mmu8722;
 
 architecture rtl of mmu8722 is
 
+  -- Define memsize for MMUv2 to be 2^n pages desired. 
+	-- "7" here is going to mean 128 pages.  For now.
+  constant MEMSIZE : integer := 7;
+
 	subtype configReg is unsigned(7 downto 0);
 	type configStore is array(3 downto 0) of configReg;
 
@@ -75,11 +79,11 @@ architecture rtl of mmu8722 is
 	signal reg_commonL : std_logic;
 	signal reg_commonSz : unsigned(1 downto 0);
 
-	signal reg_p0hb : unsigned(3 downto 0);
-	signal reg_p0h : unsigned(3 downto 0);
+	signal reg_p0hb : unsigned(7 downto 0);
+	signal reg_p0h : unsigned(7 downto 0);
 	signal reg_p0l : unsigned(7 downto 0);
-	signal reg_p1hb : unsigned(3 downto 0);
-	signal reg_p1h : unsigned(3 downto 0);
+	signal reg_p1hb : unsigned(7 downto 0);
+	signal reg_p1h : unsigned(7 downto 0);
 	signal reg_p1l : unsigned(7 downto 0) := X"01";
 	signal reg_pg2 : unsigned(7 downto 0) := X"02";
 	signal reg_pg3 : unsigned(7 downto 0) := X"03";
@@ -152,10 +156,10 @@ begin
 									  reg_vicbank <= di(7 downto 6);
 					when X"07" => reg_p0l <= di;
 									  reg_p0h <= reg_p0hb;
-					when X"08" => reg_p0hb <= di(3 downto 0);
+					when X"08" => reg_p0hb <= di;
 					when X"09" => reg_p1l <= di;
 									  reg_p1h <= reg_p1hb;
-					when X"0A" => reg_p1hb <= di(3 downto 0);
+					when X"0A" => reg_p1hb <= di;
 					when X"0C" => if sys16mb='1' then reg_pg2 <= di; end if;
 					when X"0D" => if sys16mb='1' then reg_pg3 <= di; end if;
 					when others => null;
@@ -189,7 +193,7 @@ begin
 	gameo <= game;
 	exromo <= exrom;
 	fsdiro <= fsdir;
-	systemMask <= X"FF" when sys16mb = '1' else ("000000" & sys256k & "1");
+	systemMask <= (MEMSIZE-1 downto 0 => '1', others => '0') when sys16mb = '1' else ("000000" & sys256k & "1");
 
 	translate_addr: process(clk)
 	variable bank: unsigned(7 downto 0);								 
@@ -232,16 +236,16 @@ begin
 					-- When reading from $00xxx in Z80 mode, always read from $0Dxxx. Buslogic will enable ROM4
 					tPage := X"D" & addr(11 downto 8);
 				elsif page = X"01" then 
-					bank := "0000" & reg_p1h(3 downto 0) and cpuMask;
+					bank := reg_p1h and cpuMask;
 					tPage := reg_p1l;
 				elsif page = X"00" then
-					bank := "0000" & reg_p0h(3 downto 0) and cpuMask;
+					bank := reg_p0h and cpuMask;
 					tPage := reg_p0l;
 				elsif crBank = reg_p1h and page = reg_p1l then
-					bank := "0000" & reg_p1h(3 downto 0) and cpuMask;
+					bank := reg_p1h and cpuMask;
 					tPage := X"01";
 				elsif crBank = reg_p0h and page = reg_p0l then
-					bank :=  "0000" & reg_p0h(3 downto 0) and cpuMask;
+					bank :=  reg_p0h and cpuMask;
 					tPage := X"00";
 				elsif crBank = X"02" and sys16mb = '1' then
 					bank := reg_pg2;
@@ -297,19 +301,19 @@ begin
 						do <= reg_vicbank & "11" & reg_commonH & reg_commonL & reg_commonSz;
 					end if;
 				when X"07" => do <= reg_p0l;
-				when X"08" => do <= "1111" & reg_p0h;
+				when X"08" => do <= reg_p0h;
 				when X"09" => do <= reg_p1l;
-				when X"0A" => do <= "1111" & reg_p1h;
+				when X"0A" => do <= reg_p1h;
 				when X"0B" => 
 				  -- Low nybble - version number of mmu
 				  -- High nybble - 2^(hn-1) pages of RAM:
-				  -- 1 = 128k, 2 = 256k, 9 = 16384k, 15 = 2GB
+				  -- 1 = 128k, 2 = 256k, 8 = 16384k, 15 = 2GB
 				  -- ... 16MB ought to be enough for anyone ...
 				  if sys16mb = '0' then 
 						-- Version 0 MMU, 128/256kb RAM
 						do <= "00" & sys256k & (not sys256k) & "0000";
-					else-- Version 2 MMU, 16384kb RAM
-						do <= "10010010";
+					else-- Version 2 MMU, Realtime memsize calculation.
+						do <= to_unsigned(MEMSIZE,4) & "0010";
 				  end if;
 				when X"0C" => if sys16mb='1' then do <= reg_pg2; else do <= X"FF"; end if;
 				when X"0D" => if sys16mb='1' then do <= reg_pg3; else do <= X"FF"; end if;

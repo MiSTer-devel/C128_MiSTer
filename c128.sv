@@ -280,7 +280,7 @@ localparam CONF_STR = {
 	"P3-,+ May work * Likely to crash;",
 	"P3-,- Not implemented yet       ;",
 	"P3-;",
-	"P3O[98],+CPU,8502,85816;",
+	"P3O[98],*CPU,8502,85816;",
 	"P3O[105],+16MB RAM,No,Yes;",
 	"P3O[99],-VDC regs at $D680,No,Yes;",
 	"P3O[101:100],-VDC RAM Exposed,No,Bank 3,Bank 15,FE0000;",
