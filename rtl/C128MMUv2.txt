@@ -1,0 +1,37 @@
+Mister C128 version 2 MMU registers
+----------------------------------- 
+Address	Label	Description
+IO:D500	MMUCR1	Configuration register
+				7-6 MMU bank mapped to CPU (0-3)
+				5-4 ROM HI mapping (00=System; 01=IntRom; 10=ExtRom; 11=RAM)
+				3-2 ROM MID mapping (00=System; 01=IntRom; 10=ExtRom; 11=RAM)
+				1   ROM LOW mapping (0=System; 1=RAM)
+				0	I/O at $D000 (1=Yes; 0=No)
+IO:D501	PCRA	Preconfiguration register A as above (triggered at FF01)
+IO:D502	PCRB	Preconfiguration register B as above (triggered at FF02)
+IO:D503	PCRC	Preconfiguration register C as above (triggered at FF03)
+IO:D504	PCRD	Preconfiguration register D as above (triggered at FF04)
+IO:D505 MMUMCR	Mode configuration register
+				7	40/80 key sense (1=80; 0=40)
+				6	OS mode (0=C128; 1=C64)
+				5	/EXROM sense
+				4	/GAME sense
+				3	FSDIR
+				2	Unused
+				1	Unused (Future: 0=8502; 1=85816)
+				0	Processor (0=Z80; 1=8502])
+IO:D506	MMURCR	RAM configuration register
+				7-6	VIC RAM Bank (0-3)
+				5-4 MMU v1 ExRAM (0=Pages 0-3; 1=Pages 4-7; 2=Pages 8-11; 3=Pages 12-15)
+				3-2 RAM share status (0=None; 1=Top; 2=Bottom; 3=Both)
+				1-0 RAM share amount (0=1k; 1=4k; 2=8k; 3=16k)
+IO:D507 MMUP0L	Zero page pointer low (nn = xxnn00-xxnnFF)	
+IO:D508 MMUP0H	Zero page pointer high (nn = nnxx00-nnxxFF)	
+IO:D509 MMUP1L	Stack page pointer low (nn = xxnn00-xxnnFF)
+IO:D50A MMUP1H	Stack page pointer high (nn = nnxx00-nnxxFF)
+IO:D50B	MMUVER	MMU Bank and version #
+				7-4	Banks nnnn = 2^(nnnn) banks (1=128k; 2=256k; 4=1MB; 9=16MB; 15=2GB)
+				3-0 MMU Version (0=Stock; 1=ExRAM available (1mb); 
+					2=Page2/3 16MB paging available)
+IO:D50C MMUPG2	RAM bank at MMUv2 bank 2 (256 banks * 64k = 16MB)
+IO:D50D MMUPG3	RAM bank at MMUv2 bank 3 (256 banks * 64k = 16MB)

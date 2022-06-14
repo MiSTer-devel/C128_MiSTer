@@ -3,8 +3,10 @@
 -- 
 -- for the C128 MiSTer FPGA core, by Erik Scheffers
 ---------------------------------------------------------------------------------
---
--- Alynna: 1mb MMU support as defined by the MMU manual :)
+-- Alynna: 
+-- v1 MMU - 1mb MMU support as defined by the Prog ref guide :)
+-- v2 MMU - 16mb MMU support -- highly compatible adaptation.
+
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -44,10 +46,10 @@ entity mmu8722 is
 		fsdiro: out std_logic;
 
 		-- system config
-		c128_n: out std_logic;         -- "0" C128, "1" C64
-		z80_n: out std_logic;          -- "0" Z80, "1" 8502
+		c128_n: out std_logic;		-- "0" C128, "1" C64
+		z80_n: out std_logic;		-- "0" Z80, "1" 8502
 		rombank: out unsigned(1 downto 0); -- "00" system rom  "01" internal rom "10" external rom "11" ram
-		iosel: out std_logic;              -- "0" select IO  "1" select rom/ram according to rombank																									 
+		iosel: out std_logic;              -- "0" select IO  "1" select rom/ram according to rombank
 		-- translated address bus
 		tAddr: out unsigned(15 downto 0);
 		cpuBank: out unsigned(7 downto 0);
@@ -190,7 +192,7 @@ begin
 	systemMask <= X"FF" when sys16mb = '1' else ("000000" & sys256k & "1");
 
 	translate_addr: process(clk)
-	variable bank: unsigned(1 downto 0);								 
+	variable bank: unsigned(7 downto 0);								 
 	variable cpuMask: unsigned(7 downto 0);
 	variable crBank: unsigned(3 downto 0);
 	variable page: unsigned(15 downto 8);
@@ -198,7 +200,6 @@ begin
 	variable commonPage: unsigned(7 downto 0);
 	variable commonMem: std_logic;
 	variable commonPageMask: unsigned(7 downto 0);
-	
 	begin
 		if rising_edge(clk) then
 			page := addr(15 downto 8);
@@ -226,30 +227,30 @@ begin
 					crBank := "00" & reg_cr(7 downto 6) and systemMask(3 downto 0);
 				end if;
 
-				cpuBank <= X"00";
-				if crBank = X"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
+				bank := X"00";
+					if crBank = X"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
 					-- When reading from $00xxx in Z80 mode, always read from $0Dxxx. Buslogic will enable ROM4
 					tPage := X"D" & addr(11 downto 8);
-				elsif page = X"01" then -- For compatibility reasons, stack and zero page relocation only possible in first 1mb
-					cpuBank <= "0000" & reg_p1h(3 downto 0) and cpuMask;
+				elsif page = X"01" then 
+					bank := "0000" & reg_p1h(3 downto 0) and cpuMask;
 					tPage := reg_p1l;
 				elsif page = X"00" then
-					cpuBank <= "0000" & reg_p0h(3 downto 0) and cpuMask;
+					bank := "0000" & reg_p0h(3 downto 0) and cpuMask;
 					tPage := reg_p0l;
 				elsif crBank = reg_p1h and page = reg_p1l then
-					cpuBank <= "0000" & reg_p1h(3 downto 0) and cpuMask;
+					bank := "0000" & reg_p1h(3 downto 0) and cpuMask;
 					tPage := X"01";
 				elsif crBank = reg_p0h and page = reg_p0l then
-					cpuBank <= "0000" & reg_p0h(3 downto 0) and cpuMask;
+					bank :=  "0000" & reg_p0h(3 downto 0) and cpuMask;
 					tPage := X"00";
 				elsif crBank = X"02" and sys16mb = '1' then
-					cpuBank <= reg_pg2;
+					bank := reg_pg2;
 					tPage := page;
 				elsif crBank = X"03" and sys16mb = '1' then
-					cpuBank <= reg_pg3;
+					bank := reg_pg3;
 					tPage := page;
 				else
-					cpuBank <= "0000" & crBank(3 downto 0);
+					bank := "0000" & crBank(3 downto 0);
 					tPage := page;
 				end if;
 
@@ -258,7 +259,7 @@ begin
 				when "11" => rombank <= reg_cr(5 downto 4);
 				when "10" => rombank <= reg_cr(3 downto 2);
 				when "01" => rombank <= '0' & reg_cr(1);
-				when "00" => rombank <= bank;
+				when "00" => rombank <= bank(1 downto 0);
 				end case;
 				iosel <= reg_cr(0);
 

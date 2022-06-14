@@ -60,7 +60,7 @@ port(
 	cpslk_sense : out std_logic;
 	d4080_sense : out std_logic;
 	noscr_sense : out std_logic;
-  d4080_bootstatus : in std_logic;
+	d4080_bootstatus : in std_logic;
 	
 	-- external memory
 	ramAddr     : out unsigned(23	downto 0);
@@ -184,11 +184,11 @@ port(
 
 	-- System memory size
 	sys256k     : in  std_logic;
-	sys16mb      : in  std_logic;
+	sys16mb     : in  std_logic;
 	-- System mode
 	c128_n      : out std_logic;
 	z80_n       : out std_logic;
-  x816				: in  std_logic;
+    x816		: in  std_logic;
 	--test
 	osmode      : in  std_logic;
 	cpumode     : in  std_logic
@@ -335,10 +335,8 @@ signal mmu_exrom    : std_logic;
 signal mmu_game     : std_logic;
 signal mmu_c128_n   : std_logic;
 signal mmu_z80_n    : std_logic;
-signal mmu_memC000  : unsigned(1 downto 0);
-signal mmu_mem8000  : unsigned(1 downto 0);
-signal mmu_mem4000  : std_logic;
-signal mmu_memD000  : std_logic;
+signal mmu_rombank  : unsigned(1 downto 0);
+signal mmu_iosel    : std_logic;
 
 -- Keyboard signals
 signal cpslk_sense_kb  : std_logic;
@@ -552,9 +550,9 @@ port map (
 	cs_lr => cs_mmuH,
 
 	sys256k => sys256k, -- "1" for 256K system memory
-	sys16mb => sys16mb, --   "1" for 1MB system memory
-	osmode => osmode,  -- debug
-	cpumode => cpumode,  -- debug
+	sys16mb => sys16mb, -- "1" for 16MB system memory
+	osmode => osmode,   -- debug
+	cpumode => cpumode, -- debug
 
 	we => pulseWr_io,
 
@@ -577,8 +575,10 @@ port map (
 	fsdiri => '1',
 
 	c128_n => mmu_c128_n,
-	z80_n => mmu_z80_n
+	z80_n => mmu_z80_n,
 
+	rombank => mmu_rombank,
+	iosel => mmu_iosel
 );
 
 -- -----------------------------------------------------------------------
@@ -599,6 +599,8 @@ port map (
 	z80_n => mmu_z80_n,
 	z80io => cpuIO_T80,
 	z80m1n => cpuM1n_T80,
+	mmu_rombank => mmu_rombank,
+	mmu_iosel => mmu_iosel,
 	tAddr => tAddr,
 	cpuBank => cpuBank,
 	vicBank => vicBank,
@@ -1121,7 +1123,6 @@ port map (
 	reset => kbd_reset,
 	ps2_key => ps2_key,
 	d4080_bootstatus => d4080_bootstatus,
-	
 	joyA => not unsigned(joyA(6 downto 0)),
 	joyB => not unsigned(joyB(6 downto 0)),
 	pai => cia1_pao,

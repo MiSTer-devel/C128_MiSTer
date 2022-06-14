@@ -49,12 +49,10 @@ entity fpga64_buslogic is
 		-- From MMU
 		z80_n       : in std_logic;             -- "0" Z80, "1" 8502
 		c128_n      : in std_logic;             -- "0" C128, "1" C64
-		mmu_memC000 : in unsigned(1 downto 0);  -- $C000-$FFFF "00" Kernal ROM, "01" Int ROM, "10" Ext. ROM, "11" RAM
-		mmu_mem8000 : in unsigned(1 downto 0);  -- $8000-$BFFF "00" Basic ROM Hi, "01" Int ROM, "10" Ext. ROM, "11" RAM
-		mmu_mem4000 : in std_logic;             -- $4000-$7FFF "0" Basic ROM Lo, "1" RAM
-		mmu_memD000 : in std_logic;             -- $D000-$DFFF "0" I/O, "1" RAM/ROM based on mmu_memC000
+		mmu_rombank : in unsigned(1 downto 0);  
+		mmu_iosel   : in std_logic;
 		tAddr       : in unsigned(15 downto 0); -- Translated address bus
-		cpuBank     : in unsigned(7 downto 0);  -- 16M RAM system, 122365 BASIC bytes free
+		cpuBank     : in unsigned(7 downto 0);
 		vicBank     : in unsigned(1 downto 0);
 
 		-- From Keyboard
@@ -350,8 +348,7 @@ begin
 
 	process(
 		cpuHasBus, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
-		c128_n, z80_n, z80io, z80m1n, 
-		mmu_memC000, mmu_mem8000, mmu_mem4000, mmu_memD000, cpuBank, vicBank
+		c128_n, z80_n, z80io, z80m1n, mmu_rombank, mmu_iosel, cpuBank, vicBank
 	)
 	begin
 		currentAddr <= (others => '1');
@@ -382,42 +379,16 @@ begin
 		if (cpuHasBus = '1') then
 			currentAddr <= cpuBank & tAddr;
 
-			if (z80io = '1') then
-				-- Z80 I/O -- available regardless of mmu_memD000 setting
-				if cpuAddr(15 downto 12) = X"D" then
-					case cpuAddr(11 downto 8) is
-						when X"0" | X"1" | X"2" | X"3" =>
-							cs_vicLoc <= '1';
-						when X"4" =>
-							cs_sidLoc <= z80m1n;
-						when X"5" =>
-							cs_mmuLLoc <= '1';
-						when X"6" =>
-							cs_vdcLoc <= z80m1n;
-						when X"8" | X"9" | X"A" | X"B" =>
-							cs_colorLoc <= '1';
-						when X"C" =>
-							cs_cia1Loc <= z80m1n;
-						when X"D" =>
-							cs_cia2Loc <= z80m1n;
-						when X"E" =>
-							cs_ioELoc <= z80m1n;
-						when X"F" =>
-							cs_ioFLoc <= z80m1n;
-						when others =>
-							null;
-					end case;
-				end if;
-
-			elsif c128_n = '0' then
+			if c128_n = '0' then
 				-- C128
 
+				-- Using untranslated address								 
 				case cpuAddr(15 downto 12) is
 				when X"C" | X"E" | X"F" =>
 					if cpuAddr(15 downto 4) = X"FF0" and cpuAddr(3 downto 0) < X"5" then
 						cs_mmuHLoc <= '1';
 					elsif cpuWe = '0' then
-						case mmu_memC000 is
+						case mmu_rombank is
 							when B"00" =>
 								cs_rom4Loc <= '1';
 							when B"01" =>
@@ -431,19 +402,24 @@ begin
 						cs_ramLoc <= '1';
 					end if;
 				when X"D" =>
-					if (z80_n = '1' and mmu_memD000 = '0') then
-						-- Memory mapped I/O, not available to Z80
+					if (mmu_iosel = '0' or (z80_n = '0' and z80io = '1')) then
 						case cpuAddr(11 downto 8) is
 							when X"0" | X"1" | X"2" | X"3" =>
 								cs_vicLoc <= '1';
 							when X"4" =>
 								cs_sidLoc <= z80m1n;
 							when X"5" =>
-								cs_mmuLLoc <= '1';
+								if mmu_iosel = '0' then
+									cs_mmuLLoc <= '1';
+								end if;
 							when X"6" =>
 								cs_vdcLoc <= z80m1n;
 							when X"8" | X"9" | X"A" | X"B" =>
-								cs_colorLoc <= '1';
+								if (z80_n = '1' or z80io = '1') then
+									cs_colorLoc <= '1';
+								else
+									cs_ramLoc <= '1';
+								end if;
 							when X"C" =>
 								cs_cia1Loc <= z80m1n;
 							when X"D" =>
@@ -456,9 +432,13 @@ begin
 								null;
 						end case;
 					elsif cpuWe = '0' then
-						case mmu_memC000 is
+						case mmu_rombank is
 							when B"00" =>
-								cs_charLoc <= '1';
+								if z80_n = '1' then
+									cs_charLoc <= '1';
+								else
+									cs_ramLoc <= '1';
+								end if;
 							when B"01" =>
 								cs_romF1Loc <= '1';
 							when B"10" =>
@@ -471,7 +451,7 @@ begin
 					end if;
 				when X"8" | X"9" | X"A" | X"B" =>
 					if cpuWe = '0' then
-						case mmu_mem8000 is
+						case mmu_rombank is
 							when B"00" =>
 								cs_rom23Loc <= '1';
 							when B"01" =>
@@ -485,13 +465,19 @@ begin
 						cs_ramLoc <= '1';
 					end if;
 				when X"4" | X"5" | X"6" | X"7" =>
-					if cpuWe = '0' and mmu_mem4000 = '0' then
+					if cpuWe = '0' and mmu_rombank(0) = '0' then
 						cs_rom23Loc <= '1';
 					else
 						cs_ramLoc <= '1';
 					end if;
+				when X"1" => 
+					if cpuAddr(11 downto 10) = B"00" and z80_n = '0' and mmu_iosel = '0' then
+						cs_colorLoc <= '1';
+					else
+						cs_ramLoc <= '1';
+					end if;
 				when X"0" =>
-					if z80_n = '0' and cpuBank = X"00" and cpuWe = '0' then
+					if z80_n = '0' and z80io = '0' and mmu_rombank = B"00" and cpuWe = '0' then
 						cs_rom4Loc <= '1';
 					else
 						cs_ramLoc <= '1';
@@ -614,7 +600,6 @@ begin
 				colorA10 <= not bankSwitch(1);
 			end if;
 		end if;
-
 	end process;
 
 	cs_ram <= cs_ramLoc or cs_romLLoc or cs_romHLoc or cs_UMAXromHLoc or cs_UMAXnomapLoc or cs_CharLoc or cs_rom1Loc or cs_rom23Loc or cs_rom4Loc or cs_romF1Loc;
