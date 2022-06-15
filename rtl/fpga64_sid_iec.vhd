@@ -238,6 +238,7 @@ signal irq_cia2     : std_logic;
 signal irq_vic      : std_logic;
 
 signal systemWe     : std_logic;
+signal pulseWr      : std_logic;
 signal pulseWr_io   : std_logic;
 signal systemAddr   : unsigned(17 downto 0);
 
@@ -274,6 +275,7 @@ signal ioe_i        : std_logic;
 signal iof_i        : std_logic;
 
 signal io_enable    : std_logic;
+signal safe_cs      : std_logic;
 signal cpu_cyc      : std_logic;
 signal cpu_cyc_s    : std_logic_vector(1 downto 0);
 signal turbo_m      : std_logic_vector(2 downto 0);
@@ -326,6 +328,7 @@ signal pot_x2       : std_logic_vector(7 downto 0);
 signal pot_y2       : std_logic_vector(7 downto 0);
 
 -- MMU signals
+signal mmu_we       : std_logic;
 signal mmu_do       : unsigned(7 downto 0);
 signal tAddr        : unsigned(15 downto 0);
 signal cpuBank      : unsigned(1 downto 0);
@@ -532,7 +535,7 @@ generic map (
 )
 port map (
 	clk => clk32,
-	we => cs_color and pulseWr_io,
+	we => cs_color and pulseWr,
 	addr => colorA10 & systemAddr(9 downto 0),
 	data => cpuDo(3 downto 0),
 	q => colorData
@@ -553,7 +556,7 @@ port map (
 	osmode => osmode,  -- debug
 	cpumode => cpumode,  -- debug
 
-	we => pulseWr_io,
+	we => mmu_we,
 
 	addr => cpuAddr,
 	di => cpuDo,
@@ -579,6 +582,8 @@ port map (
 	rombank => mmu_rombank,
 	iosel => mmu_iosel
 );
+
+mmu_we <= pulseWr when cs_mmuH = '1' else pulseWr_io;
 
 -- -----------------------------------------------------------------------
 -- PLA and bus-switches
@@ -662,9 +667,14 @@ IOF <= iof_i;
 process(clk32)
 begin
 	if rising_edge(clk32) then
+		pulseWr <= '0';
 		pulseWr_io <= '0';
 		if cpuWe = '1' then
+			if cpu_cyc = '1' then
+				pulseWr <= '1';
+			end if;
 			if sysCycle = CYCLE_CPUC then
+				pulseWr <= '1';
 				pulseWr_io <= '1';
 			end if;
 		end if;
@@ -720,7 +730,7 @@ port map (
 	mode8566 => (not ntscMode),
 	mode8569 => '0',
 
-	turbo_en => '1',
+	turbo_en => turbo_en,
 	turbo_state => turbo_state,
 
 	cs => cs_vic,
@@ -1040,11 +1050,12 @@ ramDout <= cpuDo;
 ramAddr <= systemAddr;
 ramWE   <= systemWe when sysCycle >= CYCLE_CPU0 else '0';
 ramCE   <= cs_ram when sysCycle = CYCLE_VIC0 or cpu_cyc = '1' else '0';
+safe_cs <= cs_ram or cs_color or cs_mmuH;  -- safe to access in 8502 turbo mode
 cpu_cyc <= '1' when
-				(sysCycle = CYCLE_CPU0 and turbo_m(0) = '1' and cs_ram = '1' ) or
-				(sysCycle = CYCLE_CPU4 and turbo_m(1) = '1' and cs_ram = '1' ) or
-				(sysCycle = CYCLE_CPU8 and turbo_m(2) = '1' and cs_ram = '1' ) or
-				(sysCycle = CYCLE_CPUC and (io_enable = '1'  or cs_ram = '1')) else '0';
+				(sysCycle = CYCLE_CPU0 and turbo_m(0) = '1' and safe_cs = '1' ) or
+				(sysCycle = CYCLE_CPU4 and turbo_m(1) = '1' and safe_cs = '1' ) or
+				(sysCycle = CYCLE_CPU8 and turbo_m(2) = '1' and safe_cs = '1' ) or
+				(sysCycle = CYCLE_CPUC and (io_enable = '1'  or safe_cs = '1')) else '0';
 
 process(clk32)
 begin
