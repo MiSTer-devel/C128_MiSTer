@@ -188,9 +188,7 @@ port(
 	-- System mode
 	c128_n      : out std_logic;
 	z80_n       : out std_logic;
-`ifdef P85816	
-  x816				: in  std_logic;
-`endif
+	x816		: in  std_logic;
 	--test
 	osmode      : in  std_logic;
 	cpumode     : in  std_logic
