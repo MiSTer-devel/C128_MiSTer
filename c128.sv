@@ -283,9 +283,7 @@ localparam CONF_STR = {
 	"P3-,+ May work * Likely to crash;",
 	"P3-,- Not implemented yet       ;",
 	"P3-;",
-`ifdef P85816	
 	"P3O[98],*CPU,8502,85816;",
-`endif
 	"P3O[105],+16MB RAM,No,Yes;",
 	"P30[104],*Burst mode line,No,Yes;",
 	"P30[108],?64 image uses 1571,No,Yes;",
@@ -1135,9 +1133,7 @@ fpga64_sid_iec fpga64
 	.cass_motor(cass_motor),
 	.cass_sense(~tape_adc_act & (use_tape ? cass_sense : cass_rtc)),
 	.cass_read(tape_adc_act ? ~tape_adc : cass_read),
-`ifdef P85816
 	.x816(status[98]),
-`endif
 	.c128_n(c128_n),
 	.z80_n(z80_n)
 );
