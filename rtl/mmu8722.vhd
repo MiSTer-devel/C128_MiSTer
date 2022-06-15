@@ -99,9 +99,9 @@ begin
 				reg_pcr(3) <= (others => '0');
 				reg_cr <= (others => '0');
 				reg_cpu <= cpumode;
-				reg_fsdir <= '1';
-				reg_exrom <= '1';
-				reg_game <= '1';
+				reg_fsdir <= cpumode or osmode;
+				reg_exrom <= cpumode or osmode;
+				reg_game <= cpumode or osmode;
 				reg_os <= osmode;
 				reg_vicbank <= (others => '0');
 				reg_commonH <= '0';
@@ -153,29 +153,16 @@ begin
 	end process;
 
 -- -----------------------------------------------------------------------
--- BiDir I/O pins
+-- Output
 -- -----------------------------------------------------------------------
-	game_io: process(gamei, reg_game)
-	begin
-		game <= gamei and reg_game;
-	end process;
-
-	exrom_io: process(exromi, reg_exrom)
-	begin
-		exrom <= exromi and reg_exrom;
-	end process;
-
-	fsdir_io: process(fsdiri, reg_fsdir)
-	begin
-		fsdir <= fsdiri and reg_fsdir;
-	end process;
-
--- -----------------------------------------------------------------------
--- Output signals
--- -----------------------------------------------------------------------
+	-- TODO is d4080 bidirectional too?
+	game <= gamei and reg_game;
 	gameo <= game;
+	exrom <= exromi and reg_exrom;
 	exromo <= exrom;
+	fsdir <= fsdiri and reg_fsdir;
 	fsdiro <= fsdir;
+
 	systemMask <= sys256k & "1";
 
 	translate_addr: process(clk)
