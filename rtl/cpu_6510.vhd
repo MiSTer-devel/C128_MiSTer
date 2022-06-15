@@ -43,8 +43,9 @@ entity cpu_6510 is
 		nmi_ack : out std_logic;
 		irq_n   : in  std_logic;
 		rdy     : in  std_logic;
+`ifdef P85816		
 		x816    : in  std_logic;
-
+`endif
 		di      : in  unsigned(7 downto 0);
 		do      : out unsigned(7 downto 0);
 		
@@ -70,22 +71,25 @@ architecture rtl of cpu_6510 is
 	signal ioData : std_logic_vector(7 downto 0);
 	
 	signal accessIO : std_logic;
-	signal P85816 : std_logic;
 	signal enable8 : std_logic;
-	signal enable16 : std_logic;
 
 	signal localA8 : std_logic_vector(23 downto 0);
-  signal localA16 : std_logic_vector(23 downto 0);
   signal localDo8 : std_logic_vector(7 downto 0);
-  signal localDo16 : std_logic_vector(7 downto 0);
   signal localWe8 : std_logic;
-  signal localWe16 : std_logic;
   signal nmi_ack8 : std_logic;
-  signal nmi_ack16 : std_logic;
 	signal vpa : std_logic;
 	signal vda : std_logic;
+
+`ifdef P85816
+	signal P85816 : std_logic;
+	signal enable16 : std_logic;
+  signal localA16 : std_logic_vector(23 downto 0);
+  signal localDo16 : std_logic_vector(7 downto 0);
+  signal localWe16 : std_logic;
+  signal nmi_ack16 : std_logic;
 	signal vpa16 : std_logic;
 	signal vda16 : std_logic;
+`endif
 	
 begin
 -- Begin CPU MUX
@@ -107,6 +111,7 @@ begin
 		NMI_ack => nmi_ack8
 	);
 
+`ifdef P85816
 	cpu16: work.P65c816
 	port map(
     CLK => clk,
@@ -126,7 +131,6 @@ begin
 		-- MLB
 		-- VPB
 	);
-
 localA <= localA8 when P85816='0' else localA16;
 localDo <= localDo8 when P85816='0' else localDo16;
 localWe <= localWe8 when P85816='0' else localWe16;
@@ -135,11 +139,29 @@ enable8 <= '0' when P85816='1' else enable;
 enable16 <= '0' when P85816='0' else enable;
 vpa <= '1' when P85816='0' else vpa16;
 vda <= '1' when P85816='0' else vda16;
+`else
+localA <= localA8;
+localDo <= localDo8;
+localWe <= localWe8;
+nmi_ack <= nmi_ack8;
+enable8 <= enable;
+vpa <= '1';
+vda <= '1';
+`endif
 -- End CPU MUX
 
 	-- Altered for 65816 support.  65816 mode only sees IO ports at 000000-000001
-	accessIO <= '1' when (P85816 = '0') and (localA(15 downto 1) = X"000"&"000") else 
-						  '1' when (localA(23 downto 16) = "00000000") and (localA(15 downto 1) = X"000"&"000") else '0'; 
+
+	accessIO <= '1' when
+`ifdef P85816	
+	(P85816 = '0') and 
+`endif
+	(localA(15 downto 1) = X"000"&"000") 
+`ifdef P85816
+	else '1' when (localA(23 downto 16) = "00000000") and (localA(15 downto 1) = X"000"&"000")
+`endif
+	else '0'; 
+	
 	localDi  <= localDo when localWe = '0' else std_logic_vector(di) when accessIO = '0' else ioDir when localA(0) = '0' else currentIO;
 
 	process(clk)
@@ -161,6 +183,8 @@ vda <= '1' when P85816='0' else vda16;
 				ioDir <= (others => '0');
 				ioData <= (others => '1');
 				currentIO <= (others => '1');
+				
+`ifdef P85816				
 				P85816 <= x816;
 				if x816='0' then
 					localA16(23 downto 0) <= (others => 'Z'); 
@@ -169,13 +193,18 @@ vda <= '1' when P85816='0' else vda16;
 					localA8(23 downto 0) <= (others => 'Z'); 
 					localDo8(7 downto 0) <= (others => 'Z'); localWe8 <= 'Z';
 				end if;
+`endif				
 			end if;
 		end if;
 	end process;
 
 	-- Cunnect zee wires
 	addr <= unsigned(localA(15 downto 0));
+`ifdef P85816	
 	page <= unsigned(localA(23 downto 16)) when P85816='1' else X"00";
+`else
+	page <= X"00";
+`endif
 	do <= unsigned(localDo);
 	we <= not localWe;
 	doIO <= unsigned(currentIO);

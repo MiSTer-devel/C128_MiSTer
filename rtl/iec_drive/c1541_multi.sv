@@ -8,7 +8,7 @@
 //-------------------------------------------------------------------------------
 
 
-module c1541_multi #(parameter PARPORT=1,DUALROM=1,DRIVES=2)
+module c1541_multi #(parameter PARPORT=1,DUALROM=1,DRIVES=3)
 (
 	//clk ports
 	input         clk,

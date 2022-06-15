@@ -207,8 +207,10 @@ localparam CONF_STR = {
 	//"-;",
 	//"oR,Video output,VIC (40 col),VDC (80 col);",
 	//"-;",
-	"H7S0,D64G64T64D81,Mount #8;",
-	"H0S1,D64G64T64D81,Mount #9;",
+	"S0,D64G64D71D81,Mount Drive #8;",
+	"S1,D64G64D71D81,Mount Drive #9;",
+	"S2,D64G64D71D81,Mount Drive #10;",
+	"S3,T64,Mount Tape on #11;",
 	"-;",
 	"F1,PRGCRTREUTAP;",
 	"h3-;",
@@ -241,6 +243,7 @@ localparam CONF_STR = {
 	"P2,Hardware;",
 	"P2oPQ,Enable Drive #8,If Mounted,Always,Never;",
 	"P2oNO,Enable Drive #9,If Mounted,Always,Never;",
+	"P2o[95:94],Enable Drive #10,If Mounted,Always,Never;",
 	"P2oC,Parallel port,Enabled,Disabled;",
 	"P2R6,Reset Disk Drives;",
 	"P2-;",
@@ -267,7 +270,7 @@ localparam CONF_STR = {
 	"P2FC8,ROM,Syst. ROM1/4 C64+Kernal+Char;",
 	"P2FC9,ROM,Syst. ROM2/3 C128 Basic     ;",
 	"P2FCA,ROM,Function ROM                ;",
-	"P2FCB,ROM,1541-II & 1581 Drive ROM    ;",
+	"P2FCB,ROM,1541/71/81 Drive ROMs       ;",
 	"P2-;",
 	"P2FC5,CRT,Boot Cartridge              ;",
 	"P2-;",
@@ -280,8 +283,12 @@ localparam CONF_STR = {
 	"P3-,+ May work * Likely to crash;",
 	"P3-,- Not implemented yet       ;",
 	"P3-;",
+`ifdef P85816	
 	"P3O[98],*CPU,8502,85816;",
+`endif
 	"P3O[105],+16MB RAM,No,Yes;",
+	"P30[104],*Burst mode line,No,Yes;",
+	"P30[108],?64 image uses 1571,No,Yes;",
 	"P3O[99],-VDC regs at $D680,No,Yes;",
 	"P3O[101:100],-VDC RAM Exposed,No,Bank 3,Bank 15,FE0000;",
 	"P3O[102],-SuperCPU registers,No,Yes;",
@@ -436,16 +443,16 @@ wire  [7:0] ioctl_data;
 wire  [7:0] ioctl_index;
 wire        ioctl_download;
 
-wire [31:0] sd_lba[2];
-wire  [5:0] sd_blk_cnt[2];
+wire [31:0] sd_lba[3];
+wire  [5:0] sd_blk_cnt[3];
 wire  [1:0] sd_rd;
 wire  [1:0] sd_wr;
 wire  [1:0] sd_ack;
 wire [13:0] sd_buff_addr;
 wire  [7:0] sd_buff_dout;
-wire  [7:0] sd_buff_din[2];
+wire  [7:0] sd_buff_din[3];
 wire        sd_buff_wr;
-wire  [1:0] img_mounted;
+wire  [2:0] img_mounted;
 wire [31:0] img_size;
 wire        img_readonly;
 
@@ -466,7 +473,7 @@ wire  [7:0] pd1,pd2,pd3,pd4;
 
 wire [64:0] RTC;
 
-hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
+hps_io #(.CONF_STR(CONF_STR), .VDNUM(3), .BLKSZ(1)) hps_io
 (
 	.clk_sys(clk_sys),
 	.HPS_BUS(HPS_BUS),
@@ -1128,8 +1135,9 @@ fpga64_sid_iec fpga64
 	.cass_motor(cass_motor),
 	.cass_sense(~tape_adc_act & (use_tape ? cass_sense : cass_rtc)),
 	.cass_read(tape_adc_act ? ~tape_adc : cass_read),
-
+`ifdef P85816
 	.x816(status[98]),
+`endif
 	.c128_n(c128_n),
 	.z80_n(z80_n)
 );
@@ -1154,10 +1162,12 @@ wire       c128_n;
 wire       z80_n;
 
 wire       c64_iec_clk;
+wire       c128_iec_fclk;
 wire       c64_iec_data;
 wire       c64_iec_atn;
 
 wire       drive_iec_clk  = drive_iec_clk_o  & ext_iec_clk;
+wire       drive_iec_fclk  = drive_iec_fclk_o  & ext_iec_fclk;
 wire       drive_iec_data = drive_iec_data_o & ext_iec_data;
 
 wire [7:0] drive_par_i;
@@ -1165,15 +1175,17 @@ wire       drive_stb_i;
 wire [7:0] drive_par_o;
 wire       drive_stb_o;
 wire       drive_iec_clk_o;
+wire       drive_iec_fclk_o;
 wire       drive_iec_data_o;
 wire       drive_reset = ~reset_n | status[6] | (load_c15xx & ioctl_download);
 
 wire [1:0] drive_led;
 
-reg [1:0] drive_mounted = 0;
+reg [2:0] drive_mounted = 0;
 always @(posedge clk_sys) begin
 	if(img_mounted[0]) drive_mounted[0] <= |img_size;
 	if(img_mounted[1]) drive_mounted[1] <= |img_size;
+	if(img_mounted[2]) drive_mounted[2] <= |img_size;
 end
 
 iec_drive iec_drive
@@ -1187,6 +1199,7 @@ iec_drive iec_drive
 	.iec_atn_i(c64_iec_atn),
 	.iec_data_i(c64_iec_data & ext_iec_data),
 	.iec_clk_i(c64_iec_clk & ext_iec_clk),
+	.iec_fclk_i(c128_iec_fclk & ext_fiec_clk),
 	.iec_data_o(drive_iec_data_o),
 	.iec_clk_o(drive_iec_clk_o),
 
@@ -1195,8 +1208,10 @@ iec_drive iec_drive
 	.img_mounted(img_mounted),
 	.img_size(img_size),
 	.img_readonly(img_readonly),
-	.img_type(&ioctl_index[7:6] ? 2'b11 : 2'b01),
-
+	.img_type(ioctl_index[7:6]),
+	.img_mfm(1'b0),
+	.img_dblside(ioctl_index[7:6] == 2'b01),
+  .use_1571(status[108]),
 	.led(drive_led),
 
 	.par_data_i(drive_par_i),
@@ -1241,16 +1256,18 @@ wire disk_parport = ~status[44];
 
 reg disk_access;
 always @(posedge clk_sys) begin
-	reg c64_iec_clk_old, drive_iec_clk_old, drive_stb_i_old, drive_stb_o_old;
+	reg c128_iec_fclk_old, c64_iec_clk_old, drive_iec_clk_old, drive_stb_i_old, drive_stb_o_old;
 	integer to = 0;
 
 	c64_iec_clk_old <= c64_iec_clk;
+	c128_iec_fclk_old <= c128_iec_fclk;
 	drive_iec_clk_old <= drive_iec_clk;
 	drive_stb_i_old <= drive_stb_i;
 	drive_stb_o_old <= drive_stb_o;
 
-	if(((c64_iec_clk_old != c64_iec_clk) || (drive_iec_clk_old != drive_iec_clk)) ||
-		(disk_parport && ((drive_stb_i_old != drive_stb_i) || (drive_stb_o_old != drive_stb_o))))
+	if(((c128_iec_fclk_old != c128_iec_fclk) || (c64_iec_clk_old != c64_iec_clk) || 
+	    (drive_iec_clk_old != drive_iec_clk)) || 
+			(disk_parport && ((drive_stb_i_old != drive_stb_i) || (drive_stb_o_old != drive_stb_o))))
 	begin
 		disk_access <= 1;
 		to <= 16000000; // 0.5s
@@ -1261,13 +1278,14 @@ end
 
 wire ext_iec_en   = status[25];
 wire ext_iec_clk  = USER_IN[2] | ~ext_iec_en;
+wire ext_iec_fclk = USER_IN[6] | ~ext_iec_en;
 wire ext_iec_data = USER_IN[4] | ~ext_iec_en;
 
 assign USER_OUT[2] = (c64_iec_clk & drive_iec_clk_o)  | ~ext_iec_en;
 assign USER_OUT[3] = (reset_n & ~status[6]) | ~ext_iec_en;
 assign USER_OUT[4] = (c64_iec_data & drive_iec_data_o) | ~ext_iec_en;
 assign USER_OUT[5] = c64_iec_atn | ~ext_iec_en;
-assign USER_OUT[6] = '1;
+assign USER_OUT[6] = (c128_iec_fclk & drive_iec_fclk_o)  | ~ext_iec_en;
 
 wire vicHblank, vicVblank;
 wire vicHsync_out, vicVsync_out;
