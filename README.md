@@ -75,17 +75,17 @@ This will also switch which video output is shown on the VGA/HDMI output of the 
 In OSD->Audio&Video the VDC version and memory size can be selected.
 
 ### Keyboard
-* <kbd>F2</kbd>, <kbd>F4</kbd> , <kbd>F6</kbd> , <kbd>F8</kbd> , <kbd>Left</kbd>/<kbd>Up</kbd> keys automatically activate <kbd>Shift</kbd> key.
+* <kbd>F2</kbd>, <kbd>F4</kbd>, <kbd>F6</kbd>, <kbd>F8</kbd>, <kbd>Left</kbd>/<kbd>Up</kbd> keys automatically activate <kbd>Shift</kbd> key.
 * <kbd>F9</kbd> - arrow-up key.
 * <kbd>F10</kbd> - <kbd>=</kbd> key.
 * <kbd>F11</kbd> - <kbd>restore</kbd> key. Also special key in AR/FC carts.
 * Meta keys (Win/Apple) - <kbd>C=</kbd> key.
 * <kbd>PgUp</kbd> - Tape play/pause
 * <kbd>PgDn</kbd> - <kbd>Line feed</kbd>
-* <kbd>End</kbd> - <kbd>Help</kbd>
+* <kbd>Print Screen</kbd> - <kbd>Display 40/80</kbd>
 * <kbd>Pause/Break</kbd> - <kbd>No Scroll</kbd> (* see note below)
 * Numpad <kbd>/</kbd> - <kbd>Esc</kbd>
-* Numpad <kbd>*</kbd> - <kbd>Display 40/80</kbd>
+* Numpad <kbd>*</kbd> - <kbd>Help</kbd>
 
 The <kbd>AltGr</kbd> key (right <kbd>Alt</kbd>) is used to access alternative function keys. Combined with <kbd>AltGr</kbd> the function keys are the C128 top-row special keys. To access these functions, press and hold <kbd>AltGr</kbd> while pressing any of the function keys:
 * <kbd>AltGr</kbd>+<kbd>F1</kbd> - <kbd>Esc</kbd>
