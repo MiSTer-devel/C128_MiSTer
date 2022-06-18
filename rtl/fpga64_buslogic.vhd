@@ -285,7 +285,7 @@ begin
 	begin
 		if rising_edge(clk) then
 			if reset = '1' then
-				dcr_ena        <= dcr;
+				dcr_ena <= dcr;
 			end if;
 		end if;
 	end process;
@@ -402,7 +402,7 @@ begin
 						cs_ramLoc <= '1';
 					end if;
 				when X"D" =>
-					if (mmu_iosel = '0' or (z80_n = '0' and z80io = '1')) then
+					if ((z80_n = '1' and mmu_iosel = '0') or (z80_n = '0' and z80io = '1')) then
 						case cpuAddr(11 downto 8) is
 							when X"0" | X"1" | X"2" | X"3" =>
 								cs_vicLoc <= '1';
@@ -415,11 +415,7 @@ begin
 							when X"6" =>
 								cs_vdcLoc <= z80m1n;
 							when X"8" | X"9" | X"A" | X"B" =>
-								if (z80_n = '1' or z80io = '1') then
-									cs_colorLoc <= '1';
-								else
-									cs_ramLoc <= '1';
-								end if;
+								cs_colorLoc <= '1';
 							when X"C" =>
 								cs_cia1Loc <= z80m1n;
 							when X"D" =>
