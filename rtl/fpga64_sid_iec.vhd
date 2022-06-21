@@ -530,9 +530,9 @@ begin
 			enableVic <= '1';
 		when CYCLE_CPUE =>
 			enableVic <= '1';
+			enableVdc <= '1';
 		when CYCLE_CPUC =>
 			enableCia_n <= '1';
-			enableVdc <= '1';
 		when CYCLE_CPUF =>
 			enableCia_p <= '1';
 			enableSid <= '1';
@@ -844,7 +844,7 @@ port map (
 
 	enableBus => enableVdc,
 	cs => cs_vdc,
-	we => pulseWr_io,
+	we => cpuWe,
 	lp_n => cia1_pbi(4),
 
 	rs => tAddr(0),
