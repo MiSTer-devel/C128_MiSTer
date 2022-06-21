@@ -224,7 +224,10 @@ signal baLoc        : std_logic;
 signal ba_dma       : std_logic;
 signal aec          : std_logic;
 
-signal enableCpu    : std_logic;
+signal cpuactT65    : std_logic;
+signal cpuactT80    : std_logic;
+signal cpucycT65    : std_logic;
+signal cpucycT80    : std_logic;
 signal enableVic    : std_logic;
 signal enableVdc    : std_logic;
 signal enablePixel0 : std_logic;
@@ -255,19 +258,23 @@ signal cpuWe        : std_logic;
 signal cpuWe_nd     : std_logic;
 signal cpuWe_T65    : std_logic;
 signal cpuWe_T80    : std_logic;
+signal cpuWe_T80_d  : std_logic;
 signal cpuRd_T80    : std_logic;
 signal cpuAddr      : unsigned(15 downto 0);
 signal cpuAddr_nd   : unsigned(15 downto 0);
 signal cpuAddr_T65  : unsigned(15 downto 0);
 signal cpuAddr_T80  : unsigned(15 downto 0);
+signal cpuAddr_T80_d: unsigned(15 downto 0);
 signal cpuDi        : unsigned(7 downto 0);
+signal cpuDi_T80    : unsigned(7 downto 0);
 signal cpuDo        : unsigned(7 downto 0);
 signal cpuDo_nd     : unsigned(7 downto 0);
 signal cpuDo_T65    : unsigned(7 downto 0);
 signal cpuDo_T80    : unsigned(7 downto 0);
 signal cpuPO        : unsigned(7 downto 0);
 signal cpuIO_T80    : std_logic;
-signal cpuM1n_T80   : std_logic;
+signal cpuIO_T80_d  : std_logic;
+signal cpuM1_T80    : std_logic;
 signal cpuIrq_n     : std_logic;
 signal cpuBusAk_T80_n: std_logic;
 signal io_data_i    : unsigned(7 downto 0);
@@ -276,8 +283,8 @@ signal iof_i        : std_logic;
 
 signal io_enable    : std_logic;
 signal safe_cs      : std_logic;
-signal cpu_cyc      : std_logic;
-signal cpu_cyc_s    : std_logic_vector(1 downto 0);
+signal t65_cyc      : std_logic;
+signal t65_cyc_s    : std_logic_vector(1 downto 0);
 signal turbo_m      : std_logic_vector(2 downto 0);
 
 signal reset        : std_logic := '1';
@@ -484,11 +491,21 @@ end process;
 
 -- PHI0/2-clock emulation
 process(clk32)
+variable ba_cnt : integer range 0 to 4 := 0;
 begin
 	if rising_edge(clk32) then
 		if sysCycle = sysCycleDef'pred(CYCLE_CPU0) then
 			phi0_cpu <= '1';
-			if baLoc = '1' or cpuBusAk_T80_n = '1' or (cpuWe = '1' and dma_active = '0') or (ba_dma = '1' and dma_active = '1') then
+			if baLoc = '1' then
+				ba_cnt := 0;
+			elsif ba_cnt < 4 then
+				ba_cnt := ba_cnt + 1;
+			end if;
+			if baLoc = '1' or 
+					(cpuactT65 = '1' and cpuWe = '1' and dma_active = '0') or 
+					(cpuactT80 = '1' and ba_cnt < 4 and dma_active = '0') or 
+					(ba_dma = '1' and dma_active = '1') 
+			then
 				cpuHasBus <= '1';
 			end if;
 		end if;
@@ -602,7 +619,7 @@ port map (
 	c128_n => mmu_c128_n,
 	z80_n => mmu_z80_n,
 	z80io => cpuIO_T80,
-	z80m1n => cpuM1n_T80,
+	z80m1 => cpuM1_T80,
 	mmu_rombank => mmu_rombank,
 	mmu_iosel => mmu_iosel,
 	tAddr => tAddr,
@@ -670,7 +687,7 @@ begin
 		pulseWr <= '0';
 		pulseWr_io <= '0';
 		if cpuWe = '1' then
-			if cpu_cyc = '1' then
+			if cpuactT65 = '1' and t65_cyc = '1' then
 				pulseWr <= '1';
 			end if;
 			if sysCycle = CYCLE_CPUC then
@@ -1010,11 +1027,11 @@ cpu_6510: entity work.cpu_6510
 port map (
 	clk => clk32,
 	reset => reset,
-	enable => enable8502 and enableCpu and not dma_active,
+	enable => cpuactT65 and cpucycT65 and not dma_active,
 	nmi_n => irq_cia2 and nmi_n,
 	nmi_ack => nmi_ack,
 	irq_n => cpuIrq_n,
-	rdy => baLoc and not enableZ80,
+	rdy => baLoc and not cpuactT80,
 
 	di => cpuDi,
 	addr => cpuAddr_T65,
@@ -1033,45 +1050,74 @@ cpu_z80: entity work.cpu_z80
 port map (
 	clk => clk32,
 	reset => reset,
-	enable => enableCpu and not dma_active,
-	busrq_n => baLoc and enableZ80,
+	enable => cpucycT80 and not dma_active,
+	busrq_n => baLoc and cpuactT80,
 	busak_n => cpuBusAk_T80_n,
 	irq_n => cpuIrq_n,
 
-	di => cpuDi,
-	addr => cpuAddr_T80,
+	di => cpuDi_T80,
+	addr => cpuAddr_T80_d,
 	do => cpuDo_T80,
-	we => cpuWe_T80,
-	io => cpuIO_T80,
-	m1_n => cpuM1n_T80
+	rd => cpuRd_T80,
+	we => cpuWe_T80_d,
+	io => cpuIO_T80_d,
+	m1 => cpuM1_T80
 );
-
-ramDout <= cpuDo;
-ramAddr <= systemAddr;
-ramWE   <= systemWe when sysCycle >= CYCLE_CPU0 else '0';
-ramCE   <= cs_ram when sysCycle = CYCLE_VIC0 or cpu_cyc = '1' else '0';
-safe_cs <= cs_ram or cs_color or cs_mmuH;  -- safe to access in 8502 turbo mode
-cpu_cyc <= '1' when
-				(sysCycle = CYCLE_CPU0 and turbo_m(0) = '1' and safe_cs = '1' ) or
-				(sysCycle = CYCLE_CPU4 and turbo_m(1) = '1' and safe_cs = '1' ) or
-				(sysCycle = CYCLE_CPU8 and turbo_m(2) = '1' and safe_cs = '1' ) or
-				(sysCycle = CYCLE_CPUC and (io_enable = '1'  or safe_cs = '1')) else '0';
 
 process(clk32)
 begin
 	if rising_edge(clk32) then
-		cpu_cyc_s <= cpu_cyc_s(0) & cpu_cyc;
-		enableCpu <= cpu_cyc_s(1);
-		io_enable <= io_enable and not enableCpu;
+		-- Convert between 8502 and Z80 bus style
+		if sysCycle = CYCLE_CPU2 then
+			cpuWe_T80 <= cpuWe_T80_d;
+			cpuIO_T80 <= cpuIO_T80_d;
+		elsif sysCycle = CYCLE_CPU4 then
+			cpuWe_T80 <= cpuWe_T80_d or cpuWe_T80;
+			cpuIO_T80 <= cpuIO_T80_d or cpuIO_T80;
+			if cpuRd_T80 = '1' or cpuWe_T80_d = '1' or cpuWe_T80 = '1' then
+				cpuAddr_t80 <= cpuAddr_T80_d;
+			end if;
+		elsif sysCycle = sysCycleDef'high then
+			cpuWe_T80 <= cpuWe_T80_d;
+			cpuIO_T80 <= cpuIO_T80_d;
+			cpuDi_T80 <= cpuDi;
+		end if;
+	end if;
+end process;
 
+ramDout <= cpuDo;
+ramAddr <= systemAddr;
+ramWE   <= systemWe when sysCycle >= CYCLE_CPU0 else '0';
+ramCE   <= cs_ram when 
+   		  sysCycle = CYCLE_VIC0 or 
+			  (cpuactT65 = '1' and t65_cyc = '1') or 
+			  (cpuactT65 = '0' and sysCycle = CYCLE_CPUC) else '0';
+safe_cs <= cs_ram or cs_color or cs_mmuH;  -- safe to access in 8502 turbo mode
+t65_cyc <= '1' when
+				(sysCycle = CYCLE_CPU0 and turbo_m(0) = '1' and safe_cs = '1' ) or
+				(sysCycle = CYCLE_CPU4 and turbo_m(1) = '1' and safe_cs = '1' ) or
+				(sysCycle = CYCLE_CPU8 and turbo_m(2) = '1' and safe_cs = '1' ) or
+				(sysCycle = CYCLE_CPUC and (io_enable = '1'  or safe_cs = '1')) else '0';
+cpucycT80 <= '1' when sysCycle = CYCLE_CPU0 or sysCycle = CYCLE_CPU2 else '0';
+
+process(clk32)
+begin
+	if rising_edge(clk32) then
+		t65_cyc_s <= t65_cyc_s(0) & t65_cyc;
+		cpucycT65 <= t65_cyc_s(1);
+
+		-- IO enable
+		if cpuactT65 = '1' then
+			io_enable <= io_enable and not cpucycT65;
+		end if;		
 		if sysCycle = CYCLE_EXT0 then
 			io_enable <= '1';
 		end if;
 
-		-- CPU enable
+		-- CPU selection
 		if (sysCycle = sysCycleDef'pred(CYCLE_CPU0)) then
-			enableZ80 <= not mmu_z80_n;
-			enable8502 <= mmu_z80_n and not cpuBusAk_T80_n;
+			cpuactT65 <= mmu_z80_n and not cpuBusAk_T80_n;
+			cpuactT80 <= not mmu_z80_n;
 		end if; 
 
 		-- 2 points to register DMA request before CPU cycles.
@@ -1079,8 +1125,8 @@ begin
 			dma_active <= dma_req;
 			turbo_en <= turbo_mode(0);
 			turbo_m <= "000";
-			if dma_req = '0' and cpuIO_T80 = '0' then
-				if ((turbo_mode(0) and turbo_state) = '1' or turbo_mode(1) = '1' or enableZ80 = '1') then
+			if dma_req = '0' then
+				if ((turbo_mode(0) and turbo_state) = '1' or turbo_mode(1) = '1') then
 					case turbo_speed is
 						when "00" => turbo_m <= "010";
 						when "01" => turbo_m <= "110";
@@ -1093,9 +1139,9 @@ begin
 	end if;
 end process;
 
-cpuAddr_nd <= cpuAddr_T65 when enable8502 = '1' else cpuAddr_T80;
-cpuDo_nd   <= cpuDo_T65   when enable8502 = '1' else cpuDo_T80;
-cpuWe_nd   <= cpuWe_T65   when enable8502 = '1' else cpuWe_T80;
+cpuAddr_nd <= cpuAddr_T65 when cpuactT65 = '1' else cpuAddr_T80;
+cpuDo_nd   <= cpuDo_T65   when cpuactT65 = '1' else cpuDo_T80;
+cpuWe_nd   <= cpuWe_T65   when cpuactT65 = '1' else cpuWe_T80;
 
 cpuAddr <= cpuAddr_nd when dma_active = '0' else dma_addr;
 cpuDo   <= cpuDo_nd   when dma_active = '0' else dma_dout;

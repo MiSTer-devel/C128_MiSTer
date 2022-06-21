@@ -36,7 +36,7 @@ entity fpga64_buslogic is
 		cpuHasBus   : in std_logic;
 		aec         : in std_logic;
 		z80io       : in std_logic;
-		z80m1n      : in std_logic;
+		z80m1       : in std_logic;
 
 		ramData     : in unsigned(7 downto 0);
 
@@ -348,7 +348,7 @@ begin
 
 	process(
 		cpuHasBus, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
-		c128_n, z80_n, z80io, z80m1n, mmu_rombank, mmu_iosel, cpuBank, vicBank
+		c128_n, z80_n, z80io, z80m1, mmu_rombank, mmu_iosel, cpuBank, vicBank
 	)
 	begin
 		currentAddr <= (others => '1');
@@ -407,23 +407,23 @@ begin
 							when X"0" | X"1" | X"2" | X"3" =>
 								cs_vicLoc <= '1';
 							when X"4" =>
-								cs_sidLoc <= z80m1n;
+								cs_sidLoc <= not z80m1;
 							when X"5" => 
 								if mmu_iosel = '0' then
 									cs_mmuLLoc <= '1';
 								end if;
 							when X"6" =>
-								cs_vdcLoc <= z80m1n;
+								cs_vdcLoc <= not z80m1;
 							when X"8" | X"9" | X"A" | X"B" =>
 								cs_colorLoc <= '1';
 							when X"C" =>
-								cs_cia1Loc <= z80m1n;
+								cs_cia1Loc <= not z80m1;
 							when X"D" =>
-								cs_cia2Loc <= z80m1n;
+								cs_cia2Loc <= not z80m1;
 							when X"E" =>
-								cs_ioELoc <= z80m1n;
+								cs_ioELoc <= not z80m1;
 							when X"F" =>
-								cs_ioFLoc <= z80m1n;
+								cs_ioFLoc <= not z80m1;
 							when others =>
 								null;
 						end case;
@@ -504,19 +504,19 @@ begin
 							when X"0" | X"1" | X"2" | X"3" =>
 								cs_vicLoc <= '1';
 							when X"4" =>
-								cs_sidLoc <= z80m1n;
+								cs_sidLoc <= not z80m1;
 							when X"6" =>
-								cs_vdcLoc <= z80m1n;
+								cs_vdcLoc <= not z80m1;
 							when X"8" | X"9" | X"A" | X"B" =>
 								cs_colorLoc <= '1';
 							when X"C" =>
-								cs_cia1Loc <= z80m1n;
+								cs_cia1Loc <= not z80m1;
 							when X"D" =>
-								cs_cia2Loc <= z80m1n;
+								cs_cia2Loc <= not z80m1;
 							when X"E" =>
-								cs_ioELoc <= z80m1n;
+								cs_ioELoc <= not z80m1;
 							when X"F" =>
-								cs_ioFLoc <= z80m1n;
+								cs_ioFLoc <= not z80m1;
 							when others =>
 								null;
 						end case;

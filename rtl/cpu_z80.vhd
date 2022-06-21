@@ -19,7 +19,7 @@ entity cpu_z80 is
 		io      : out std_logic;
 		busrq_n : in  std_logic;
 		busak_n : out std_logic;
-		m1_n    : out std_logic;
+		m1      : out std_logic;
 
 		di      : in  unsigned(7 downto 0);
 		do      : out unsigned(7 downto 0);
@@ -40,13 +40,15 @@ architecture rtl of cpu_z80 is
 	signal IORQ_n : std_logic;
 	signal RD_n : std_logic;
 	signal WR_n : std_logic;
+	signal M1_n : std_logic;
 
 begin
-	cpu: work.T80se
+	cpu: work.T80pa
 	port map (
 		RESET_n => not reset,
-		CLK_n => clk,
-		CLKEN => enable,
+		CLK => clk,
+		CEN_p => enable,
+		CEN_n => '1',
 		INT_n => irq_n,
 		NMI_n => '1',
 		WAIT_n => '1',
@@ -66,6 +68,7 @@ begin
 	rd <= not RD_n;
 	we <= not WR_n;
 	io <= not IORQ_n;
+	m1 <= not M1_n;
 	addr <= unsigned(localA);
 
 end architecture;
