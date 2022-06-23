@@ -26,10 +26,9 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 ### Other TODOs and known issues
 
 - Automatic detection of C64/C128 .PRG files to boot in the appropriate mode.
-- Second SID address D500 does not work. It can't work in C128 mode because the MMU is in that location, but it could in C64 mode.
-- Re-enable 3x and 4x turbo modes for both 8502 and Z80?
+- Re-enable 3x and 4x turbo modes for 8502
+- Turbo mode for Z80
 - Currently not possible to change 1541 ROM
-- Slight video corruption in Z80 mode on the VIC (flashing characters in the first couple of columns)
 
 ## Usage
 
