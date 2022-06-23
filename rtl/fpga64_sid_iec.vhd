@@ -136,7 +136,7 @@ port(
 	audio_r     : out std_logic_vector(17 downto 0);
 	sid_filter  : in  std_logic_vector(1 downto 0);
 	sid_ver     : in  std_logic_vector(1 downto 0);
-	sid_mode    : in  unsigned(2 downto 0);
+	sid_mode    : in  unsigned(1 downto 0);
 	sid_cfg     : in  std_logic_vector(3 downto 0);
 	sid_ld_clk  : in  std_logic;
 	sid_ld_addr : in  std_logic_vector(11 downto 0);
@@ -876,10 +876,10 @@ port map (
 -- SID
 -- -----------------------------------------------------------------------
 
---	Right SID Port: Same,DE00,D420,D500,DF00
+--	Right SID Port: Same,D420,DE00,DF00
 
-sid_sel_l <= cs_sid when sid_mode(2 downto 1) /= 1 else (cs_sid and ((not sid_mode(0) and not tAddr(5)) or (sid_mode(0) and not tAddr(8))));
-sid_sel_r <= sid_sel_l when sid_mode = 0 else ioe_i when sid_mode = 1 else iof_i when sid_mode = 4 else (cs_sid and not sid_sel_l);
+sid_sel_l <= cs_sid when sid_mode /= 1 else (cs_sid and not tAddr(5));
+sid_sel_r <= cs_sid when sid_mode = 0 else ioe_i when sid_mode = 2 else iof_i when sid_mode = 3 else (cs_sid and tAddr(5));
 io_data_i <= io_data when io_ext = '1' else sid_do when sid_sel_r = '1' else (others => '1');
 
 pot_x1 <= (others => '1' ) when cia1_pao(6) = '0' else not pot1;

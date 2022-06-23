@@ -192,7 +192,7 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   
+// XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX   
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -222,7 +222,7 @@ localparam CONF_STR = {
 	"d4P1o23,Left Filter,Default,Custom 1,Custom 2,Custom 3;",
 	"P1OG,Right SID,8580,6581;",
 	"d5P1o56,Right Filter,Default,Custom 1,Custom 2,Custom 3;",
-	"P1OKM,Right SID Port,Same,DE00,D420,D500,DF00;",
+	"P1OKL,Right SID Port,Same,D420,DE00,DF00;",
 	"P1FC7,FLT,Load Custom Filters;",
 	"P1-;",
 	"P1OC,Sound Expander,Disabled,OPL2;",
@@ -1064,7 +1064,7 @@ fpga64_sid_iec fpga64
 	.sid_ld_addr(sid_ld_addr),
 	.sid_ld_data(sid_ld_data),
 	.sid_ld_wr(sid_ld_wr),
-	.sid_mode(status[22:20]),
+	.sid_mode(status[21:20]),
 	.sid_filter(2'b11),
 	.sid_ver({~status[16],~status[13]}),
 	.sid_cfg({status[38:37],status[35:34]}),
