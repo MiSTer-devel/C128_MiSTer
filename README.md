@@ -69,22 +69,22 @@ These ROM files will *not* work with this core as they will overwrite the C128 k
 
 ### VDC/80 column mode
 
-Video output can be selected using the keyboard. Pressing <kbd>*</kbd> or <kbd>AltGr</kbd>+<kbd>F7</kbd> emulates the <kbd>40/80 display</kbd> toggle switch on the C128 keyboard.
+Video output can be selected using the keyboard. Pressing <kbd>Print screen</kbd> or <kbd>AltGr</kbd>+<kbd>F7</kbd> emulates the <kbd>40/80 display</kbd> toggle switch on the C128 keyboard.
 This will also switch which video output is shown on the VGA/HDMI output of the MiSTer.
 
 In OSD->Audio&Video the VDC version and memory size can be selected.
 
 ### Keyboard
+* <kbd>End</kbd> - <kbd>Run stop</kbd>
 * <kbd>F2</kbd>, <kbd>F4</kbd>, <kbd>F6</kbd>, <kbd>F8</kbd>, <kbd>Left</kbd>/<kbd>Up</kbd> keys automatically activate <kbd>Shift</kbd> key.
-* <kbd>F9</kbd> - arrow-up key.
+* <kbd>F9</kbd> - <kbd>&#129145;</kbd> key.
 * <kbd>F10</kbd> - <kbd>=</kbd> key.
-* <kbd>F11</kbd> - <kbd>restore</kbd> key. Also special key in AR/FC carts.
+* <kbd>F11</kbd> - <kbd>Restore</kbd> key. Also special key in AR/FC carts.
 * Meta keys (Win/Apple) - <kbd>C=</kbd> key.
 * <kbd>PgUp</kbd> - Tape play/pause
 * <kbd>PgDn</kbd> - <kbd>Line feed</kbd>
 * <kbd>Print Screen</kbd> - <kbd>Display 40/80</kbd>
 * <kbd>Pause/Break</kbd> - <kbd>No Scroll</kbd> (* see note below)
-* Numpad <kbd>/</kbd> - <kbd>Esc</kbd>
 * Numpad <kbd>*</kbd> - <kbd>Help</kbd>
 
 The <kbd>AltGr</kbd> key (right <kbd>Alt</kbd>) is used to access alternative function keys. Combined with <kbd>AltGr</kbd> the function keys are the C128 top-row special keys. To access these functions, press and hold <kbd>AltGr</kbd> while pressing any of the function keys:
