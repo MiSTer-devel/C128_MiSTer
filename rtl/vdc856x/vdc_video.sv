@@ -82,9 +82,9 @@ always @(posedge clk) begin
             // apply cursor
             crs = (
                ~reg_text
-               & (dispaddr+vcol == reg_cp)
-               & (reg_cm == 2'b00 || reg_cm[1] && blink[reg_cm[0]]) 
-               & reg_cs <= line && line < reg_ce
+               && (dispaddr+vcol == reg_cp)
+               && (reg_cm == 2'b00 || reg_cm[1] && blink[reg_cm[0]]) 
+               && reg_cs <= line && line <= reg_ce
             );
 
             // get bitmap
