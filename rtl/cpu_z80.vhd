@@ -33,42 +33,78 @@ end cpu_z80;
 
 architecture rtl of cpu_z80 is
 
-	signal localA : std_logic_vector(15 downto 0);
-	signal localDo : std_logic_vector(7 downto 0);
-	signal localDi : std_logic_vector(7 downto 0);
+type phaseDef is (PH0, PH1, PH2, PH3);
 
-	signal IORQ_n : std_logic;
-	signal RD_n : std_logic;
-	signal WR_n : std_logic;
-	signal M1_n : std_logic;
+signal localA : std_logic_vector(15 downto 0);
+signal localDo : std_logic_vector(7 downto 0);
+signal localDi : std_logic_vector(7 downto 0);
+
+signal CEN_p : std_logic;
+signal IORQ_n : std_logic;
+signal RD_n : std_logic;
+signal WR_n : std_logic;
+signal M1_n : std_logic;
+
+signal io_p : std_logic;
+signal we_p : std_logic;
+
+signal we_l1 : std_logic;
+signal we_l3 : std_logic;
+
+signal phase : phaseDef := phaseDef'low;
 
 begin
-	cpu: work.T80pa
-	port map (
-		RESET_n => not reset,
-		CLK => clk,
-		CEN_p => enable,
-		CEN_n => '1',
-		INT_n => irq_n,
-		NMI_n => '1',
-		WAIT_n => '1',
-		BUSRQ_n => busrq_n,
-		M1_n => m1_n,
-		IORQ_n => IORQ_n,
-		RD_n => RD_n,
-		WR_n => WR_n,
-		BUSAK_n => busak_n,
-		A => localA,
-		DI => localDi,
-		DO => localDo
-	);
 
-	do <= unsigned(localDo);
-	localDi <= std_logic_vector(di);
-	rd <= not RD_n;
-	we <= not WR_n;
-	io <= not IORQ_n;
-	m1 <= not M1_n;
-	addr <= unsigned(localA);
+cpu: work.T80pa
+port map (
+	RESET_n => not reset,
+	CLK => clk,
+	CEN_p => CEN_p,
+	CEN_n => '1',
+	INT_n => irq_n,
+	NMI_n => '1',
+	WAIT_n => '1',
+	BUSRQ_n => busrq_n,
+	M1_n => m1_n,
+	IORQ_n => IORQ_n,
+	RD_n => RD_n,
+	WR_n => WR_n,
+	BUSAK_n => busak_n,
+	A => localA,
+	DI => localDi,
+	DO => localDo
+);
+
+CEN_p <= '1' when (enable = '1' and phase = PH0) or phase = PH2 else '0';
+
+io_p <= not IORQ_n;
+we_p <= not WR_n;
+
+process(clk)
+begin
+	if rising_edge(clk) then
+		if reset = '1' then
+			phase <= phaseDef'low;
+		elsif enable = '1' or phase /= PH0 then
+			phase <= phaseDef'succ(phase);
+		end if;
+
+		case phase is
+		when PH0 =>
+			we_l3 <= we_l1 or we_p;
+		when PH2 => 
+			we_l1 <= we_p and not io_p;
+		when others => null;
+		end case;
+	end if;
+end process;
+
+m1 <= not M1_n;
+io <= io_p;
+rd <= not RD_n;
+we <= (we_l1 or we_p) when phase = PH0 else we_l3;
+addr <= unsigned(localA);
+do <= unsigned(localDo);
+localDi <= std_logic_vector(di);
 
 end architecture;

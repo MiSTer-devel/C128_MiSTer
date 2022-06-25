@@ -258,26 +258,20 @@ signal cpuWe        : std_logic;
 signal cpuWe_nd     : std_logic;
 signal cpuWe_T65    : std_logic;
 signal cpuWe_T80    : std_logic;
-signal cpuWe_T80_d  : std_logic;
 signal cpuRd_T80    : std_logic;
-signal cpuRd_T80_d  : std_logic;
 signal cpuAddr      : unsigned(15 downto 0);
 signal cpuAddr_nd   : unsigned(15 downto 0);
 signal cpuAddr_T65  : unsigned(15 downto 0);
 signal cpuAddr_T80  : unsigned(15 downto 0);
-signal cpuAddr_T80_d: unsigned(15 downto 0);
 signal cpuDi        : unsigned(7 downto 0);
-signal cpuDi_T80_d  : unsigned(7 downto 0);
+signal cpuDi_T80    : unsigned(7 downto 0);
 signal cpuDo        : unsigned(7 downto 0);
 signal cpuDo_nd     : unsigned(7 downto 0);
 signal cpuDo_T65    : unsigned(7 downto 0);
 signal cpuDo_T80    : unsigned(7 downto 0);
-signal cpuDo_T80_d  : unsigned(7 downto 0);
 signal cpuPO        : unsigned(7 downto 0);
 signal cpuIO_T80    : std_logic;
-signal cpuIO_T80_d  : std_logic;
 signal cpuM1_T80    : std_logic;
-signal cpuM1_T80_d  : std_logic;
 signal cpuIrq_n     : std_logic;
 signal cpuBusAk_T80_n: std_logic;
 signal io_data_i    : unsigned(7 downto 0);
@@ -1058,35 +1052,22 @@ port map (
 	busak_n => cpuBusAk_T80_n,
 	irq_n => cpuIrq_n,
 
-	di => cpuDi_T80_d,
-	addr => cpuAddr_T80_d,
-	do => cpuDo_T80_d,
-	rd => cpuRd_T80_d,
-	we => cpuWe_T80_d,
-	io => cpuIO_T80_d,
-	m1 => cpuM1_T80_d
+	di => cpuDi_T80,
+	addr => cpuAddr_T80,
+	do => cpuDo_T80,
+	rd => cpuRd_T80,
+	we => cpuWe_T80,
+	io => cpuIO_T80,
+	m1 => cpuM1_T80
 );
 
 process(clk32)
 variable We : std_logic;
 begin
 	if rising_edge(clk32) then
-		-- Convert between 8502 and Z80 bus style
-		if sysCycle = CYCLE_CPU2 then
-			We := cpuWe_T80_d and not cpuIO_T80_d;
-		elsif sysCycle = CYCLE_CPU4 then
-			We := cpuWe_T80_d or We;
-			cpuM1_T80 <= cpuM1_T80_d;
-			cpuIO_T80 <= cpuIO_T80_d;
-			cpuWe_T80 <= We;
-			cpuRd_T80 <= cpuRd_T80_d;
-			if cpuRd_T80_d = '1' or We = '1' then
-				cpuAddr_T80 <= cpuAddr_T80_d;
-				cpuDo_T80 <= cpuDo_T80_d;
-			end if;
-		elsif sysCycle = sysCycleDef'high then
+		if sysCycle = sysCycleDef'high then
 			if cpuRd_T80 = '1' then
-				cpuDi_T80_d <= cpuDi;
+				cpuDi_T80 <= cpuDi;
 			end if;
 		end if;
 	end if;
@@ -1105,7 +1086,7 @@ t65_cyc <= '1' when
 				(sysCycle = CYCLE_CPU4 and turbo_m(1) = '1' and safe_cs = '1' ) or
 				(sysCycle = CYCLE_CPU8 and turbo_m(2) = '1' and safe_cs = '1' ) or
 				(sysCycle = CYCLE_CPUC and (io_enable = '1'  or safe_cs = '1')) else '0';
-cpucycT80 <= '1' when sysCycle = CYCLE_CPU0 or sysCycle = CYCLE_CPU2 else '0';
+cpucycT80 <= '1' when sysCycle = CYCLE_CPU0 else '0';
 
 process(clk32)
 begin
