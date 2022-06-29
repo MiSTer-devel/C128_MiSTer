@@ -394,10 +394,10 @@ component sid_top
   );
 end component;
 
-component mos6526
+component mos6526_8520
    PORT (
       clk           : in  std_logic;
-      mode          : in  std_logic := '0'; -- 0 - 6526 "old", 1 - 8521 "new"
+      mode          : in  unsigned(1 downto 0) := "00"; -- 0 - 6526, 1 - 8521, 2 - 8520
       phi2_p        : in  std_logic;
       phi2_n        : in  std_logic;
       res_n         : in  std_logic;
@@ -924,10 +924,10 @@ port map (
 -- -----------------------------------------------------------------------
 -- CIAs
 -- -----------------------------------------------------------------------
-cia1: mos6526
+cia1: mos6526_8520
 port map (
    clk => clk32,
-   mode => cia_mode,
+   mode => '0' & cia_mode,
    phi2_p => enableCia_p,
    phi2_n => enableCia_n,
    res_n => not reset,
@@ -954,10 +954,10 @@ port map (
    irq_n => irq_cia1
 );
 
-cia2: mos6526
+cia2: mos6526_8520
 port map (
    clk => clk32,
-   mode => cia_mode,
+   mode => '0' & cia_mode,
    phi2_p => enableCia_p,
    phi2_n => enableCia_n,
    res_n => not reset,
