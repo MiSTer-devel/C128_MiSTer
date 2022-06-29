@@ -3,6 +3,8 @@
 // Timers & Interrupts are rewritten by slingshot
 // Passes all Lorenz CIA Timer tests
 // Passes all CIA tests from VICE, except dd0dtest
+//
+// Shift register fixes by Erik Scheffers
 
 module mos6526 (
   input  wire       mode,   // 0 - 6526 "old", 1 - 8521 "new"
@@ -152,24 +154,24 @@ end
 
 // FLAG Input
 always @(posedge clk) begin
-	reg old_flag, flag;
+   reg old_flag, flag;
 
-	old_flag <= flag_n;
-	if(old_flag & ~flag_n) flag <= 1'b1;
-  
-	if (!res_n) begin
-		icr[4] <= 1'b0;
-		flag <= 1'b0;
-	end
-	else begin
-		if (phi2_p) begin
-			if (int_reset) icr[4] <= 1'b0;
-			if ((old_flag & ~flag_n) | flag) begin
-				icr[4] <= 1'b1;
-				flag <= 1'b0;
-			end
-		end
-	end
+   old_flag <= flag_n;
+   if(old_flag & ~flag_n) flag <= 1'b1;
+
+   if (!res_n) begin
+      icr[4] <= 1'b0;
+      flag <= 1'b0;
+   end
+   else begin
+      if (phi2_p) begin
+         if (int_reset) icr[4] <= 1'b0;
+         if ((old_flag & ~flag_n) | flag) begin
+            icr[4] <= 1'b1;
+            flag <= 1'b0;
+         end
+      end
+   end
 end
 
 // Port Control Output
@@ -177,8 +179,8 @@ reg pcr;
 always @(posedge clk) begin
   if (!cs_n && rs == 4'h1) pcr <= 1'b0;
   if (phi2_p) begin
-	 pc_n <= pcr;
-	 pcr  <= 1'b1;
+    pc_n <= pcr;
+    pcr  <= 1'b1;
   end
 end
 
@@ -421,11 +423,11 @@ end
 // Serial Port Input/Output
 always @(posedge clk) begin
   if (!res_n) begin
+    sp_shiftreg  = 8'h00;
+    sp_out       = 1'b1;
     sdr         <= 8'h00;
-    sp_out      <= 1'b1;
     sp_pending  <= 1'b0;
     sp_transmit <= 1'b0;
-    sp_shiftreg <= 8'h00;
     icr[3]      <= 1'b0;
     icr3        <= 1'b0;
   end
@@ -439,34 +441,34 @@ always @(posedge clk) begin
           end
       endcase
 
+    if (phi2_p) begin
+      if(int_reset) icr[3] <= 1'b0;
+      if(icr3) icr[3] <= 1'b1;
+      icr3 <= 1'b0;
+    end
+
     if (!cra[6]) begin // input
-      sp_out <= 1'b1;
-      if (cnt_in && !cnt_in_prev) sp_shiftreg <= {sp_shiftreg[6:0], sp_in};
-		if (!cnt_in && cnt_in_prev && cnt_pulsecnt == 3'h7) begin
-        sdr  <= sp_shiftreg;
-        icr3 <= 1'b1;
+      if (cnt_in && !cnt_in_prev) begin
+        sp_shiftreg = {sp_shiftreg[6:0], sp_in};
+        if (cnt_pulsecnt == 3'h0) begin
+          sdr  <= sp_shiftreg;
+          icr3 <= 1'b1;
+        end
       end
     end
     else begin // output
       if (sp_pending && !sp_transmit) begin
         sp_pending  <= 1'b0;
         sp_transmit <= 1'b1;
-        sp_shiftreg <= sdr;
+        sp_shiftreg  = sdr;
       end
       else if (!cnt_out_r && cnt_out) begin
         if (cnt_pulsecnt == 3'h7) begin
           icr3        <= 1'b1;
           sp_transmit <= 1'b0;
         end
-        sp_out      <= sp_shiftreg[7];
-        sp_shiftreg <= {sp_shiftreg[6:0], sp_shiftreg[0]};
+        { sp_out, sp_shiftreg[7:1]} = sp_shiftreg;
       end
-    end
-
-    if (phi2_p) begin
-		if(int_reset) icr[3] <= 1'b0;
-		if(icr3) icr[3] <= 1'b1;
-		icr3 <= 1'b0;
     end
   end
 end
@@ -474,7 +476,7 @@ end
 // CNT Input/Output
 always @(posedge clk) begin
   if (!res_n) begin
-    cnt_out_r <= 1'b1;
+    cnt_out_r    <= 1'b1;
     cnt_out      <= 1'b1;
     cnt_pulsecnt <= 3'h0;
   end
@@ -485,8 +487,8 @@ always @(posedge clk) begin
     if (cra[6] ? (!cnt_out_r && cnt_out) : (!cnt_in && cnt_in_prev)) cnt_pulsecnt <= cnt_pulsecnt + 1'b1;
 
     if (phi2_p) begin
-  	   if (!cra[6]) cnt_out_r <= 1'b1;
-      else if (sp_transmit & timerAoverflow) cnt_out_r <= ~cnt_out_r;
+      if (!cra[6]) cnt_out_r <= 1'b1;
+      else if (timerAoverflow) cnt_out_r <= ~(sp_transmit & cnt_out_r);
     end
   end
 end
@@ -513,7 +515,7 @@ always @(posedge clk) begin
     end
     if (phi2_p & int_reset) begin
       irq_n <= 1;
-	  int_reset <= 0;
+      int_reset <= 0;
     end
   end
 end
