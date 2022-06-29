@@ -44,8 +44,8 @@ The ROM set option in the OSD->Hardware menu lets you switch between standard C1
 
 The Char switch option in the OSD->Hardware menu lets you select how the two character ROM banks are switched.
 
-English versions of the C128 switch character set depending on C128 or C64 mode, whereas international versions of the C128 have an "ASCII/DIN" key that replaces the "CAPS LOCK" key to
-manually switch character sets. Since the C128 keys are not implemented yet, setting this to "CAPS LOCK" locks the character set to C128 mode.
+English versions of the C128 switch character set depending on C128 or C64 mode, whereas international versions of the C128 have an "ASCII/DIN" key that replaces the "CAPS LOCK" key to 
+manually switch character sets. 
 
 ### Loadable ROM
 
