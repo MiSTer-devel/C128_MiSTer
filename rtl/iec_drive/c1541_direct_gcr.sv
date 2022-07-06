@@ -1,7 +1,9 @@
 //-------------------------------------------------------------------------------
 //
-// C1541 direct gcr module
+// C1541/157x direct gcr module
 // (C) 2021 Alexey Melnikov
+//
+// Extended with support for 157x models by Erik Scheffers
 //
 //-------------------------------------------------------------------------------
 
@@ -16,6 +18,8 @@ module c1541_direct_gcr
 	input        mode,
 	input        mtr,
 	input  [1:0] freq,
+	input		    ted,
+	input        soe,
 	output       sync_n,
 	output       byte_n,
 
@@ -30,10 +34,8 @@ module c1541_direct_gcr
 );
 
 assign sync_n      = ~mtr | busy | ~&shcur | ~mode;
-assign byte_n      = ~mtr | busy | ~&bit_cnt | bt_n[1];
 assign we          = buff_we;
 assign sd_buff_din = (sd_buff_addr > track_len) ? 8'hFF : sd_buff_do;
-assign dout        = shcur[7:0];
 
 reg [13:0] track_len;
 always @(posedge sd_clk) if(sd_buff_wr && !sd_buff_addr[13:1]) begin
@@ -66,28 +68,39 @@ reg        buff_we;
 
 reg  [9:0] shreg;
 wire [9:0] shcur = {shreg[8:0], buff_do};
-reg  [1:0] bt_n;
+
+wire       byte_n_ena = soe & mtr & ~busy;
 
 always @(posedge clk) begin
 	reg [5:0] bit_clk_cnt;
+	reg [2:0] byte_ready;
 
 	buff_we <= 0;
 	
+	byte_ready <= {byte_ready[1:0],1'b0};
+	if (byte_ready[2]) dout <= shcur[7:0];
+	if (byte_ready[2] & byte_n_ena) 
+		byte_n <= 0;
+	else if (ted | ~byte_n_ena)
+		byte_n <= 1;
+
 	if(reset) begin
 		buff_addr   <= 16;
 		bit_clk_cnt <= 0;
 		bit_cnt     <= 0;
 		shreg       <= 0;
+		byte_ready  <= 0;
+		byte_n      <= 1;
 	end
 	else if(busy | ~mtr) begin
 		shreg       <= 0;
 		bit_cnt     <= 0;
 		bit_clk_cnt <= 0;
+		byte_ready  <= 0;
+		byte_n      <= 1;
 	end
-	else if(ce) begin
-		bt_n <= {bt_n[0],~&bit_cnt};
-
-		if(buff_addr[15:3] > track_len) buff_addr <= 16;
+	else if (ce) begin
+		if (buff_addr[15:3] > track_len) buff_addr <= 16;
 
 		if (bit_clk_cnt == 'b110000) buff_we <= ~mode;
 
@@ -101,7 +114,11 @@ always @(posedge clk) begin
 			shreg       <= shcur;
 
 			if(~sync_n) bit_cnt <= 0;
-			if(bit_cnt == 7) buff_di <= din;
+
+			case (bit_cnt)
+				6: byte_ready[0] <= 1;
+				7: buff_di <= din;
+			endcase;
 		end
 	end
 end

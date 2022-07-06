@@ -2,7 +2,7 @@
 //
 // Reworked and adapted to MiSTer by Sorgelig@MiSTer (07.09.2018)
 //
-// Commodore 1541 to SD card by Dar (darfpga@aol.fr)
+// Commodore 1541/157x to SD card by Dar (darfpga@aol.fr)
 // http://darfpga.blogspot.fr
 //
 // c1541_logic    from : Mark McDougall
@@ -15,6 +15,8 @@
 //
 // Input clk 16MHz
 //
+// Extended with support for 157x models by Erik Scheffers
+//
 //-------------------------------------------------------------------------------
 
 module c1541_drv
@@ -23,11 +25,13 @@ module c1541_drv
 	input         clk,
 	input         reset,
 
-	input         gcr_mode,
+	input   [1:0] drv_mode,
+	// input         gcr_mode,
 
 	input         ce,
-	input         ph2_r,
-	input         ph2_f,
+	input         wd_ce,
+	input   [1:0] ph2_r,
+	input   [1:0] ph2_f,
 
 	input         img_mounted,
 	input         img_readonly,
@@ -39,8 +43,10 @@ module c1541_drv
 	input         iec_atn_i,
 	input         iec_data_i,
 	input         iec_clk_i,
+	input         iec_fclk_i,
 	output        iec_data_o,
 	output        iec_clk_o,
+	output        iec_fclk_o,
 
 	// parallel bus
 	input   [7:0] par_data_i,
@@ -84,18 +90,47 @@ always @(posedge clk) begin
 	end
 end
 
+// reset drive when drive mode changes
+reg  drv_mode_chg = 0;
+wire reset_drv = reset | drv_mode_chg;
+always @(posedge clk) begin
+	reg [1:0] last_drv_mode;
+	reg [7:0] reset_hold;
+	
+	if (reset) begin
+		last_drv_mode <= drv_mode;
+		drv_mode_chg  <= 0;
+		reset_hold    <= 0;
+	end
+	else if (ph2_r[1]) begin
+		last_drv_mode <= drv_mode;
+		if (last_drv_mode != drv_mode) begin
+			reset_hold   <= '1;
+			drv_mode_chg <= 1;
+		end
+		else if (|reset_hold)
+			reset_hold   <= reset_hold - 1'd1;
+		else
+			drv_mode_chg <= 0;
+	end
+end
+
 wire       mode; // read/write
 wire [1:0] stp;
 wire       mtr;
 wire       act;
 wire [1:0] freq;
+wire       soe;
+wire       ted;
 
 c1541_logic c1541_logic
 (
 	.clk(clk),
-	.reset(reset),
+	.reset(reset_drv),
+	.drv_mode(drv_mode),
 
 	.ce(ce),
+	.wd_ce(wd_ce),
 	.ph2_r(ph2_r),
 	.ph2_f(ph2_f),
 
@@ -103,8 +138,10 @@ c1541_logic c1541_logic
 	.iec_clk_in(iec_clk_i),
 	.iec_data_in(iec_data_i),
 	.iec_atn_in(iec_atn_i),
+	.iec_fclk_in(iec_fclk_i),
 	.iec_clk_out(iec_clk_o),
 	.iec_data_out(iec_data_o),
+	.iec_fclk_out(iec_fclk_o),
 
 	.ext_en(ext_en),
 	.rom_addr(rom_addr),
@@ -116,55 +153,73 @@ c1541_logic c1541_logic
 	.par_data_out(par_data_o),
 	.par_stb_out(par_stb_o),
 
-	// drive-side interface
+	// GCR/MFM shared signals
+	.tr00_sense_n(|track),
+	.act(act),
+	// .side(side),
+
+	// drive-side interface (GCR)
 	.ds(drive_num),
-	.din(gcr_mode ? dgcr_do : gcr_do),
+	.din(/*gcr_mode ? dgcr_do : gcr_do*/ dgcr_do),
 	.dout(gcr_di),
 	.mode(mode),
 	.stp(stp),
 	.mtr(mtr),
 	.freq(freq),
-	.sync_n(gcr_mode ? dgcr_sync_n : gcr_sync_n),
-	.byte_n(gcr_mode ? dgcr_byte_n : gcr_byte_n),
+	.soe(soe),
+	.ted(ted),
+	.sync_n(/*gcr_mode ? dgcr_sync_n : gcr_sync_n*/ dgcr_sync_n),
+	.byte_n(/*gcr_mode ? dgcr_byte_n : gcr_byte_n*/ dgcr_byte_n),
 	.wps_n(~readonly ^ ch_timeout[22]),
-	.tr00_sense_n(|track),
-	.act(act)
+
+	// drive-side interface (WD1770)
+	.img_mounted(img_mounted),
+	.img_size(img_size),
+	// .sd_lba(sd_lba),
+   // .sd_blk_cnt(sd_blk_cnt),
+   // .sd_rd(sd_rd),
+   // .sd_wr(sd_wr),
+   .sd_ack(0),
+   .sd_buff_addr(0),
+   .sd_buff_dout(0),
+   // .sd_buff_din(c1541_sd_buff_dout),
+   .sd_buff_wr(0)
 );
 
 wire  [7:0] gcr_di;
-wire        we = gcr_mode ? dgcr_we : gcr_we;
-assign      sd_buff_din = gcr_mode ? dgcr_sd_buff_dout : gcr_sd_buff_dout;
+wire        we = /*gcr_mode ? dgcr_we : gcr_we*/ dgcr_we;
+assign      sd_buff_din = /*gcr_mode ? dgcr_sd_buff_dout : gcr_sd_buff_dout*/ dgcr_sd_buff_dout;
 
 wire sd_busy;
 iecdrv_sync busy_sync(clk, busy, sd_busy);
 
-wire [7:0]  gcr_do, gcr_sd_buff_dout;
-wire        gcr_sync_n, gcr_byte_n, gcr_we;
+// wire [7:0]  gcr_do, gcr_sd_buff_dout;
+// wire        gcr_sync_n, gcr_byte_n, gcr_we;
 
-c1541_gcr c1541_gcr
-(
-	.clk(clk),
-	.ce(ce & ~gcr_mode),
+// c1541_gcr c1541_gcr
+// (
+// 	.clk(clk),
+// 	.ce(ce & ~gcr_mode),
 	
-	.dout(gcr_do),
-	.din(gcr_di),
-	.mode(mode),
-	.mtr(mtr),
-	.freq(freq),
-	.sync_n(gcr_sync_n),
-	.byte_n(gcr_byte_n),
+// 	.dout(gcr_do),
+// 	.din(gcr_di),
+// 	.mode(mode),
+// 	.mtr(mtr),
+// 	.freq(freq),
+// 	.sync_n(gcr_sync_n),
+// 	.byte_n(gcr_byte_n),
 
-	.track(track[6:1]+1'd1),
-	.busy(sd_busy | ~disk_present),
-	.we(gcr_we),
+// 	.track(track[6:1]+1'd1),
+// 	.busy(sd_busy | ~disk_present),
+// 	.we(gcr_we),
 
-	.sd_clk(clk_sys),
-	.sd_lba(sd_lba),
-	.sd_buff_addr(sd_buff_addr[12:0]),
-	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(gcr_sd_buff_dout),
-	.sd_buff_wr(sd_ack & sd_buff_wr & ~gcr_mode)
-);
+// 	.sd_clk(clk_sys),
+// 	.sd_lba(sd_lba),
+// 	.sd_buff_addr(sd_buff_addr[12:0]),
+// 	.sd_buff_dout(sd_buff_dout),
+// 	.sd_buff_din(gcr_sd_buff_dout),
+// 	.sd_buff_wr(sd_ack & sd_buff_wr & ~gcr_mode)
+// );
 
 wire [7:0] dgcr_do, dgcr_sd_buff_dout;
 wire       dgcr_sync_n, dgcr_byte_n, dgcr_we;
@@ -172,14 +227,16 @@ wire       dgcr_sync_n, dgcr_byte_n, dgcr_we;
 c1541_direct_gcr c1541_direct_gcr
 (
 	.clk(clk),
-	.ce(ce & gcr_mode),
-	.reset(reset),
+	.ce(ce /*& gcr_mode*/),
+	.reset(reset_drv),
 	
 	.dout(dgcr_do),
 	.din(gcr_di),
 	.mode(mode),
 	.mtr(mtr),
 	.freq(freq),
+	.soe(soe),
+	.ted(ted),
 	.sync_n(dgcr_sync_n),
 	.byte_n(dgcr_byte_n),
 
@@ -190,7 +247,7 @@ c1541_direct_gcr c1541_direct_gcr
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
 	.sd_buff_din(dgcr_sd_buff_dout),
-	.sd_buff_wr(sd_ack & sd_buff_wr & gcr_mode)
+	.sd_buff_wr(sd_ack & sd_buff_wr /*& gcr_mode*/)
 );
 
 wire busy;
@@ -198,9 +255,9 @@ wire busy;
 c1541_track c1541_track
 (
 	.clk(clk_sys),
-	.reset(reset),
+	.reset(reset_drv),
 
-	.gcr_mode(gcr_mode),
+	// .gcr_mode(gcr_mode),
 
 	.sd_lba(sd_lba),
 	.sd_blk_cnt(sd_blk_cnt),
@@ -229,7 +286,7 @@ always @(posedge clk) begin
 	if (we)          track_modified <= 1;
 	if (img_mounted) track_modified <= 0;
 
-	if (reset) begin
+	if (reset_drv) begin
 		track_num <= 36;
 		track_modified <= 0;
 	end else begin

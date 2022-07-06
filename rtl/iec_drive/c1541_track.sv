@@ -18,12 +18,14 @@
 //
 /////////////////////////////////////////////////////////////////////////
 
+// Extended with support for 157x models by Erik Scheffers
+
 module c1541_track
 (
 	input         clk,
 	input         reset,
 	
-	input         gcr_mode,
+	// input         gcr_mode,
 
 	output [31:0] sd_lba,
 	output  [5:0] sd_blk_cnt,
@@ -38,7 +40,7 @@ module c1541_track
 );
 
 assign sd_lba     = lba;
-assign sd_blk_cnt = gcr_mode ? 6'h1F : len[5:0];
+assign sd_blk_cnt = /*gcr_mode ? 6'h1F : len[5:0]*/ 6'h1F;
 
 wire [6:0] track_s;
 wire       change_s, save_track_s, reset_s;
@@ -48,14 +50,14 @@ iecdrv_sync #(1) change_sync (clk, change,     change_s);
 iecdrv_sync #(1) save_sync   (clk, save_track, save_track_s);
 iecdrv_sync #(1) reset_sync  (clk, reset,      reset_s);
 
-wire [9:0] start_sectors[41] =
-'{  0, 21, 42, 63, 84,105,126,147,168,189,210,231,252,273,294,315,336,357,376,395,
-  414,433,452,471,490,508,526,544,562,580,598,615,632,649,666,683,700,717,734,751,
-  768
-};
+// wire [9:0] start_sectors[41] =
+// '{  0, 21, 42, 63, 84,105,126,147,168,189,210,231,252,273,294,315,336,357,376,395,
+//   414,433,452,471,490,508,526,544,562,580,598,615,632,649,666,683,700,717,734,751,
+//   768
+// };
 
 reg [31:0] lba;
-reg  [9:0] len;
+// reg  [9:0] len;
 
 always @(posedge clk) begin
 	reg  [6:0] cur_track = 0;
@@ -66,7 +68,7 @@ always @(posedge clk) begin
 	reg        old_ack;
 
 	// delay track change after sync, so make sure save_track comes first.
-	track_new <= gcr_mode ? track_s : track_s[6:1];
+	track_new <= /*gcr_mode ? track_s : track_s[6:1]*/ track_s;
 
 	old_change <= change_s;
 	if(~old_change & change_s) update <= 1;
@@ -88,8 +90,8 @@ always @(posedge clk) begin
 				saving    <= 0;
 				initing   <= 0;
 				cur_track <= track_new;
-				len       <= start_sectors[track_new+1'd1] - start_sectors[track_new] - 1'd1;
-				lba       <= gcr_mode ? track_new : start_sectors[track_new];
+				// len       <= start_sectors[track_new+1'd1] - start_sectors[track_new] - 1'd1;
+				lba       <= /*gcr_mode ? track_new : start_sectors[track_new]*/ track_new;
 				sd_rd     <= 1;
 			end
 			else begin
@@ -101,24 +103,24 @@ always @(posedge clk) begin
 		old_save_track <= save_track_s;
 		if((old_save_track ^ save_track_s) && ~&cur_track[6:1]) begin
 			saving    <= 1;
-			len       <= start_sectors[cur_track+1'd1] - start_sectors[cur_track] - 1'd1;
-			lba       <= gcr_mode ? cur_track : start_sectors[cur_track];
+			// len       <= start_sectors[cur_track+1'd1] - start_sectors[cur_track] - 1'd1;
+			lba       <= /*gcr_mode ? cur_track : start_sectors[cur_track]*/ cur_track;
 			sd_wr     <= 1;
 			busy      <= 1;
 		end
-		else if(update & ~gcr_mode) begin
-			update    <= 0;
-			initing   <= 1;
-			cur_track <= 17;
-			len       <= start_sectors[17+1] - start_sectors[17] - 1'd1;
-			lba       <= start_sectors[17];
-			sd_rd     <= 1;
-			busy      <= 1;
-		end
-		else if(cur_track != track_new || (update & gcr_mode)) begin
+		// else if(update & ~gcr_mode) begin
+		// 	update    <= 0;
+		// 	initing   <= 1;
+		// 	cur_track <= 17;
+		// 	len       <= start_sectors[17+1] - start_sectors[17] - 1'd1;
+		// 	lba       <= start_sectors[17];
+		// 	sd_rd     <= 1;
+		// 	busy      <= 1;
+		// end
+		else if(cur_track != track_new || (update /*& gcr_mode*/)) begin
 			cur_track <= track_new;
-			len       <= start_sectors[track_new+1'd1] - start_sectors[track_new] - 1'd1;
-			lba       <= gcr_mode ? track_new : start_sectors[track_new];
+			// len       <= start_sectors[track_new+1'd1] - start_sectors[track_new] - 1'd1;
+			lba       <= /*gcr_mode ? track_new : start_sectors[track_new]*/ track_new;
 			sd_rd     <= 1;
 			busy      <= 1;
 			update    <= 0;

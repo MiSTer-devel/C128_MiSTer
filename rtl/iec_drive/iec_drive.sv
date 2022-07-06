@@ -1,13 +1,13 @@
 //-------------------------------------------------------------------------------
 //
-// C1541/C1581 selector
+// C1541/C157x/C1581 selector
 // (C) 2021 Alexey Melnikov
 //
-// Fast serial support by Erik Scheffers
+// Fast serial and 157x support by Erik Scheffers
 //
 //-------------------------------------------------------------------------------
 
-module iec_drive #(parameter PARPORT=1,DUALROM=1,DRIVES=2)
+module iec_drive #(parameter PARPORT=1,DRIVES=2)
 (
    //clk ports
    input         clk,
@@ -16,13 +16,11 @@ module iec_drive #(parameter PARPORT=1,DUALROM=1,DRIVES=2)
 
    input         pause,
 
+   input   [1:0] drv_mode[NDR],
    input   [N:0] img_mounted,
    input         img_readonly,
    input  [31:0] img_size,
 
-   // 00 - 1541 emulated GCR(D64)
-   // 01 - 1541 real GCR mode (G64,D64)
-   // 10 - 1581 (D81)
    input   [1:0] img_type,
 
    output  [N:0] led,
@@ -54,10 +52,10 @@ module iec_drive #(parameter PARPORT=1,DUALROM=1,DRIVES=2)
    output  [7:0] sd_buff_din[NDR],
    input         sd_buff_wr,
 
+   input   [2:0] rom_sel,  // which ROM to update: 000=1541, 001=1570, 010=1571, 011=1571CR, 100=1581
    input  [15:0] rom_addr,
    input   [7:0] rom_data,
-   input         rom_wr,
-   input         rom_std
+   input         rom_wr
 );
 
 localparam NDR = (DRIVES < 1) ? 1 : (DRIVES > 4) ? 4 : DRIVES;
@@ -69,7 +67,7 @@ always @(posedge clk_sys) for(int i=0; i<NDR; i=i+1) if(img_mounted[i] && img_si
 assign led          = c1581_led       | c1541_led;
 assign iec_data_o   = c1581_iec_data  & c1541_iec_data;
 assign iec_clk_o    = c1581_iec_clk   & c1541_iec_clk;
-assign iec_fclk_o   = c1581_iec_fclk;
+assign iec_fclk_o   = c1581_iec_fclk  & c1541_iec_fclk;
 assign par_stb_o    = c1581_stb_o     & c1541_stb_o;
 assign par_data_o   = c1581_par_o     & c1541_par_o;
 
@@ -81,7 +79,7 @@ always_comb for(int i=0; i<NDR; i=i+1) begin
    sd_blk_cnt[i]  = (dtype[1][i] ? 6'd1                  : c1541_sd_blk_cnt[i]   );
 end
 
-wire        c1541_iec_data, c1541_iec_clk, c1541_stb_o;
+wire        c1541_iec_data, c1541_iec_clk, c1541_iec_fclk, c1541_stb_o;
 wire  [7:0] c1541_par_o;
 wire  [N:0] c1541_led;
 wire  [7:0] c1541_sd_buff_dout[NDR];
@@ -89,19 +87,22 @@ wire [31:0] c1541_sd_lba[NDR];
 wire  [N:0] c1541_sd_rd, c1541_sd_wr;
 wire  [5:0] c1541_sd_blk_cnt[NDR];
 
-c1541_multi #(.PARPORT(PARPORT), .DUALROM(DUALROM), .DRIVES(DRIVES)) c1541
+c1541_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1541
 (
    .clk(clk),
    .reset(reset | dtype[1]),
    .ce(ce),
 
-   .gcr_mode(dtype[0]),
+   .drv_mode(drv_mode),
+   // .gcr_mode(dtype[0]),
 
    .iec_atn_i (iec_atn_i),
    .iec_data_i(iec_data_i & c1581_iec_data),
    .iec_clk_i (iec_clk_i  & c1581_iec_clk),
+   .iec_fclk_i(iec_fclk_i & c1581_iec_fclk),
    .iec_data_o(c1541_iec_data),
    .iec_clk_o (c1541_iec_clk),
+   .iec_fclk_o(c1541_iec_fclk),
 
    .led(c1541_led),
 
@@ -113,10 +114,10 @@ c1541_multi #(.PARPORT(PARPORT), .DUALROM(DUALROM), .DRIVES(DRIVES)) c1541
    .clk_sys(clk_sys),
    .pause(pause),
 
+   .rom_sel(rom_sel[1:0]),
    .rom_addr(rom_addr[14:0]),
    .rom_data(rom_data),
-   .rom_wr(~rom_addr[15] & rom_wr),
-   .rom_std(rom_std),
+   .rom_wr(~rom_sel[2] & rom_wr),
 
    .img_mounted(img_mounted),
    .img_size(img_size),
@@ -141,7 +142,7 @@ wire  [7:0] c1581_sd_buff_dout[NDR];
 wire [31:0] c1581_sd_lba[NDR];
 wire  [N:0] c1581_sd_rd, c1581_sd_wr;
 
-c1581_multi #(.PARPORT(PARPORT), .DUALROM(DUALROM), .DRIVES(DRIVES)) c1581
+c1581_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1581
 (
    .clk(clk),
    .reset(reset | ~dtype[1]),
@@ -167,8 +168,7 @@ c1581_multi #(.PARPORT(PARPORT), .DUALROM(DUALROM), .DRIVES(DRIVES)) c1581
 
    .rom_addr(rom_addr[14:0]),
    .rom_data(rom_data),
-   .rom_wr(rom_addr[15] & rom_wr),
-   .rom_std(rom_std),
+   .rom_wr(rom_sel[2] & rom_wr),
 
    .img_mounted(img_mounted),
    .img_size(img_size),
