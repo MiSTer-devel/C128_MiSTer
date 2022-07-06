@@ -198,11 +198,11 @@ assign VGA_SCALER = 0;
 localparam CONF_STR = {
    "C128;UART9600:2400;",
    //"oUV,Boot Mode,Z80,C128,C64;", // for testing
-   //"-;",
-   //"oR,Video output,VIC (40 col),VDC (80 col);",
-   //"-;",
-   "H7S0,D64G64T64D81,Mount #8;",
-   "H0S1,D64G64T64D81,Mount #9;",
+   "H7S0,D64G64T64D81,Mount #8                    ;",
+   "H0S1,D64G64T64D81,Mount #9                    ;",
+   "-;",
+   "oRS,Drive #8 5.25\" model,1541,1570,1571,1571DCR;",
+   "oTU,Drive #9 5.25\" model,1541,1570,1571,1571DCR;",
    "-;",
    "F1,PRGCRTREUTAP;",
    "h3-;",
@@ -258,10 +258,10 @@ localparam CONF_STR = {
    "P2oA,Pause When OSD is Open,No,Yes;",
    "P2o7,Tape Autoplay,Yes,No;",
    "P2-;",
-   "P2FC8,ROM,Syst. ROM1/4 C64+Kernal+Char;",
-   "P2FC9,ROM,Syst. ROM2/3 C128 Basic     ;",
+   "P2FC8,ROM,Syst. ROM1+4 C64+Kernal+Char;",
+   "P2FC9,ROM,Syst. ROM2+3 Basic          ;",
    "P2FCA,ROM,Function ROM                ;",
-   "P2FCB,ROM,Drive ROM                   ;",
+   "P2FCB,R41R70R71R7CR81,Drive ROM                   ;",
    "P2-;",
    "P2FC5,CRT,Boot Cartridge              ;",
    "P2-;",
@@ -409,7 +409,7 @@ wire        forced_scandoubler;
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_data;
-wire  [7:0] ioctl_index;
+wire  [8:0] ioctl_index;
 wire        ioctl_download;
 
 wire [31:0] sd_lba[2];
@@ -1159,6 +1159,7 @@ iec_drive iec_drive
    .clk(clk_sys),
    .reset({drive_reset | ((!status[56:55]) ? ~drive_mounted[1] : status[56]),
            drive_reset | ((!status[58:57]) ? ~drive_mounted[0] : status[58])}),
+   .drv_mode('{status[60:59], status[62:61]}),
 
    .ce(drive_ce),
 
@@ -1196,10 +1197,10 @@ iec_drive iec_drive
    .sd_buff_din(sd_buff_din),
    .sd_buff_wr(sd_buff_wr),
 
+   .rom_sel(ioctl_index[8:6]),
    .rom_addr(ioctl_addr),
    .rom_data(ioctl_data),
-   .rom_wr(load_c15xx && ioctl_download && ioctl_wr),
-   .rom_std(status[14])
+   .rom_wr(load_c15xx && ioctl_download && ioctl_wr)
 );
 
 reg drive_ce;
