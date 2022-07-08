@@ -156,7 +156,7 @@ c1541_logic c1541_logic
 	// GCR/MFM shared signals
 	.tr00_sense_n(|track),
 	.act(act),
-	// .side(side),
+	.side(side),
 
 	// drive-side interface (GCR)
 	.ds(drive_num),
@@ -271,15 +271,18 @@ c1541_track c1541_track
 	.busy(busy)
 );
 
-reg [6:0] track;
+wire      side;
+reg [7:0] track;
 reg       save_track = 0;
 always @(posedge clk) begin
 	reg       track_modified;
 	reg [6:0] track_num;
 	reg [1:0] move, stp_old;
+	reg       side_old;
 
-	track <= track_num;
+	track <= track_num + (side ? 84 : 0);
 
+	side_old <= side;
 	stp_old <= stp;
 	move <= stp - stp_old;
 
@@ -288,13 +291,16 @@ always @(posedge clk) begin
 
 	if (reset_drv) begin
 		track_num <= 36;
+		side_old <= 0;
 		track_modified <= 0;
 	end else begin
-		if (mtr & move[0]) begin
-			if (~move[1] && track_num < 84) track_num <= track_num + 1'b1;
-			if ( move[1] && track_num > 0 ) track_num <= track_num - 1'b1;
-			if (track_modified) save_track <= ~save_track;
-			track_modified <= 0;
+		if (mtr) begin
+			if (move[0] && ~move[1] && track_num < 84) track_num <= track_num + 1'b1;
+			if (move[0] &&  move[1] && track_num > 0 ) track_num <= track_num - 1'b1;
+			if ((move[0] || side != side_old) && track_modified) begin
+				save_track <= ~save_track;
+				track_modified <= 0;
+			end
 		end
 
 		if (track_modified & ~act) begin	// stopping activity

@@ -20,8 +20,7 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
    input   [N:0] img_mounted,
    input         img_readonly,
    input  [31:0] img_size,
-
-   input   [1:0] img_type,
+   input   [2:0] img_type,
 
    output  [N:0] led,
 
@@ -52,7 +51,6 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
    output  [7:0] sd_buff_din[NDR],
    input         sd_buff_wr,
 
-   input   [2:0] rom_sel,  // which ROM to update: 000=1541, 001=1570, 010=1571, 011=1571CR, 100=1581
    input  [15:0] rom_addr,
    input   [7:0] rom_data,
    input         rom_wr
@@ -61,8 +59,8 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
 localparam NDR = (DRIVES < 1) ? 1 : (DRIVES > 4) ? 4 : DRIVES;
 localparam N   = NDR - 1;
 
-reg [N:0] dtype[2];
-always @(posedge clk_sys) for(int i=0; i<NDR; i=i+1) if(img_mounted[i] && img_size) {dtype[1][i],dtype[0][i]} <= img_type;
+reg [N:0] dtype;
+always @(posedge clk_sys) for(int i=0; i<NDR; i=i+1) if(img_mounted[i] && img_size) dtype[i] <= img_type == 5 ? 1 : 0;
 
 assign led          = c1581_led       | c1541_led;
 assign iec_data_o   = c1581_iec_data  & c1541_iec_data;
@@ -72,11 +70,11 @@ assign par_stb_o    = c1581_stb_o     & c1541_stb_o;
 assign par_data_o   = c1581_par_o     & c1541_par_o;
 
 always_comb for(int i=0; i<NDR; i=i+1) begin
-   sd_buff_din[i] = (dtype[1][i] ? c1581_sd_buff_dout[i] : c1541_sd_buff_dout[i] );
-   sd_lba[i]      = (dtype[1][i] ? c1581_sd_lba[i] << 1  : c1541_sd_lba[i]       );
-   sd_rd[i]       = (dtype[1][i] ? c1581_sd_rd[i]        : c1541_sd_rd[i]        );
-   sd_wr[i]       = (dtype[1][i] ? c1581_sd_wr[i]        : c1541_sd_wr[i]        );
-   sd_blk_cnt[i]  = (dtype[1][i] ? 6'd1                  : c1541_sd_blk_cnt[i]   );
+   sd_buff_din[i] = (dtype[i] ? c1581_sd_buff_dout[i] : c1541_sd_buff_dout[i] );
+   sd_lba[i]      = (dtype[i] ? c1581_sd_lba[i] << 1  : c1541_sd_lba[i]       );
+   sd_rd[i]       = (dtype[i] ? c1581_sd_rd[i]        : c1541_sd_rd[i]        );
+   sd_wr[i]       = (dtype[i] ? c1581_sd_wr[i]        : c1541_sd_wr[i]        );
+   sd_blk_cnt[i]  = (dtype[i] ? 6'd1                  : c1541_sd_blk_cnt[i]   );
 end
 
 wire        c1541_iec_data, c1541_iec_clk, c1541_iec_fclk, c1541_stb_o;
@@ -90,7 +88,7 @@ wire  [5:0] c1541_sd_blk_cnt[NDR];
 c1541_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1541
 (
    .clk(clk),
-   .reset(reset | dtype[1]),
+   .reset(reset | dtype),
    .ce(ce),
 
    .drv_mode(drv_mode),
@@ -114,10 +112,10 @@ c1541_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1541
    .clk_sys(clk_sys),
    .pause(pause),
 
-   .rom_sel(rom_sel[1:0]),
+   .rom_sel(img_type[1:0]),
    .rom_addr(rom_addr[14:0]),
    .rom_data(rom_data),
-   .rom_wr(~rom_sel[2] & rom_wr),
+   .rom_wr(~img_type[2] & rom_wr),
 
    .img_mounted(img_mounted),
    .img_size(img_size),
@@ -145,7 +143,7 @@ wire  [N:0] c1581_sd_rd, c1581_sd_wr;
 c1581_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1581
 (
    .clk(clk),
-   .reset(reset | ~dtype[1]),
+   .reset(reset | ~dtype),
    .ce(ce),
 
    .iec_atn_i (iec_atn_i),
@@ -168,7 +166,7 @@ c1581_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1581
 
    .rom_addr(rom_addr[14:0]),
    .rom_data(rom_data),
-   .rom_wr(rom_sel[2] & rom_wr),
+   .rom_wr(img_type[2] & rom_wr),
 
    .img_mounted(img_mounted),
    .img_size(img_size),
