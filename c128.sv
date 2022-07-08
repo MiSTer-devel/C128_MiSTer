@@ -192,14 +192,14 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 `include "build_id.v"
 localparam CONF_STR = {
    "C128;UART9600:2400;",
    //"oUV,Boot Mode,Z80,C128,C64;", // for testing
-   "H7S0,D64G64T64D81,Mount #8                    ;",
-   "H0S1,D64G64T64D81,Mount #9                    ;",
+   "H7S0,D64G64T64D71G71D81,Mount #8                    ;",
+   "H0S1,D64G64T64D71G71D81,Mount #9                    ;",
    "-;",
    "oRS,Drive #8 5.25\" model,1541,1570,1571,1571DCR;",
    "oTU,Drive #9 5.25\" model,1541,1570,1571,1571DCR;",
@@ -409,7 +409,7 @@ wire        forced_scandoubler;
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_data;
-wire  [8:0] ioctl_index;
+wire [15:0] ioctl_index;
 wire        ioctl_download;
 
 wire [31:0] sd_lba[2];
@@ -495,15 +495,15 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .info(info)
 );
 
-wire load_prg   = ioctl_index == 'h01;
-wire load_crt   = ioctl_index == 'h41 || ioctl_index == 5;
-wire load_reu   = ioctl_index == 'h81;
-wire load_tap   = ioctl_index == 'hC1;
-wire load_flt   = ioctl_index == 7;
-wire load_rom14 = ioctl_index == 8;
-wire load_rom23 = ioctl_index == 9;
-wire load_romF1 = ioctl_index == 10;
-wire load_c15xx = ioctl_index == 11;
+wire load_prg   = ioctl_index[5:0] == 1 && ioctl_index[7:6] == 0;
+wire load_crt   =(ioctl_index[5:0] == 1 && ioctl_index[7:6] == 1) || ioctl_index[5:0] == 5;
+wire load_reu   = ioctl_index[5:0] == 1 && ioctl_index[7:6] == 2;
+wire load_tap   = ioctl_index[5:0] == 1 && ioctl_index[7:6] == 3;
+wire load_flt   = ioctl_index[5:0] == 7;
+wire load_rom14 = ioctl_index[5:0] == 8;
+wire load_rom23 = ioctl_index[5:0] == 9;
+wire load_romF1 = ioctl_index[5:0] == 10;
+wire load_c15xx = ioctl_index[5:0] == 11;
 
 wire game;
 wire game_mmu;
@@ -1178,7 +1178,7 @@ iec_drive iec_drive
    .img_mounted(img_mounted),
    .img_size(img_size),
    .img_readonly(img_readonly),
-   .img_type(&ioctl_index[7:6] ? 2'b11 : 2'b01),
+   .img_type(ioctl_index[8:6]),
 
    .led(drive_led),
 
@@ -1199,7 +1199,6 @@ iec_drive iec_drive
    .sd_buff_din(sd_buff_din),
    .sd_buff_wr(sd_buff_wr),
 
-   .rom_sel(ioctl_index[8:6]),
    .rom_addr(ioctl_addr),
    .rom_data(ioctl_data),
    .rom_wr(load_c15xx && ioctl_download && ioctl_wr)

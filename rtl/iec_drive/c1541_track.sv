@@ -35,14 +35,14 @@ module c1541_track
 
 	input         save_track,
 	input         change,
-	input   [6:0] track,
+	input   [7:0] track,
 	output reg    busy
 );
 
 assign sd_lba     = lba;
 assign sd_blk_cnt = /*gcr_mode ? 6'h1F : len[5:0]*/ 6'h1F;
 
-wire [6:0] track_s;
+wire [7:0] track_s;
 wire       change_s, save_track_s, reset_s;
 
 iecdrv_sync #(7) track_sync  (clk, track,      track_s);
@@ -60,8 +60,8 @@ reg [31:0] lba;
 // reg  [9:0] len;
 
 always @(posedge clk) begin
-	reg  [6:0] cur_track = 0;
-	reg  [6:0] track_new;
+	reg  [7:0] cur_track = 0;
+	reg  [7:0] track_new;
 	reg        old_change, update = 0;
 	reg        saving = 0, initing = 0;
 	reg        old_save_track = 0;
@@ -101,7 +101,7 @@ always @(posedge clk) begin
 	end
 	else begin
 		old_save_track <= save_track_s;
-		if((old_save_track ^ save_track_s) && ~&cur_track[6:1]) begin
+		if((old_save_track ^ save_track_s) && ~&cur_track[7:1]) begin
 			saving    <= 1;
 			// len       <= start_sectors[cur_track+1'd1] - start_sectors[cur_track] - 1'd1;
 			lba       <= /*gcr_mode ? cur_track : start_sectors[cur_track]*/ cur_track;
