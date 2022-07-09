@@ -260,8 +260,8 @@ localparam CONF_STR = {
    "P2-;",
    "P2FC8,ROM,Syst. ROM1+4 C64+Kernal+Char;",
    "P2FC9,ROM,Syst. ROM2+3 Basic          ;",
-   "P2FCA,ROM,Function ROM                ;",
-   "P2FCB,R41R70R71R7CR81,Drive ROM                   ;",
+   "P2FC6,ROM,Function ROM                ;",
+   "P2FC4,R41R70R71R7CR81,Drive ROM                   ;",
    "P2-;",
    "P2FC5,CRT,Boot Cartridge              ;",
    "P2-;",
@@ -499,11 +499,11 @@ wire load_prg   = ioctl_index[5:0] == 1 && ioctl_index[7:6] == 0;
 wire load_crt   =(ioctl_index[5:0] == 1 && ioctl_index[7:6] == 1) || ioctl_index[5:0] == 5;
 wire load_reu   = ioctl_index[5:0] == 1 && ioctl_index[7:6] == 2;
 wire load_tap   = ioctl_index[5:0] == 1 && ioctl_index[7:6] == 3;
+wire load_c15xx = ioctl_index[5:0] == 4;
+wire load_romF1 = ioctl_index[5:0] == 6;
 wire load_flt   = ioctl_index[5:0] == 7;
 wire load_rom14 = ioctl_index[5:0] == 8;
 wire load_rom23 = ioctl_index[5:0] == 9;
-wire load_romF1 = ioctl_index[5:0] == 10;
-wire load_c15xx = ioctl_index[5:0] == 11;
 
 wire game;
 wire game_mmu;
