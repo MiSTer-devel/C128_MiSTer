@@ -45,7 +45,7 @@ assign sd_blk_cnt = /*gcr_mode ? 6'h1F : len[5:0]*/ 6'h1F;
 wire [7:0] track_s;
 wire       change_s, save_track_s, reset_s;
 
-iecdrv_sync #(7) track_sync  (clk, track,      track_s);
+iecdrv_sync #(8) track_sync  (clk, track,      track_s);
 iecdrv_sync #(1) change_sync (clk, change,     change_s);
 iecdrv_sync #(1) save_sync   (clk, save_track, save_track_s);
 iecdrv_sync #(1) reset_sync  (clk, reset,      reset_s);

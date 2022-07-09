@@ -280,7 +280,7 @@ always @(posedge clk) begin
 	reg [1:0] move, stp_old;
 	reg       side_old;
 
-	track <= track_num + (side ? 84 : 0);
+	track <= track_num + (side ? 8'd84 : 8'd0);
 
 	side_old <= side;
 	stp_old <= stp;
