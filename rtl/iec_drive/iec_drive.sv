@@ -20,7 +20,7 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
    input   [N:0] img_mounted,
    input         img_readonly,
    input  [31:0] img_size,
-   input   [2:0] img_type,
+   input         img_type,
 
    output  [N:0] led,
 
@@ -51,6 +51,7 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
    output  [7:0] sd_buff_din[NDR],
    input         sd_buff_wr,
 
+   input  [31:0] rom_file_ext,
    input  [15:0] rom_addr,
    input   [7:0] rom_data,
    input         rom_wr
@@ -60,7 +61,13 @@ localparam NDR = (DRIVES < 1) ? 1 : (DRIVES > 4) ? 4 : DRIVES;
 localparam N   = NDR - 1;
 
 reg [N:0] dtype;
-always @(posedge clk_sys) for(int i=0; i<NDR; i=i+1) if(img_mounted[i] && img_size) dtype[i] <= img_type == 5 ? 1 : 0;
+always @(posedge clk_sys) for(int i=0; i<NDR; i=i+1) if(img_mounted[i] && img_size) dtype[i] <= img_type;
+
+wire [2:0] rom_sel = rom_file_ext[15:0] == "41" ? 3'b000
+                   : rom_file_ext[15:0] == "70" ? 3'b001
+                   : rom_file_ext[15:0] == "71" ? 3'b010
+                   : rom_file_ext[15:0] == "7C" ? 3'b011
+                   : rom_file_ext[15:0] == "81" ? 3'b1XX : 3'bXXX;
 
 assign led          = c1581_led       | c1541_led;
 assign iec_data_o   = c1581_iec_data  & c1541_iec_data;
@@ -112,10 +119,10 @@ c1541_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1541
    .clk_sys(clk_sys),
    .pause(pause),
 
-   .rom_sel(img_type[1:0]),
+   .rom_sel(rom_sel[1:0]),
    .rom_addr(rom_addr[14:0]),
    .rom_data(rom_data),
-   .rom_wr(~img_type[2] & rom_wr),
+   .rom_wr(~rom_sel[2] & rom_wr),
 
    .img_mounted(img_mounted),
    .img_size(img_size),
@@ -166,7 +173,7 @@ c1581_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1581
 
    .rom_addr(rom_addr[14:0]),
    .rom_data(rom_data),
-   .rom_wr(img_type[2] & rom_wr),
+   .rom_wr(rom_sel[2] & rom_wr),
 
    .img_mounted(img_mounted),
    .img_size(img_size),
