@@ -526,15 +526,19 @@ end
 
 // CNT Input/Output
 always @(posedge clk) begin
+  reg cra6_prev;
   if (!res_n) begin
     cnt_out_r    <= 1'b1;
     cnt_out      <= 1'b1;
     cnt_pulsecnt <= 3'h0;
+    cra6_prev    <= 1'b0;
   end
   else begin
+    cra6_prev <= cra[6];
     cnt_in_prev <= cnt_in;
     cnt_out <= cnt_out_r;
 
+    if (cra[6] != cra6_prev) cnt_pulsecnt <= 3'h0;
     if (cra[6] ? (!cnt_out_r && cnt_out) : (!cnt_in && cnt_in_prev)) cnt_pulsecnt <= cnt_pulsecnt + 1'b1;
 
     if (phi2_p) begin
