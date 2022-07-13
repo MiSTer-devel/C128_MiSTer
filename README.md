@@ -63,7 +63,15 @@ These ROM files will *not* work with this core as they will overwrite the C128 k
 
 **Function rom**: Loads the internal function ROM. Not implemented yet.
 
-**Drive rom**: Loads the ROM for the disk drive.
+**Drive rom**: Loads the ROM for the disk drive. The file extension determines to which drive model the ROM image is applied to:
+
+ * `.R41`: ROM for the 1541 drive
+ * `.R70`: ROM for the 1570 drive
+ * `.R71`: ROM for the 1571 drive
+ * `.R7C`: ROM for the 1571CR drive
+ * `.R81`: ROM for the 1581 drive
+
+For example, to load a Dolphin DOS ROM for the 1541, the filename must end with `.R41`, e.g. `DOLPHIN.R41`
 
 ### VDC/80 column mode
 
