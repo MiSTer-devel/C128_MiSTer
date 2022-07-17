@@ -119,7 +119,7 @@ initial begin
 	empty8k   = '{0,0,0,0};
 end
 
-wire [7:0] rom_do[4];
+wire [7:0] rom_do[3];
 iecdrv_mem #(8,15,"rtl/iec_drive/c1541_rom.mif") rom1541
 (
 	.clock_a(clk_sys),
@@ -156,17 +156,17 @@ iecdrv_mem #(8,15,"rtl/iec_drive/c1571_rom.mif") rom1571
 	.q_b(rom_do[2])
 );
 
-iecdrv_mem #(8,15,"rtl/iec_drive/c1571cr_rom.mif") rom1571cr
-(
-	.clock_a(clk_sys),
-	.address_a(rom_addr),
-	.data_a(rom_data),
-	.wren_a(rom_sel == 3 ? rom_wr : 0),
+// iecdrv_mem #(8,15,"rtl/iec_drive/c1571cr_rom.mif") rom1571cr
+// (
+// 	.clock_a(clk_sys),
+// 	.address_a(rom_addr),
+// 	.data_a(rom_data),
+// 	.wren_a(rom_sel == 3 ? rom_wr : 0),
 
-	.clock_b(clk),
-	.address_b(mem_a),
-	.q_b(rom_do[3])
-);
+// 	.clock_b(clk),
+// 	.address_b(mem_a),
+// 	.q_b(rom_do[3])
+// );
 
 reg  [14:0] mem_a;
 wire [14:0] drv_addr[NDR];

@@ -68,7 +68,6 @@ These ROM files will *not* work with this core as they will overwrite the C128 k
  * `.R41`: ROM for the 1541 drive
  * `.R70`: ROM for the 1570 drive
  * `.R71`: ROM for the 1571 drive
- * `.R7C`: ROM for the 1571CR drive
  * `.R81`: ROM for the 1581 drive
 
 For example, to load a Dolphin DOS ROM for the 1541, the filename must end with `.R41`, e.g. `DOLPHIN.R41`

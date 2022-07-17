@@ -63,11 +63,10 @@ localparam N   = NDR - 1;
 reg [N:0] dtype;
 always @(posedge clk_sys) for(int i=0; i<NDR; i=i+1) if(img_mounted[i] && img_size) dtype[i] <= img_type;
 
-wire [2:0] rom_sel = rom_file_ext[15:0] == "41" ? 3'b000
-                   : rom_file_ext[15:0] == "70" ? 3'b001
-                   : rom_file_ext[15:0] == "71" ? 3'b010
-                   : rom_file_ext[15:0] == "7C" ? 3'b011
-                   : rom_file_ext[15:0] == "81" ? 3'b1XX : 3'bXXX;
+wire [1:0] rom_sel = rom_file_ext[15:0] == "41" ? 2'b00
+                   : rom_file_ext[15:0] == "70" ? 2'b01
+                   : rom_file_ext[15:0] == "71" ? 2'b10
+                   : rom_file_ext[15:0] == "81" ? 2'b11 : 2'bXX;
 
 assign led          = c1581_led       | c1541_led;
 assign iec_data_o   = c1581_iec_data  & c1541_iec_data;
@@ -119,10 +118,10 @@ c1541_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1541
    .clk_sys(clk_sys),
    .pause(pause),
 
-   .rom_sel(rom_sel[1:0]),
+   .rom_sel(rom_sel),
    .rom_addr(rom_addr[14:0]),
    .rom_data(rom_data),
-   .rom_wr(~rom_sel[2] & rom_wr),
+   .rom_wr(~&rom_sel & rom_wr),
 
    .img_mounted(img_mounted),
    .img_size(img_size),
@@ -173,7 +172,7 @@ c1581_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1581
 
    .rom_addr(rom_addr[14:0]),
    .rom_data(rom_data),
-   .rom_wr(rom_sel[2] & rom_wr),
+   .rom_wr(&rom_sel & rom_wr),
 
    .img_mounted(img_mounted),
    .img_size(img_size),
