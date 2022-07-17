@@ -201,8 +201,8 @@ localparam CONF_STR = {
    "H7S0,D64G64T64D81D71G71,Mount #8                    ;",
    "H0S1,D64G64T64D81D71G71,Mount #9                    ;",
    "-;",
-   "oRS,Drive #8 5.25\" model,1541,1570,1571,1571DCR;",
-   "oTU,Drive #9 5.25\" model,1541,1570,1571,1571DCR;",
+   "oRS,Drive #8 5.25\" model,1571,1541,1570;",
+   "oTU,Drive #9 5.25\" model,1571,1541,1570;",
    "-;",
    "F1,PRGCRTREUTAP;",
    "h3-;",
@@ -261,7 +261,7 @@ localparam CONF_STR = {
    "P2FC8,ROM,Syst. ROM1+4 C64+Kernal+Char;",
    "P2FC9,ROM,Syst. ROM2+3 Basic          ;",
    "P2FC6,ROM,Function ROM                ;",
-   "P2FC4,R41R70R71R7CR81,Drive ROM                   ;",
+   "P2FC4,R41R70R71R81,Drive ROM                   ;",
    "P2-;",
    "P2FC5,CRT,Boot Cartridge              ;",
    "P2-;",
@@ -1156,12 +1156,24 @@ always @(posedge clk_sys) begin
    if(img_mounted[1]) drive_mounted[1] <= |img_size;
 end
 
+function [1:0] map_drive_model;
+   input [1:0] st;
+begin
+   case(st)
+      2'b00: return 2'b10;    // 1571
+      2'b01: return 2'b00;    // 1541
+      2'b10: return 2'b01;    // 1570
+      default: return 2'bXX;  // (unused)
+   endcase
+end
+endfunction
+
 iec_drive iec_drive
 (
    .clk(clk_sys),
    .reset({drive_reset | ((!status[56:55]) ? ~drive_mounted[1] : status[56]),
            drive_reset | ((!status[58:57]) ? ~drive_mounted[0] : status[58])}),
-   .drv_mode('{status[60:59], status[62:61]}),
+   .drv_mode('{map_drive_model(status[60:59]), map_drive_model(status[62:61])}),
 
    .ce(drive_ce),
 

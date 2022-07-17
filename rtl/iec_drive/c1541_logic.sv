@@ -92,7 +92,7 @@ wire via1_cs   = |drv_mode ? cpu_a[15:12] == 1 && cpu_a[10] == 0               :
 wire via2_cs   = |drv_mode ? cpu_a[15:12] == 1 && cpu_a[10] == 1               : ls42 == 7;
 wire wd_cs     = |drv_mode ? cpu_a[15:13] == 1                                 : 1'b0;
 wire cia_cs    = |drv_mode ? cpu_a[15:13] == 2 && (~&drv_mode | cpu_a[4] == 0) : 1'b0;
-wire scrram_cs = &drv_mode ? cpu_a[15:13] == 2 && cpu_a[4] == 1                : 1'b0;
+// wire scrram_cs = &drv_mode ? cpu_a[15:13] == 2 && cpu_a[4] == 1                : 1'b0;
 wire rom_cs    = cpu_a[15];
 
 wire  [7:0] cpu_di =
@@ -102,7 +102,7 @@ wire  [7:0] cpu_di =
 	 via2_cs   ? via2_do :
 	 wd_cs     ? wd_do :
 	 cia_cs    ? cia_do :
-	 scrram_cs ? scrram_do :
+	//  scrram_cs ? scrram_do :
 	 extram_cs ? extram_do :
 	 rom_cs    ? rom_data :
 	 8'hFF;
@@ -163,18 +163,18 @@ iecdrv_mem #(8,11) ram
 
 // 8 bytes scratch RAM at $4010-$4017 (1571CR only)
 
-wire [7:0] scrram_do;
-iecdrv_mem #(8,3) scrram
-(
-	.clock_a(clk),
-	.address_a(cpu_a[2:0]),
-	.data_a(cpu_do),
-	.wren_a(ena_r & ~cpu_rw & scrram_cs),
+// wire [7:0] scrram_do;
+// iecdrv_mem #(8,3) scrram
+// (
+// 	.clock_a(clk),
+// 	.address_a(cpu_a[2:0]),
+// 	.data_a(cpu_do),
+// 	.wren_a(ena_r & ~cpu_rw & scrram_cs),
 
-	.clock_b(clk),
-	.address_b(cpu_a[2:0]),
-	.q_b(scrram_do)
-);
+// 	.clock_b(clk),
+// 	.address_b(cpu_a[2:0]),
+// 	.q_b(scrram_do)
+// );
 
 // VIA1 1571-U9 (6522) signals
 
