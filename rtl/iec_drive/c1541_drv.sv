@@ -155,6 +155,7 @@ c1541_logic c1541_logic
 
 	// GCR/MFM shared signals
 	.tr00_sense_n(|track),
+	.wps_n(~readonly ^ ch_timeout[22]),
 	.act(act),
 	.side(side),
 
@@ -170,20 +171,10 @@ c1541_logic c1541_logic
 	.ted(ted),
 	.sync_n(/*gcr_mode ? dgcr_sync_n : gcr_sync_n*/ dgcr_sync_n),
 	.byte_n(/*gcr_mode ? dgcr_byte_n : gcr_byte_n*/ dgcr_byte_n),
-	.wps_n(~readonly ^ ch_timeout[22]),
 
 	// drive-side interface (WD1770)
-	.img_mounted(img_mounted),
-	.img_size(img_size),
-	// .sd_lba(sd_lba),
-   // .sd_blk_cnt(sd_blk_cnt),
-   // .sd_rd(sd_rd),
-   // .sd_wr(sd_wr),
-   .sd_ack(0),
-   .sd_buff_addr(0),
-   .sd_buff_dout(0),
-   // .sd_buff_din(c1541_sd_buff_dout),
-   .sd_buff_wr(0)
+	.index_sense_n(/*gcr_mode ? dgcr_index_n : gcr_index_n*/ dgcr_index_n),
+	.disk_present(disk_present)
 );
 
 wire  [7:0] gcr_di;
@@ -222,7 +213,7 @@ iecdrv_sync busy_sync(clk, busy, sd_busy);
 // );
 
 wire [7:0] dgcr_do, dgcr_sd_buff_dout;
-wire       dgcr_sync_n, dgcr_byte_n, dgcr_we;
+wire       dgcr_sync_n, dgcr_byte_n, dgcr_we, dgcr_index_n;
 
 c1541_direct_gcr c1541_direct_gcr
 (
@@ -239,6 +230,7 @@ c1541_direct_gcr c1541_direct_gcr
 	.ted(ted),
 	.sync_n(dgcr_sync_n),
 	.byte_n(dgcr_byte_n),
+	.index_n(dgcr_index_n),
 
 	.busy(sd_busy | ~disk_present),
 	.we(dgcr_we),

@@ -19,7 +19,6 @@ module c1541_logic
 	input  [1:0] ph2_r,
 	input  [1:0] ph2_f,
 
-	input        img_mounted,
 
 	// serial bus
 	input        iec_clk_in,
@@ -41,35 +40,27 @@ module c1541_logic
 	output       par_stb_out,
 
 	// GCR/MFM shared signals
-	input        tr00_sense_n,	// track 0 sense
+	input  [7:0] din,			   // disk read data
+	output [7:0] dout,		   // disk write data
 	output       act,		      // activity LED
 	output       side,         // disk side  
+	input        wps_n,		   // write-protect sense
 	
 	// GCR drive-side interface
 	input  [1:0] ds,			   // device select
-	input  [7:0] din,			   // disk read data
-	output [7:0] dout,		   // disk write data
 	output       mode,		   // read/write
 	output [1:0] stp,			   // stepper motor control
 	output       mtr,			   // stepper motor on/off
 	output [1:0] freq,		   // motor frequency
 	output       ted,          // reset byte_n
 	output       soe,          // set overflow enable
-	input        sync_n,		   // reading SYNC bytes
 	input        byte_n,		   // byte ready
-	input        wps_n,		   // write-protect sense
+	input        sync_n,		   // reading SYNC bytes
+	input        tr00_sense_n,	// track 0 sense
 
 	// MFM interface
-	input  [31:0] img_size,
-
-   output [31:0] sd_lba,
-   output        sd_rd,
-   output        sd_wr,
-   input         sd_ack,
-   input   [8:0] sd_buff_addr,
-   input   [7:0] sd_buff_dout,
-   output  [7:0] sd_buff_din,
-   input         sd_buff_wr
+	input        index_sense_n,// index pulse
+	input        disk_present
 );
 
 // clock control
@@ -355,36 +346,23 @@ mos6526_8520 cia
 
 wire [7:0] wd_do;
 
-wire floppy_ready;
-
-fdc1772 #(.MODEL(0), .IMG_TYPE(1), .EXT_MOTOR(0), .FD_NUM(1)) wd1770
+fdc1772_direct_mfm #(.MODEL(0)) mfm
 (
    .clkcpu(clk),
    .clk8m_en(wd_ce),
 
-   .floppy_drive(1'b0),
-   .floppy_side(1'b1),
    .floppy_reset(~reset & |drv_mode),
-   .floppy_ready(floppy_ready),
+	.floppy_present(disk_present),
+	.floppy_side(side),
+	.floppy_motor(mtr),
+	.floppy_index(~index_sense_n),
+	.floppy_wprot(~wps_n),
 
    .cpu_addr(cpu_a[1:0]),
    .cpu_sel(wd_cs),
    .cpu_rw(cpu_rw | ~ena_r),
    .cpu_din(cpu_do),
-   .cpu_dout(wd_do),
-
-   .img_wp(~wps_n),
-
-   .img_mounted(img_mounted),
-   .img_size(img_size),
-   .sd_lba(sd_lba),
-   .sd_rd(sd_rd),
-   .sd_wr(sd_wr),
-   .sd_ack(sd_ack),
-   .sd_buff_addr(sd_buff_addr),
-   .sd_dout(sd_buff_dout),
-   .sd_din(sd_buff_din),
-   .sd_dout_strobe(sd_buff_wr)
+   .cpu_dout(wd_do)
 );
 
 endmodule
