@@ -22,6 +22,7 @@ module c1541_direct_gcr
 	input        soe,
 	output       sync_n,
 	output       byte_n,
+	output       index_n,
 
 	input        busy,
 	output       we,
@@ -91,6 +92,7 @@ always @(posedge clk) begin
 		shreg       <= 0;
 		byte_ready  <= 0;
 		byte_n      <= 1;
+		index_n     <= 1;
 	end
 	else if(busy | ~mtr) begin
 		shreg       <= 0;
@@ -98,6 +100,7 @@ always @(posedge clk) begin
 		bit_clk_cnt <= 0;
 		byte_ready  <= 0;
 		byte_n      <= 1;
+		index_n     <= 1;
 	end
 	else if (ce) begin
 		if (buff_addr[15:3] > track_len) buff_addr <= 16;
@@ -107,7 +110,12 @@ always @(posedge clk) begin
 		bit_clk_cnt <= bit_clk_cnt + 1'b1;
 		if (&bit_clk_cnt) begin
 			buff_addr   <= buff_addr + 1'd1;
-			if(buff_addr >= {track_len,3'b111}) buff_addr <= 16;
+			if(buff_addr >= {track_len,3'b111}) begin
+				buff_addr <= 16;
+				index_n   <= 0;
+			end
+			else
+				index_n   <= 1;
 
 			bit_clk_cnt <= {2'b00,freq,2'b00};
 			bit_cnt     <= bit_cnt + 1'b1;
