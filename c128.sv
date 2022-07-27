@@ -418,7 +418,7 @@ wire  [5:0] sd_blk_cnt[2];
 wire  [1:0] sd_rd;
 wire  [1:0] sd_wr;
 wire  [1:0] sd_ack;
-wire [13:0] sd_buff_addr;
+wire [15:0] sd_buff_addr;
 wire  [7:0] sd_buff_dout;
 wire  [7:0] sd_buff_din[2];
 wire        sd_buff_wr;

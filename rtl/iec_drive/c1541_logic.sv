@@ -8,7 +8,7 @@
 //
 // Model 1541B / 1570 / 1571 / 1571CR
 //
-module c1541_logic
+module c1541_logic #(DRIVE)
 (
 	input        clk,
 	input        reset,
@@ -19,6 +19,7 @@ module c1541_logic
 	input  [1:0] ph2_r,
 	input  [1:0] ph2_f,
 
+	output       act,		      // activity LED
 
 	// serial bus
 	input        iec_clk_in,
@@ -39,27 +40,21 @@ module c1541_logic
 	output [7:0] par_data_out,
 	output       par_stb_out,
 
-	// GCR/MFM shared signals
-	input  [7:0] din,			   // disk read data
-	output [7:0] dout,		   // disk write data
-	output       act,		      // activity LED
-	output       side,         // disk side  
-	input        wps_n,		   // write-protect sense
-	
-	// GCR drive-side interface
-	input  [1:0] ds,			   // device select
-	output       mode,		   // read/write
-	output [1:0] stp,			   // stepper motor control
-	output       mtr,			   // stepper motor on/off
-	output [1:0] freq,		   // motor frequency
-	output       ted,          // reset byte_n
-	output       soe,          // set overflow enable
-	input        byte_n,		   // byte ready
-	input        sync_n,		   // reading SYNC bytes
-	input        tr00_sense_n,	// track 0 sense
+	// drive control signals
+	input        hclk,          // bit clock
+	input        hf,            // signal from head
+	output       ht,            // signal to head
 
-	// MFM interface
-	input        index_sense_n,// index pulse
+	output       side,          // disk side  
+	input        wps_n,		    // write-protect sense
+	
+	output       wgate,	       // write gate
+	output [1:0] stp,			    // stepper motor control
+	output       mtr,			    // stepper motor on/off
+	output [1:0] freq,		    // motor frequency
+	input        tr00_sense,    // track 0 sense
+	input        index_sense,   // index pulse
+	input        drive_enable,  // sd busy
 	input        disk_present
 );
 
@@ -207,11 +202,11 @@ iecdrv_via6522 via1
 
 	.port_a_o(via1_pa_o),
 	.port_a_t(via1_pa_oe),                     
-	.port_a_i(ext_en & ~|drv_mode ? par_data_in : {byte_n | ~|drv_mode, 6'h3F, tr00_sense_n} & (via1_pa_o | ~via1_pa_oe)),
+	.port_a_i(ext_en & ~|drv_mode ? par_data_in : {byte_n | ~|drv_mode, 6'h3F, ~tr00_sense} & (via1_pa_o | ~via1_pa_oe)),
 
 	.port_b_o(via1_pb_o),
 	.port_b_t(via1_pb_oe),
-	.port_b_i({~iec_atn_in, ds, 2'b11, ~iec_clk_in, 1'b1, ~iec_data_in} & (via1_pb_o | ~via1_pb_oe)),
+	.port_b_i({~iec_atn_in, 2'(DRIVE), 2'b11, ~iec_clk_in, 1'b1, ~iec_data_in} & (via1_pb_o | ~via1_pb_oe)),
 
 	.ca1_i(~iec_atn_in),
 
@@ -245,15 +240,15 @@ wire       via2_cb1_oe;
 wire       via2_cb2_o;
 wire       via2_cb2_oe;
 
-assign     ted  = via2_cs    | ~accl[2];
-assign     soe  = via2_ca2_o | ~via2_ca2_oe;
-assign     dout = via2_pa_o  | ~via2_pa_oe;
-assign     mode = via2_cb2_o | ~via2_cb2_oe;
+wire       ted      = via2_cs    | ~accl[2];
+wire       soe      = via2_ca2_o | ~via2_ca2_oe;
+wire [7:0] gcr_di   = via2_pa_o  | ~via2_pa_oe;
+wire       gcr_mode = via2_cb2_o | ~via2_cb2_oe;
 
-assign     stp  = via2_pb_o[1:0] | ~via2_pb_oe[1:0];
-assign     mtr  = via2_pb_o[2]   | ~via2_pb_oe[2];
-assign     act  = via2_pb_o[3]   | ~via2_pb_oe[3];
-assign     freq = via2_pb_o[6:5] | ~via2_pb_oe[6:5];
+assign     stp      = via2_pb_o[1:0] | ~via2_pb_oe[1:0];
+assign     mtr      = via2_pb_o[2]   | ~via2_pb_oe[2];
+assign     act      = via2_pb_o[3]   | ~via2_pb_oe[3];
+assign     freq     = via2_pb_o[6:5] | ~via2_pb_oe[6:5];
 
 iecdrv_via6522 via2
 (
@@ -270,7 +265,7 @@ iecdrv_via6522 via2
 
 	.port_a_o(via2_pa_o),
 	.port_a_t(via2_pa_oe),
-	.port_a_i(din & (via2_pa_o | ~via2_pa_oe)),
+	.port_a_i(gcr_do & gcr_di),
 
 	.port_b_o(via2_pb_o),
 	.port_b_t(via2_pb_oe),
@@ -342,11 +337,45 @@ mos6526_8520 cia
    .irq_n(cia_irq_n)
 );
 
+// Head signals mux
+
+assign     wgate = ~gcr_mode ^ mfm_wgate;
+assign     ht    =  gcr_ht   | mfm_ht;
+
+// 64H156 1571-U6 signals
+
+wire [7:0] gcr_do;
+wire       sync_n, byte_n, dgcr_we;
+wire       gcr_wgate, gcr_ht;
+
+c1541_h156 c1541_h156
+(
+	.clk(clk),
+	.ce(ce),
+	.reset(reset | ~|drv_mode),
+	.enable(drive_enable),
+	.mhz1_2(accl[1]),
+	
+	.hclk(hclk),
+	.ht(gcr_ht),
+	.hf(hf),
+
+	.mode(gcr_mode),
+	.soe(soe),
+	.ted(ted),
+	.sync_n(sync_n),
+	.byte_n(byte_n),
+
+	.dout(gcr_do),
+	.din(gcr_di)
+);
+
 // FDC 1571-U11 (WD1770) signals
 
 wire [7:0] wd_do;
+wire       mfm_wgate, mfm_ht;
 
-fdc1772_direct_mfm #(.MODEL(0)) mfm
+c1541_fdc1772 #(.MODEL(0)) c1541_fdc1772
 (
    .clkcpu(clk),
    .clk8m_en(wd_ce),
@@ -355,8 +384,13 @@ fdc1772_direct_mfm #(.MODEL(0)) mfm
 	.floppy_present(disk_present),
 	.floppy_side(side),
 	.floppy_motor(mtr),
-	.floppy_index(~index_sense_n),
+	.floppy_index(index_sense),
 	.floppy_wprot(~wps_n),
+
+	.hclk(hclk),
+	.ht(mfm_ht),
+	.hf(hf),
+	.wgate(mfm_wgate),
 
    .cpu_addr(cpu_a[1:0]),
    .cpu_sel(wd_cs),

@@ -11,7 +11,7 @@
 //   F8 -- 1111 1000 -- III -- write track, disable spin up, no delay, enable write pre-comp
 //   D0 -- 1101 0000 -- IV  -- force interrupt, terminate without interrupt
 
-module fdc1772_direct_mfm
+module c1541_fdc1772
 (
 	input            clkcpu, // system cpu clock.
 	input            clk8m_en,
@@ -30,17 +30,19 @@ module fdc1772_direct_mfm
 	output reg       irq,
 	output reg       drq, // data request
 
+	// signals to/from heads
+	input            hclk,
+	output           ht,
+	input            hf,
+	output           wgate,
+
+	// CPU interface
 	input      [1:0] cpu_addr,
 	input            cpu_sel,
 	input            cpu_rw,
 	input      [7:0] cpu_din,
-	output reg [7:0] cpu_dout,
+	output reg [7:0] cpu_dout
 	
-	// place any signals that need to be passed up to the top after here.
-	output reg [7:0] dout,
-	input      [7:0] din,
-	input            byte_n
-
 	// input            busy,
 	// output           we
 );
@@ -771,7 +773,10 @@ end
 reg data_transfer_start;
 reg data_transfer_done;
 
-// // ==================================== FIFO ==================================
+// ==================================== FIFO ==================================
+
+assign wgate = 0;
+assign ht    = 0;
 
 // // 0.5/1 kB buffer used to receive a sector as fast as possible from from the io
 // // controller. The internal transfer afterwards then runs at 250000 Bit/s

@@ -19,7 +19,7 @@
 //
 //-------------------------------------------------------------------------------
 
-module c1541_drv
+module c1541_drv #(parameter DRIVE)
 (
 	//clk ports
 	input         clk,
@@ -37,7 +37,6 @@ module c1541_drv
 	input         img_readonly,
 	input  [31:0] img_size,
 
-	input   [1:0] drive_num,
 	output        led,
 
 	input         iec_atn_i,
@@ -66,7 +65,7 @@ module c1541_drv
 	output        sd_rd,
 	output        sd_wr,
 	input         sd_ack,
-	input  [13:0] sd_buff_addr,
+	input  [15:0] sd_buff_addr,
 	input   [7:0] sd_buff_dout,
 	output  [7:0] sd_buff_din,
 	input         sd_buff_wr
@@ -115,15 +114,13 @@ always @(posedge clk) begin
 	end
 end
 
-wire       mode; // read/write
+wire       wgate;
 wire [1:0] stp;
 wire       mtr;
 wire       act;
 wire [1:0] freq;
-wire       soe;
-wire       ted;
 
-c1541_logic c1541_logic
+c1541_logic #(.DRIVE(DRIVE)) c1541_logic
 (
 	.clk(clk),
 	.reset(reset_drv),
@@ -153,33 +150,34 @@ c1541_logic c1541_logic
 	.par_data_out(par_data_o),
 	.par_stb_out(par_stb_o),
 
-	// GCR/MFM shared signals
-	.tr00_sense_n(|track),
+	// drive signals
 	.wps_n(~readonly ^ ch_timeout[22]),
 	.act(act),
 	.side(side),
+	.wgate(wgate),
 
-	// drive-side interface (GCR)
-	.ds(drive_num),
-	.din(/*gcr_mode ? dgcr_do : gcr_do*/ dgcr_do),
-	.dout(gcr_di),
-	.mode(mode),
+	// .din(dgcr_do),
+	// .dout(gcr_di),
+	// .mode(mode),
 	.stp(stp),
 	.mtr(mtr),
 	.freq(freq),
-	.soe(soe),
-	.ted(ted),
-	.sync_n(/*gcr_mode ? dgcr_sync_n : gcr_sync_n*/ dgcr_sync_n),
-	.byte_n(/*gcr_mode ? dgcr_byte_n : gcr_byte_n*/ dgcr_byte_n),
+	// .soe(soe),
+	// .ted(ted),
+	// .sync_n(dgcr_sync_n),
+	// .byte_n(dgcr_byte_n),
 
-	// drive-side interface (WD1770)
-	.index_sense_n(/*gcr_mode ? dgcr_index_n : gcr_index_n*/ dgcr_index_n),
+	.hclk(hclk),
+	.hf(hf),
+	.ht(ht),
+	.tr00_sense(~|track),
+	.index_sense(index),
+	.drive_enable(drive_enable),
 	.disk_present(disk_present)
 );
 
-wire  [7:0] gcr_di;
-wire        we = /*gcr_mode ? dgcr_we : gcr_we*/ dgcr_we;
-assign      sd_buff_din = /*gcr_mode ? dgcr_sd_buff_dout : gcr_sd_buff_dout*/ dgcr_sd_buff_dout;
+// wire  [7:0] gcr_di;
+// assign      sd_buff_din = /*gcr_mode ? dgcr_sd_buff_dout : gcr_sd_buff_dout*/ dgcr_sd_buff_dout;
 
 wire sd_busy;
 iecdrv_sync busy_sync(clk, busy, sd_busy);
@@ -212,34 +210,61 @@ iecdrv_sync busy_sync(clk, busy, sd_busy);
 // 	.sd_buff_wr(sd_ack & sd_buff_wr & ~gcr_mode)
 // );
 
-wire [7:0] dgcr_do, dgcr_sd_buff_dout;
-wire       dgcr_sync_n, dgcr_byte_n, dgcr_we, dgcr_index_n;
+// wire [7:0] dgcr_do, dgcr_sd_buff_dout;
+// wire       dgcr_sync_n, dgcr_byte_n, dgcr_we, dgcr_index_n;
 
-c1541_direct_gcr c1541_direct_gcr
+// c1541_direct_gcr c1541_direct_gcr
+// (
+// 	.clk(clk),
+// 	.ce(ce /*& gcr_mode*/),
+// 	.reset(reset_drv),
+	
+// 	// .dout(dgcr_do),
+// 	// .din(gcr_di),
+// 	.mode(mode),
+// 	.mtr(mtr),
+// 	.freq(freq),
+// 	// .soe(soe),
+// 	// .ted(ted),
+// 	// .sync_n(dgcr_sync_n),
+// 	// .byte_n(dgcr_byte_n),
+// 	// .index_n(dgcr_index_n),
+
+// 	.busy(sd_busy | ~disk_present),
+// 	.we(dgcr_we),
+
+// 	.sd_clk(clk_sys),
+// 	.sd_buff_addr(sd_buff_addr),
+// 	.sd_buff_dout(sd_buff_dout),
+// 	.sd_buff_din(dgcr_sd_buff_dout),
+// 	.sd_buff_wr(sd_ack & sd_buff_wr /*& gcr_mode*/)
+// );
+
+wire hclk, hf, ht, index, we;
+wire drive_enable = 1; //disk_present & mtr;  <== TODO restore
+
+c1541_heads #(.DRIVE(DRIVE)) c1541_heads
 (
 	.clk(clk),
-	.ce(ce /*& gcr_mode*/),
+	.ce(ce),
 	.reset(reset_drv),
-	
-	.dout(dgcr_do),
-	.din(gcr_di),
-	.mode(mode),
-	.mtr(mtr),
+	.enable(drive_enable),
+
+	.wgate(wgate),
 	.freq(freq),
-	.soe(soe),
-	.ted(ted),
-	.sync_n(dgcr_sync_n),
-	.byte_n(dgcr_byte_n),
-	.index_n(dgcr_index_n),
 
-	.busy(sd_busy | ~disk_present),
-	.we(dgcr_we),
+	.hclk(hclk),
+	.hf(hf),
+	.ht(ht),
 
+	.index(index),
+
+	.sd_busy(sd_busy),
 	.sd_clk(clk_sys),
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(dgcr_sd_buff_dout),
-	.sd_buff_wr(sd_ack & sd_buff_wr /*& gcr_mode*/)
+	.sd_buff_din(sd_buff_din),
+	.sd_buff_wr(sd_ack & sd_buff_wr)
 );
 
 wire busy;
@@ -278,8 +303,8 @@ always @(posedge clk) begin
 	stp_old <= stp;
 	move <= stp - stp_old;
 
-	if (we)          track_modified <= 1;
-	if (img_mounted) track_modified <= 0;
+	if (wgate & hclk) track_modified <= 1;
+	if (img_mounted)  track_modified <= 0;
 
 	if (reset_drv) begin
 		track_num <= 36;

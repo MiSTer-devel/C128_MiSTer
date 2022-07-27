@@ -46,7 +46,7 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
    output  [N:0] sd_rd,
    output  [N:0] sd_wr,
    input   [N:0] sd_ack,
-   input  [13:0] sd_buff_addr,
+   input  [15:0] sd_buff_addr,
    input   [7:0] sd_buff_dout,
    output  [7:0] sd_buff_din[NDR],
    input         sd_buff_wr,
