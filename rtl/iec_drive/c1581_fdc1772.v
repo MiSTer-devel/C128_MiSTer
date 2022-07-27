@@ -21,7 +21,7 @@
 // - 30ms settle time after step before data can be read
 // - implement sector size 0
 
-module fdc1772 (
+module c1581_fdc1772 (
 	input            clkcpu, // system cpu clock.
 	input            clk8m_en,
 

@@ -50,7 +50,7 @@ module c1541_multi #(parameter PARPORT=1,DRIVES=2)
 	output  [N:0] sd_rd,
 	output  [N:0] sd_wr,
 	input   [N:0] sd_ack,
-	input  [13:0] sd_buff_addr,
+	input  [15:0] sd_buff_addr,
 	input   [7:0] sd_buff_dout,
 	output  [7:0] sd_buff_din[NDR],
 	input         sd_buff_wr,
@@ -207,7 +207,7 @@ assign     led = led_drv & ~reset_drv;
 generate
 	genvar i;
 	for(i=0; i<NDR; i=i+1) begin :drives
-		c1541_drv c1541_drv
+		c1541_drv #(i) c1541_drv
 		(
 			.clk(clk),
 			.reset(reset_drv[i]),
@@ -224,7 +224,6 @@ generate
 			.img_readonly(img_readonly),
 			.img_size(img_size),
 
-			.drive_num(i),
 			.led(led_drv[i]),
 
 			.iec_atn_i(iec_atn),

@@ -232,7 +232,7 @@ wire [7:0] wd_do;
 
 wire floppy_ready;
 
-fdc1772 #(.IMG_TYPE(1), .EXT_MOTOR(1), .FD_NUM(1)) fdc
+c1581_fdc1772 #(.IMG_TYPE(1), .EXT_MOTOR(1), .FD_NUM(1)) fdc
 (
    .clkcpu(clk),
    .clk8m_en(wd_ce),
