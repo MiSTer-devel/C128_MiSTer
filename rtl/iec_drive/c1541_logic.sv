@@ -48,7 +48,8 @@ module c1541_logic #(DRIVE)
 	output       side,          // disk side  
 	input        wps_n,		    // write-protect sense
 	
-	output       wgate,	       // write gate
+	output       mode,          // GCR mode (0=write, 1=read)
+	output       wgate,         // MFM wgate (0=read, 1=write)
 	output [1:0] stp,			    // stepper motor control
 	output       mtr,			    // stepper motor on/off
 	output [1:0] freq,		    // motor frequency
@@ -240,15 +241,15 @@ wire       via2_cb1_oe;
 wire       via2_cb2_o;
 wire       via2_cb2_oe;
 
-wire       ted      = via2_cs    | ~accl[2];
-wire       soe      = via2_ca2_o | ~via2_ca2_oe;
-wire [7:0] gcr_di   = via2_pa_o  | ~via2_pa_oe;
-wire       gcr_mode = via2_cb2_o | ~via2_cb2_oe;
+wire       ted    = via2_cs    | ~accl[2];
+wire       soe    = via2_ca2_o | ~via2_ca2_oe;
+wire [7:0] gcr_di = via2_pa_o  | ~via2_pa_oe;
 
-assign     stp      = via2_pb_o[1:0] | ~via2_pb_oe[1:0];
-assign     mtr      = via2_pb_o[2]   | ~via2_pb_oe[2];
-assign     act      = via2_pb_o[3]   | ~via2_pb_oe[3];
-assign     freq     = via2_pb_o[6:5] | ~via2_pb_oe[6:5];
+assign     stp    = via2_pb_o[1:0] | ~via2_pb_oe[1:0];
+assign     mtr    = via2_pb_o[2]   | ~via2_pb_oe[2];
+assign     act    = via2_pb_o[3]   | ~via2_pb_oe[3];
+assign     freq   = via2_pb_o[6:5] | ~via2_pb_oe[6:5];
+assign     mode   = via2_cb2_o     | ~via2_cb2_oe;
 
 iecdrv_via6522 via2
 (
@@ -339,14 +340,13 @@ mos6526_8520 cia
 
 // Head signals mux
 
-assign     wgate = ~gcr_mode ^ mfm_wgate;
-assign     ht    =  gcr_ht   | mfm_ht;
+assign     ht    =  gcr_ht | mfm_ht;
 
 // 64H156 1571-U6 signals
 
 wire [7:0] gcr_do;
 wire       sync_n, byte_n, dgcr_we;
-wire       gcr_wgate, gcr_ht;
+wire       gcr_ht;
 
 c1541_h156 c1541_h156
 (
@@ -360,7 +360,7 @@ c1541_h156 c1541_h156
 	.ht(gcr_ht),
 	.hf(hf),
 
-	.mode(gcr_mode),
+	.mode(mode),
 	.soe(soe),
 	.ted(ted),
 	.sync_n(sync_n),
@@ -373,7 +373,7 @@ c1541_h156 c1541_h156
 // FDC 1571-U11 (WD1770) signals
 
 wire [7:0] wd_do;
-wire       mfm_wgate, mfm_ht;
+wire       mfm_ht;
 
 c1541_fdc1772 #(.MODEL(0)) c1541_fdc1772
 (
@@ -390,7 +390,7 @@ c1541_fdc1772 #(.MODEL(0)) c1541_fdc1772
 	.hclk(hclk),
 	.ht(mfm_ht),
 	.hf(hf),
-	.wgate(mfm_wgate),
+	.wgate(wgate),
 
    .cpu_addr(cpu_a[1:0]),
    .cpu_sel(wd_cs),

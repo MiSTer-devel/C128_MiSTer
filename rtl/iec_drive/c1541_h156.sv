@@ -30,7 +30,7 @@ module c1541_h156
 );
 
 assign     sync_n     = ~enable | ~mode | ~&shcur;
-assign     ht         = enable & ~mode & buff_di[bit_cnt];
+assign     ht         = enable & ~mode & buff_di[~bit_cnt];
 wire       byte_n_ena = enable & soe;
 
 reg  [2:0] bit_cnt;
@@ -52,7 +52,7 @@ always @(posedge clk) begin
 		byte_n  <= 1;
 	end
 	else begin
-		bt_n <= {bt_n[0],|bit_cnt | mhz1_2};
+		bt_n <= {bt_n[0], |bit_cnt | mhz1_2};
 
 		if (hclk) begin
 			bit_cnt <= bit_cnt + 1'b1;
