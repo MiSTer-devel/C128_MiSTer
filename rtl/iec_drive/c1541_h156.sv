@@ -11,7 +11,6 @@
 module c1541_h156
 (
 	input        clk,
-	input        ce,
 	input        reset,
 	input        enable,
 	input        mhz1_2,

@@ -21,18 +21,20 @@ module c1541_heads #(parameter DRIVE, parameter TRACK_BUF_LEN)
 	input [15:0] sd_buff_addr,
 	input  [7:0] sd_buff_dout,
 	output [7:0] sd_buff_din,
-	input        sd_buff_wr
+	input        sd_buff_wr,
+	output       sd_update
 );
 
-assign     write   = ~mode ^ wgate;
+assign     write     = ~mode ^ wgate;
+assign     sd_update = buff_we;
 
-wire       mfm     = track_len[13]; // assume tracks >= 8192 bytes are MFM
-wire [5:0] bitrate = mfm ? 6'b100000 : {2'b00,freq,2'b00};
+wire       mfm       = track_len[13]; // assume tracks >= 8192 bytes are MFM
+wire [5:0] bitrate   = mfm ? 6'b100000 : {2'b00,freq,2'b00};
 
 wire [7:0] sd_buff_do;
 assign sd_buff_din = sd_buff_addr == 0 ? track_len[7:0]
                    : sd_buff_addr == 1 ? {2'b00, track_len[13:8]}
-						 : sd_buff_addr > buff_len ? 8'hFF : sd_buff_do;
+						 : sd_buff_addr > track_len+2 ? 8'hFF : sd_buff_do;
 
 reg [13:0] track_len;
 always @(posedge sd_clk) begin
@@ -42,18 +44,17 @@ always @(posedge sd_clk) begin
 		case(sd_buff_addr[1:0])
 			0: track_len[7:0]  <= sd_buff_dout;
 			1: track_len[13:8] <= sd_buff_dout[5:0];
-			2: if (track_len > TRACK_BUF_LEN-2) track_len <= TRACK_BUF_LEN-2;
+			2: if (track_len+2 > TRACK_BUF_LEN) track_len <= 14'(TRACK_BUF_LEN-2);
 		endcase
 
 	freq_l <= freq;
 	if (!sd_busy && write && (track_len == 0 || wgate != mfm || freq_l != freq))
 		track_len <= wgate ? 14'd12500 
-		       : freq == 0 ? 14'd6520 
+		       : freq == 0 ? 14'd6250 
 				 : freq == 1 ? 14'd6666 
 				 : freq == 2 ? 14'd7142 : 14'd7692;
 end
 
-wire [13:0] buff_len = track_len + 2;
 reg  [13:0] buff_addr;
 reg   [7:0] buff_di;
 wire  [7:0] buff_do;
@@ -89,7 +90,7 @@ always @(posedge clk) begin
 		if (buff_addr == 2 && bit_cnt == 0 && bit_clk_cnt == 'b110000)
 			pulse_cnt <= 22'd50995;
 		else if (pulse_cnt)
-			pulse_cnt <= pulse_cnt - 1;
+			pulse_cnt <= 22'(pulse_cnt - 1);
 		else if (track_len == 0) 
 			pulse_cnt <= 22'd3200000;
 	end
@@ -105,16 +106,17 @@ always @(posedge clk) begin
 	hclk    <= 0;
 	write_r <= write;
 
-	if (reset || sd_busy) begin
+	if (reset || sd_buff_wr) begin
 		buff_addr   <= 2;
-		bit_clk_cnt <= 0;
+		bit_clk_cnt <= bitrate;
 		bit_cnt     <= 0;
 	end
-	else if (~enable | !track_len | (write & ~write_r)) begin
-		bit_clk_cnt <= 0;
+	else if (~enable || !track_len || (write & ~write_r)) begin
+		bit_clk_cnt <= bitrate;
+		bit_cnt     <= 0;
 	end
-	else if (ce) begin
-		if (buff_addr > buff_len)
+	else if (~sd_busy && ce) begin
+		if (buff_addr >= track_len+2)
 			buff_addr <= 2;
 
 		if (bit_clk_cnt == 'b110000) begin
@@ -125,8 +127,8 @@ always @(posedge clk) begin
 				if (&bit_cnt) buff_we <= 1;
 			end
 			else begin
-				hf      <= buff_do[~bit_cnt];
-				hclk    <= 1;
+				hf   <= buff_do[~bit_cnt];
+				hclk <= 1;
 			end
 		end
 
@@ -137,7 +139,7 @@ always @(posedge clk) begin
 			bit_cnt <= bit_cnt + 1'b1;
 			if (&bit_cnt) begin
 				buff_addr <= buff_addr + 1'd1;
-				if (buff_addr >= buff_len)
+				if (buff_addr >= track_len+1)
 					buff_addr <= 2;
 			end
 
