@@ -37,7 +37,7 @@ module c1541_track
 	output reg    busy
 );
 
-assign sd_lba = {20'h00000, 1'b0, freq, 1'b1, lba};
+assign sd_lba = {20'h00000, 1'b01, freq, lba};
 
 wire [7:0] track_s;
 wire       change_s, save_track_s, reset_s;

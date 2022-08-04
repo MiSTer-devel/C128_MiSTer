@@ -74,7 +74,7 @@ module c1541_drv #(parameter DRIVE)
 localparam SD_BLK_CNT_1541 = 31;
 localparam SD_BLK_CNT_1571 = 52;
 
-assign sd_blk_cnt = |drv_mode ? SD_BLK_CNT_1571 : SD_BLK_CNT_1541;
+assign sd_blk_cnt = 6'(|drv_mode ? SD_BLK_CNT_1571 : SD_BLK_CNT_1541);
 
 assign led = act | sd_busy;
 
@@ -131,7 +131,6 @@ c1541_logic #(.DRIVE(DRIVE)) c1541_logic
 	.reset(reset_drv),
 	.drv_mode(drv_mode),
 
-	.ce(ce),
 	.wd_ce(wd_ce),
 	.ph2_r(ph2_r),
 	.ph2_f(ph2_f),
@@ -246,7 +245,7 @@ iecdrv_sync busy_sync(clk, busy, sd_busy);
 // 	.sd_buff_wr(sd_ack & sd_buff_wr /*& gcr_mode*/)
 // );
 
-wire hclk, hf, ht, index, we, write;
+wire hclk, hf, ht, index, we, write, sd_update;
 wire drive_enable = disk_present & mtr;
 
 c1541_heads #(.DRIVE(DRIVE), .TRACK_BUF_LEN(SD_BLK_CNT_1571*256)) c1541_heads
@@ -272,7 +271,8 @@ c1541_heads #(.DRIVE(DRIVE), .TRACK_BUF_LEN(SD_BLK_CNT_1571*256)) c1541_heads
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
 	.sd_buff_din(sd_buff_din),
-	.sd_buff_wr(sd_ack & sd_buff_wr)
+	.sd_buff_wr(sd_ack & sd_buff_wr),
+	.sd_update(sd_update)
 );
 
 wire busy;
@@ -310,8 +310,8 @@ always @(posedge clk) begin
 	stp_old <= stp;
 	move <= stp - stp_old;
 
-	if (write & hclk) track_modified <= 1;
-	if (img_mounted)  track_modified <= 0;
+	if (sd_update)   track_modified <= 1;
+	if (img_mounted) track_modified <= 0;
 
 	if (reset_drv) begin
 		track_num <= 36;
@@ -327,7 +327,7 @@ always @(posedge clk) begin
 			end
 		end
 
-		if (track_modified & ~act) begin	// stopping activity
+		if (track_modified & ~write & ~act) begin	// stopping activity
 			save_track <= ~save_track;
 			track_modified <= 0;
 		end

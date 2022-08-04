@@ -14,7 +14,6 @@ module c1541_logic #(DRIVE)
 	input        reset,
 	input  [1:0] drv_mode,     // 00: 1541, 01: 1570, 10: 1571, 11: 1571CR
 
-	input        ce,
 	input        wd_ce,
 	input  [1:0] ph2_r,
 	input  [1:0] ph2_f,
@@ -351,7 +350,6 @@ wire       gcr_ht;
 c1541_h156 c1541_h156
 (
 	.clk(clk),
-	.ce(ce),
 	.reset(reset | ~|drv_mode),
 	.enable(drive_enable),
 	.mhz1_2(accl[1]),
