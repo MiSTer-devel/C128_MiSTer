@@ -28,7 +28,6 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - Automatic detection of C64/C128 .PRG files to boot in the appropriate mode.
 - Re-enable 3x and 4x turbo modes for 8502
 - Turbo mode for Z80
-- Currently not possible to change 1541 ROM
 
 ## Usage
 
