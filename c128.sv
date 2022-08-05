@@ -197,6 +197,13 @@ assign VGA_SCALER = 0;
 `include "build_id.v"
 localparam CONF_STR = {
    "C128;UART9600:2400;",
+   // XXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   "-,/!\\ This in-development core;",
+   "-,needs a modified MiSTer main;",
+   "-, binary for the disk drives;",
+   "-,to function.  See the MiSTer;",
+   "-,    forum for details.;",
+   "-;",
    //"oUV,Boot Mode,Z80,C128,C64;", // for testing
    "H7S0,D64G64T64D81D71G71,Mount #8                    ;",
    "H0S1,D64G64T64D81D71G71,Mount #9                    ;",
