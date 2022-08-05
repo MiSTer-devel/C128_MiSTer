@@ -15,12 +15,13 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - Automatic detection of .CRT files: C64 cartridges boot in C64 mode, C128 cartridges boot in C128 mode. C128 .CRT files must contain a [C128 CARTRIDGE](https://vice-emu.sourceforge.io/vice_17.html#SEC392) header to be detected.
 - Loading of .PRG files to the correct memory location in C128 mode.
 - Fast serial IEC
+- 1570/1571 drive, .d71/.g71 images
 
 ### C128 features not (yet/fully) implemented
 
 - VDC scrolling, interlace, 40 column mode, non-standard modes
 - Internal function ROM
-- 1571 drive/.d71 images
+- MFM formatted disks on the 157x
 
 ### Other TODOs and known issues
 
