@@ -490,7 +490,7 @@ begin
 					when X"09" => key_equal <= pressed; -- F10
 					when X"0D" => key_tab <= pressed;
 					when X"0E" => key_arrowleft <= pressed;
-					when X"11" => key_fn <= pressed; -- Alt (right)
+					when X"11" => if extended then key_fn <= pressed; else key_alt <= pressed; end if; -- AltGr / Alt
 					when X"12" => key_shiftl <= pressed;
 					when X"14" => key_ctrl <= pressed; -- Ctrl (left+right)
 					when X"15" => key_Q <= pressed;
