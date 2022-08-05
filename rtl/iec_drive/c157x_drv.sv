@@ -19,7 +19,7 @@
 //
 //-------------------------------------------------------------------------------
 
-module c1541_drv #(parameter DRIVE)
+module c157x_drv #(parameter DRIVE)
 (
 	//clk ports
 	input         clk,
@@ -72,9 +72,9 @@ module c1541_drv #(parameter DRIVE)
 );
 
 localparam SD_BLK_CNT_1541 = 31;
-localparam SD_BLK_CNT_1571 = 52;
+localparam SD_BLK_CNT_157X = 52;
 
-assign sd_blk_cnt = 6'(|drv_mode ? SD_BLK_CNT_1571 : SD_BLK_CNT_1541);
+assign sd_blk_cnt = 6'(|drv_mode ? SD_BLK_CNT_157X : SD_BLK_CNT_1541);
 
 assign led = act | sd_busy;
 
@@ -125,7 +125,7 @@ wire       mtr;
 wire       act;
 wire [1:0] freq;
 
-c1541_logic #(.DRIVE(DRIVE)) c1541_logic
+c157x_logic #(.DRIVE(DRIVE)) c157x_logic
 (
 	.clk(clk),
 	.reset(reset_drv),
@@ -248,7 +248,7 @@ iecdrv_sync busy_sync(clk, busy, sd_busy);
 wire hclk, hf, ht, index, we, write, sd_update;
 wire drive_enable = disk_present & mtr;
 
-c1541_heads #(.DRIVE(DRIVE), .TRACK_BUF_LEN(SD_BLK_CNT_1571*256)) c1541_heads
+c157x_heads #(.DRIVE(DRIVE), .TRACK_BUF_LEN(SD_BLK_CNT_157X*256)) c157x_heads
 (
 	.clk(clk),
 	.ce(ce),
@@ -277,7 +277,7 @@ c1541_heads #(.DRIVE(DRIVE), .TRACK_BUF_LEN(SD_BLK_CNT_1571*256)) c1541_heads
 
 wire busy;
 
-c1541_track c1541_track
+c157x_track c157x_track
 (
 	.clk(clk_sys),
 	.reset(reset_drv),

@@ -11,7 +11,7 @@
 //   F8 -- 1111 1000 -- III -- write track, disable spin up, no delay, enable write pre-comp
 //   D0 -- 1101 0000 -- IV  -- force interrupt, terminate without interrupt
 
-module c1541_fdc1772
+module c157x_fdc1772
 (
 	input            clkcpu, // system cpu clock.
 	input            clk8m_en,
