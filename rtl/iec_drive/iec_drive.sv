@@ -68,30 +68,30 @@ wire [1:0] rom_sel = rom_file_ext[15:0] == "41" ? 2'b00
                    : rom_file_ext[15:0] == "71" ? 2'b10
                    : rom_file_ext[15:0] == "81" ? 2'b11 : 2'bXX;
 
-assign led          = c1581_led       | c1541_led;
-assign iec_data_o   = c1581_iec_data  & c1541_iec_data;
-assign iec_clk_o    = c1581_iec_clk   & c1541_iec_clk;
-assign iec_fclk_o   = c1581_iec_fclk  & c1541_iec_fclk;
-assign par_stb_o    = c1581_stb_o     & c1541_stb_o;
-assign par_data_o   = c1581_par_o     & c1541_par_o;
+assign led          = c1581_led       | c157x_led;
+assign iec_data_o   = c1581_iec_data  & c157x_iec_data;
+assign iec_clk_o    = c1581_iec_clk   & c157x_iec_clk;
+assign iec_fclk_o   = c1581_iec_fclk  & c157x_iec_fclk;
+assign par_stb_o    = c1581_stb_o     & c157x_stb_o;
+assign par_data_o   = c1581_par_o     & c157x_par_o;
 
 always_comb for(int i=0; i<NDR; i=i+1) begin
-   sd_buff_din[i] = (dtype[i] ? c1581_sd_buff_dout[i] : c1541_sd_buff_dout[i] );
-   sd_lba[i]      = (dtype[i] ? c1581_sd_lba[i] << 1  : c1541_sd_lba[i]       );
-   sd_rd[i]       = (dtype[i] ? c1581_sd_rd[i]        : c1541_sd_rd[i]        );
-   sd_wr[i]       = (dtype[i] ? c1581_sd_wr[i]        : c1541_sd_wr[i]        );
-   sd_blk_cnt[i]  = (dtype[i] ? 6'd1                  : c1541_sd_blk_cnt[i]   );
+   sd_buff_din[i] = (dtype[i] ? c1581_sd_buff_dout[i] : c157x_sd_buff_dout[i] );
+   sd_lba[i]      = (dtype[i] ? c1581_sd_lba[i] << 1  : c157x_sd_lba[i]       );
+   sd_rd[i]       = (dtype[i] ? c1581_sd_rd[i]        : c157x_sd_rd[i]        );
+   sd_wr[i]       = (dtype[i] ? c1581_sd_wr[i]        : c157x_sd_wr[i]        );
+   sd_blk_cnt[i]  = (dtype[i] ? 6'd1                  : c157x_sd_blk_cnt[i]   );
 end
 
-wire        c1541_iec_data, c1541_iec_clk, c1541_iec_fclk, c1541_stb_o;
-wire  [7:0] c1541_par_o;
-wire  [N:0] c1541_led;
-wire  [7:0] c1541_sd_buff_dout[NDR];
-wire [31:0] c1541_sd_lba[NDR];
-wire  [N:0] c1541_sd_rd, c1541_sd_wr;
-wire  [5:0] c1541_sd_blk_cnt[NDR];
+wire        c157x_iec_data, c157x_iec_clk, c157x_iec_fclk, c157x_stb_o;
+wire  [7:0] c157x_par_o;
+wire  [N:0] c157x_led;
+wire  [7:0] c157x_sd_buff_dout[NDR];
+wire [31:0] c157x_sd_lba[NDR];
+wire  [N:0] c157x_sd_rd, c157x_sd_wr;
+wire  [5:0] c157x_sd_blk_cnt[NDR];
 
-c1541_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1541
+c157x_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c157x
 (
    .clk(clk),
    .reset(reset | dtype),
@@ -104,16 +104,16 @@ c1541_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1541
    .iec_data_i(iec_data_i & c1581_iec_data),
    .iec_clk_i (iec_clk_i  & c1581_iec_clk),
    .iec_fclk_i(iec_fclk_i & c1581_iec_fclk),
-   .iec_data_o(c1541_iec_data),
-   .iec_clk_o (c1541_iec_clk),
-   .iec_fclk_o(c1541_iec_fclk),
+   .iec_data_o(c157x_iec_data),
+   .iec_clk_o (c157x_iec_clk),
+   .iec_fclk_o(c157x_iec_fclk),
 
-   .led(c1541_led),
+   .led(c157x_led),
 
    .par_data_i(par_data_i),
    .par_stb_i(par_stb_i),
-   .par_data_o(c1541_par_o),
-   .par_stb_o(c1541_stb_o),
+   .par_data_o(c157x_par_o),
+   .par_stb_o(c157x_stb_o),
 
    .clk_sys(clk_sys),
    .pause(pause),
@@ -127,14 +127,14 @@ c1541_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1541
    .img_size(img_size),
    .img_readonly(img_readonly),
 
-   .sd_lba(c1541_sd_lba),
-   .sd_blk_cnt(c1541_sd_blk_cnt),
-   .sd_rd(c1541_sd_rd),
-   .sd_wr(c1541_sd_wr),
+   .sd_lba(c157x_sd_lba),
+   .sd_blk_cnt(c157x_sd_blk_cnt),
+   .sd_rd(c157x_sd_rd),
+   .sd_wr(c157x_sd_wr),
    .sd_ack(sd_ack),
    .sd_buff_addr(sd_buff_addr),
    .sd_buff_dout(sd_buff_dout),
-   .sd_buff_din(c1541_sd_buff_dout),
+   .sd_buff_din(c157x_sd_buff_dout),
    .sd_buff_wr(sd_buff_wr)
 );
 
@@ -153,8 +153,8 @@ c1581_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1581
    .ce(ce),
 
    .iec_atn_i (iec_atn_i),
-   .iec_data_i(iec_data_i & c1541_iec_data),
-   .iec_clk_i (iec_clk_i  & c1541_iec_clk),
+   .iec_data_i(iec_data_i & c157x_iec_data),
+   .iec_clk_i (iec_clk_i  & c157x_iec_clk),
    .iec_fclk_i(iec_fclk_i),
    .iec_data_o(c1581_iec_data),
    .iec_clk_o (c1581_iec_clk),

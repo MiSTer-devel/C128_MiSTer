@@ -10,7 +10,7 @@
 //-------------------------------------------------------------------------------
 
 
-module c1541_multi #(parameter PARPORT=1,DRIVES=2)
+module c157x_multi #(parameter PARPORT=1,DRIVES=2)
 (
 	//clk ports
 	input         clk,
@@ -207,7 +207,7 @@ assign     led = led_drv & ~reset_drv;
 generate
 	genvar i;
 	for(i=0; i<NDR; i=i+1) begin :drives
-		c1541_drv #(i) c1541_drv
+		c157x_drv #(i) c157x_drv
 		(
 			.clk(clk),
 			.reset(reset_drv[i]),

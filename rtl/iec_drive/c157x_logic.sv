@@ -6,13 +6,13 @@
 //
 //-------------------------------------------------------------------------------
 //
-// Model 1541B / 1570 / 1571 / 1571CR
+// Model 1541B / 1570 / 1571 
 //
-module c1541_logic #(DRIVE)
+module c157x_logic #(DRIVE)
 (
 	input        clk,
 	input        reset,
-	input  [1:0] drv_mode,     // 00: 1541, 01: 1570, 10: 1571, 11: 1571CR
+	input  [1:0] drv_mode,     // 00: 1541, 01: 1570, 10: 1571, (11: 1571CR todo)
 
 	input        wd_ce,
 	input  [1:0] ph2_r,
@@ -347,7 +347,7 @@ wire [7:0] gcr_do;
 wire       sync_n, byte_n, dgcr_we;
 wire       gcr_ht;
 
-c1541_h156 c1541_h156
+c157x_h156 c157x_h156
 (
 	.clk(clk),
 	.reset(reset | ~|drv_mode),
@@ -373,7 +373,7 @@ c1541_h156 c1541_h156
 wire [7:0] wd_do;
 wire       mfm_ht;
 
-c1541_fdc1772 #(.MODEL(0)) c1541_fdc1772
+c157x_fdc1772 #(.MODEL(0)) c157x_fdc1772
 (
    .clkcpu(clk),
    .clk8m_en(wd_ce),

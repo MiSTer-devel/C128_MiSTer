@@ -1,4 +1,14 @@
-module c1541_heads #(parameter DRIVE, parameter TRACK_BUF_LEN)
+//-------------------------------------------------------------------------------
+//
+// C1541/157x sd-card to read/write head signals conversion
+//
+// Split from C1541/157x direct gcr module (C) 2021 Alexey Melnikov
+//
+// Changes for 157x by Erik Scheffers
+//
+//-------------------------------------------------------------------------------
+
+module c157x_heads #(parameter DRIVE, parameter TRACK_BUF_LEN)
 (
 	input        clk,
 	input        ce,
