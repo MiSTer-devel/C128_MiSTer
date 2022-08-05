@@ -21,7 +21,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 
 The following features should work but have not been tested. If you have an opportunity to test this, please let me know the result by creating an issue on GitHub (for both success and failures)
 
-- External fast serial IEC (on the user port)
+- External fast serial IEC (on the user port) \[[Issue #7](https://github.com/eriks5/C128_MiSTer/issues/7)\]
 - Parallel disk I/O on the 1571 (Dolphin DOS)
 
 ### C128 features not (yet/fully) implemented
