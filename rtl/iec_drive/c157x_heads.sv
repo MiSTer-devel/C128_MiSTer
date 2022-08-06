@@ -2,7 +2,7 @@
 //
 // C1541/157x sd-card to read/write head signals conversion
 //
-// Split from C1541/157x direct gcr module (C) 2021 Alexey Melnikov
+// Base on C1541 direct gcr module (C) 2021 Alexey Melnikov
 //
 // Changes for 157x by Erik Scheffers
 //
@@ -20,6 +20,7 @@ module c157x_heads #(parameter DRIVE, parameter TRACK_BUF_LEN)
    input        wgate, // MFM wgate (0=read, 1=write)
 	output       write, // Write mode
 
+	input	       hinit,	
    output       hclk,
 	output       hf,    // signal from head
 	input        ht,    // signal to head
@@ -69,6 +70,7 @@ reg  [13:0] buff_addr;
 reg   [7:0] buff_di;
 wire  [7:0] buff_do;
 reg         buff_we;
+reg         buff_init;
 
 iecdrv_trackmem #(14, TRACK_BUF_LEN) buffer
 (
@@ -116,14 +118,29 @@ always @(posedge clk) begin
 	hclk    <= 0;
 	write_r <= write;
 
-	if (reset || sd_buff_wr) begin
+	if (reset || hinit || sd_buff_wr) begin
 		buff_addr   <= 2;
 		bit_clk_cnt <= bitrate;
 		bit_cnt     <= 0;
+		if (hinit && track_len) begin
+			buff_di   <= 8'h55;
+			buff_we   <= 1;
+			buff_init <= 1;
+		end
 	end
 	else if (~enable || !track_len || (write & ~write_r)) begin
 		bit_clk_cnt <= bitrate;
 		bit_cnt     <= 0;
+	end
+	else if (buff_init) begin
+		if (buff_addr >= track_len+2) begin
+			buff_addr <= 2;
+			buff_init <= 0;
+		end 
+		else begin
+			buff_addr <= buff_addr + 14'd1;
+			buff_we   <= 1;
+		end
 	end
 	else if (~sd_busy && ce) begin
 		if (buff_addr >= track_len+2)

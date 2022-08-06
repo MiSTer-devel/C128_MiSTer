@@ -40,6 +40,7 @@ module c157x_logic #(DRIVE)
 	output       par_stb_out,
 
 	// drive control signals
+	output       hinit,         // init head buffer
 	input        hclk,          // bit clock
 	input        hf,            // signal from head
 	output       ht,            // signal to head
@@ -354,6 +355,7 @@ c157x_h156 c157x_h156
 	.enable(drive_enable),
 	.mhz1_2(accl[1]),
 	
+	.hinit(hinit),
 	.hclk(hclk),
 	.ht(gcr_ht),
 	.hf(hf),

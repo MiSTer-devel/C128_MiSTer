@@ -172,6 +172,7 @@ c157x_logic #(.DRIVE(DRIVE)) c157x_logic
 	// .sync_n(dgcr_sync_n),
 	// .byte_n(dgcr_byte_n),
 
+	.hinit(hinit),
 	.hclk(hclk),
 	.hf(hf),
 	.ht(ht),
@@ -245,7 +246,7 @@ iecdrv_sync busy_sync(clk, busy, sd_busy);
 // 	.sd_buff_wr(sd_ack & sd_buff_wr /*& gcr_mode*/)
 // );
 
-wire hclk, hf, ht, index, we, write, sd_update;
+wire hinit, hclk, hf, ht, index, we, write, sd_update;
 wire drive_enable = disk_present & mtr;
 
 c157x_heads #(.DRIVE(DRIVE), .TRACK_BUF_LEN(SD_BLK_CNT_157X*256)) c157x_heads
@@ -260,6 +261,7 @@ c157x_heads #(.DRIVE(DRIVE), .TRACK_BUF_LEN(SD_BLK_CNT_157X*256)) c157x_heads
 	.wgate(wgate),
 	.write(write),
 
+	.hinit(hinit),
 	.hclk(hclk),
 	.hf(hf),
 	.ht(ht),
