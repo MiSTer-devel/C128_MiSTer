@@ -29,6 +29,7 @@ The following features should work but have not been tested. If you have an oppo
 - VDC scrolling, interlace, 40 column mode, non-standard modes
 - Internal function ROM
 - MFM formatted disks on the 157x
+- 1571DCR drive model option for the full _128DCR experience_. This model uses a custom MFM en/decoding chip which seems to be completely undocumented.
 
 ### Other TODOs and known issues
 
