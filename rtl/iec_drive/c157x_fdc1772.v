@@ -873,6 +873,167 @@ assign ht    = 0;
 // 	endcase
 // end
 
+// Sync detector, byte aligner
+ 
+reg  [15:0] shift_in_reg;
+wire [15:0] shift_in = { shift_in_reg[14:0], hf };
+reg   [3:0] shift_in_count;
+ 
+wire sync_a1 = (shift_in == 16'h4489);
+wire sync_c2 = (shift_in == 16'h5224);
+wire sync    = (sync_a1 || sync_c2);
+
+reg [7:0] aligned_data;
+reg       aligned_sync_a1, aligned_sync_c2;
+reg       aligned_valid;
+
+always @(posedge clkcpu)
+begin
+	aligned_sync_a1 <= 0;
+	aligned_sync_c2 <= 0;
+	aligned_valid   <= 0;
+
+	if(!floppy_reset) begin
+		shift_in_count <= 4'd15;
+		aligned_data   <= 0;
+	end
+	else if(hclk) begin
+		shift_in_reg   <= shift_in;
+		shift_in_count <= shift_in_count - 4'd1;
+
+		if ((detect_sync && sync) || !shift_in_count)
+		begin
+			shift_in_count  <= 4'd15;
+			aligned_data    <= { shift_in[14], shift_in[12], shift_in[10], shift_in[8], shift_in[6], shift_in[4], shift_in[2], shift_in[0] };
+			aligned_sync_a1 <= sync_a1;
+			aligned_sync_c2 <= sync_c2;
+			aligned_valid   <= 1;
+		end
+	end
+end
+
+// mark detector and header decoder
+
+reg        header_start, data_start, header_byte, data_byte, check_crc, data_mark;
+reg  [7:0] header_track, header_sector;
+reg  [2:0] header_count; // including crc bytes
+reg [10:0] data_count;   // excluding crc bytes
+reg  [1:0] sector_length;
+reg        detect_sync;
+
+always @(posedge clkcpu)
+begin
+	reg       dam_detected, idam_detected, last_sync_a1;
+	reg [2:0] sync_detected;
+	reg [1:0] crc_count;
+
+	header_start <= 0;
+	header_byte  <= 0;
+	data_start   <= 0;
+	data_byte    <= 0;
+	check_crc    <= 0;
+
+	if (!floppy_reset) begin
+		detect_sync   <= 1;
+		sync_detected <= 0;
+		idam_detected <= 0;
+		dam_detected  <= 0;
+		header_count  <= 0;
+		data_count    <= 0;
+		data_mark     <= 0;
+		crc_count     <= 0;
+	end
+	else if (aligned_sync_a1 || aligned_sync_c2) begin
+		last_sync_a1 <= aligned_sync_a1;
+		if (aligned_sync_a1 != last_sync_a1)
+			sync_detected <= 2'd1;
+		else if (sync_detected < 4) 
+			sync_detected <= sync_detected + 2'd1;
+
+		header_count  <= 0;
+		data_count    <= 0;
+		crc_count     <= 0;
+	end
+	else if (aligned_valid) begin
+		sync_detected <= 0;
+		idam_detected <= 0;
+		dam_detected  <= 0;
+
+		if (sync_detected >= 3 && aligned_data[7:2] == 6'b1111_10) begin 
+			// DDAM = F8..F9, DAM = FA..FB 
+			data_mark    <= ~aligned_data[1];
+			dam_detected <= 1;
+			if (1 /*!(cmd_type_3 && cmd[7:4] == 4'b1110)*/) 
+				detect_sync <= 0;
+		end
+		else if (sync_detected == 3 && aligned_data[7:2] == 6'b1111_11) begin
+			// IDAM = FC..FF
+			idam_detected <= 1;
+			if (1 /*!(cmd_type_3 && cmd[7:4] == 4'b1110)*/) 
+				detect_sync <= 0;
+		end
+		else if (idam_detected || header_count) begin
+			header_byte <= 1;
+			if (idam_detected) begin
+				header_start <= 1;
+			   header_track <= aligned_data;
+				header_count <= 3'd6;
+			end
+			else begin
+				header_count <= header_count - 3'd1;
+				case(header_count)
+					5: header_sector <= aligned_data;
+					4: sector_length <= aligned_data[1:0];
+					3: crc_count     <= 2'd2;
+				endcase
+			end
+		end
+		else if (dam_detected || data_count) begin
+			data_byte <= 1;
+			if (dam_detected) begin
+				data_start <= 1;
+				data_count <= (11'd128 << sector_length);
+			end
+			else begin
+				data_count <= data_count - 11'd1;
+				if (data_count == 1) crc_count <= 2'd2;
+			end
+		end
+
+		if (crc_count) crc_count <= crc_count - 2'd1;
+		if (crc_count == 1) begin
+			check_crc   <= 1;
+			detect_sync <= 1;
+		end
+	end
+end
+
+// crc checker (drives 'crc_error')
+
+reg crc_error;
+
+always @(posedge clkcpu)
+begin
+	reg [15:0] crcval;
+
+	if (!floppy_reset || cmd_rx) begin
+		crc_error <= 0;
+		crcval = 16'hFFFF;
+	end
+	else if (aligned_sync_a1)
+		crcval = 16'hCDB4;
+	else if (aligned_valid)
+		crcval = crc(crcval, aligned_data);
+
+	if (check_crc && crcval)
+		crc_error <= 1;
+end
+
+// todo
+//  - header scanner
+//  - read address & sector (drives 'data_out', 'drq_set' and 'data_lost')
+//  - track & sector writer (drives 'ht' and 'wgate')
+
 // -------------------- CPU data read/write -----------------------
 reg data_in_strobe;
 reg data_in_valid;
@@ -984,9 +1145,9 @@ end
 // the status byte
 wire [7:0] status = { (MODEL == 1 || MODEL == 3) ? !floppy_ready : motor_on,
 		      (cmd[7:5] == 3'b101 || cmd[7:4] == 4'b1111 || cmd_type_1) && fd_writeprot, // wrprot (only for write!)
-		      cmd_type_1?motor_spin_up_done:1'b0,  // data mark
-		      RNF,                                 // seek error/record not found
-		      1'b0,                                // crc error
+		      cmd_type_1?motor_spin_up_done:data_mark,  // data mark
+		      RNF,                                      // seek error/record not found
+		      crc_error,                                // crc error
 		      cmd_type_1?~fd_trk00:data_lost,           // track0/data lost
 		      cmd_type_1?~fd_index:drq,                 // index mark/drq
 		      cmd_busy } /* synthesis keep */;
