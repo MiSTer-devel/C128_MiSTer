@@ -90,21 +90,21 @@ iecdrv_trackmem #(14, TRACK_BUF_LEN) buffer
 always @(posedge clk) begin
 	reg [21:0] pulse_cnt;
 
-	if (reset || sd_busy || !enable) begin
-		pulse_cnt <= 0;
-		index     <= 0;
-	end
-	else if (ce) begin
+	if (reset || !enable) begin
+		pulse_cnt <= 22'd3_200_000;
 		index <= 0;
-		if (pulse_cnt && pulse_cnt <= 50995)
+	end
+	else if (ce && ~sd_busy) begin
+		if (track_len == 0 && pulse_cnt) begin
+			pulse_cnt <= pulse_cnt - 22'd1;
+			index <= 0;
+		end
+		else if (track_len == 0 || (buff_addr == 2 && bit_cnt == 0 && bit_clk_cnt[5:2] == 4'b1100)) begin
+			pulse_cnt <= 22'd3_200_000;
 			index <= 1;
-
-		if (buff_addr == 2 && bit_cnt == 0 && bit_clk_cnt == 'b110000)
-			pulse_cnt <= 22'd50995;
-		else if (pulse_cnt)
-			pulse_cnt <= 22'(pulse_cnt - 1);
-		else if (track_len == 0) 
-			pulse_cnt <= 22'd3200000;
+		end
+		else
+			index <= 0;
 	end
 end
 

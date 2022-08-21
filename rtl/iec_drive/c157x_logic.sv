@@ -391,8 +391,9 @@ c157x_fdc1772 #(.MODEL(0)) c157x_fdc1772
 	.floppy_present(disk_present),
 	.floppy_side(side),
 	.floppy_motor(mtr),
-	.floppy_index(index_sense),
+	.floppy_index(~index_sense),
 	.floppy_wprot(~wps_n),
+	.floppy_track00(1),
 
 	.hclk(hclk),
 	.ht(mfm_ht),
