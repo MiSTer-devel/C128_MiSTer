@@ -25,6 +25,7 @@ module c157x_fdc1772
 	output           floppy_ready,
 	input            floppy_index,
 	input            floppy_wprot,
+	input            floppy_track00,
 
 	// interrupts
 	output reg       irq,
@@ -355,6 +356,7 @@ reg       fd_dclk_en;
 wire      fd_present = floppy_present;
 wire      fd_writeprot = floppy_wprot;
 wire      fd_side = floppy_side;
+wire      fd_trk00 = floppy_track00;
 reg [4:0] fd_spt;
 
 assign floppy_ready = fd_ready && fd_present;
@@ -375,20 +377,20 @@ always @(posedge clkcpu) begin
 	reg [18:0] index_pulse_cnt;
 
 	last_floppy_index <= floppy_index;
-	if (floppy_reset || !fd_present) begin
+	if (!floppy_reset || !fd_present) begin
 		index_pulse_cnt <= 0;
 		fd_index <= 1'b0;
 	end
 	else if (clk8m_en) begin
-		if (!last_floppy_index && floppy_index) begin
-			fd_index <= 1'b0;
+		if (last_floppy_index && ~floppy_index) begin
+			fd_index <= 1'b1;
 			index_pulse_cnt <= INDEX_PULSE_CYCLES;
 		end
 		else if (index_pulse_cnt != 0) begin
 			index_pulse_cnt <= index_pulse_cnt - 19'd1;
 		end
 		else
-			fd_index <= 1'b1;
+			fd_index <= 1'b0;
 	end
 end
 
@@ -624,6 +626,7 @@ always @(posedge clkcpu) begin
 					notready_wait <= 1'b1;
 					// read sector
 				end else begin
+					// read sector
 					if(cmd[7:5] == 3'b100) begin
 						if(index_pulse_counter == 0) begin
 							RNF <= 1'b1;
@@ -709,21 +712,21 @@ always @(posedge clkcpu) begin
 					busy <= 1'b0; 
 					irq_req <= 1'b1; // emit irq when command done
 				end else begin
-					// read track TODO: fake
+					// read track (not used in 1571)
 					if(cmd[7:4] == 4'b1110) begin
 						busy <= 1'b0;
 						irq_req <= 1'b1; // emit irq when command done
 					end
 
-					// write track TODO: fake
+					// write track TODO: used in 1571
 					if(cmd[7:4] == 4'b1111) begin
 						busy <= 1'b0;
 						irq_req <= 1'b1; // emit irq when command done
 					end
 
-					// read address
+					// read address (used in 1571)
 					if(cmd[7:4] == 4'b1100) begin
-						// we are busy until the next setor header passes under the head
+						// we are busy until the next sector header passes under the head
 						if(fd_ready && fd_sector_hdr)
 							data_transfer_start <= 1'b1;
 
@@ -739,7 +742,7 @@ always @(posedge clkcpu) begin
 
 		// stop motor if there was no command for 10 index pulses
 		indexD <= fd_index;
-		if(indexD && !fd_index) begin
+		if(!indexD && fd_index) begin
 			irq_at_index <= 1'b0;
 			if (irq_at_index) irq_req <= 1'b1;
 
@@ -984,8 +987,8 @@ wire [7:0] status = { (MODEL == 1 || MODEL == 3) ? !floppy_ready : motor_on,
 		      cmd_type_1?motor_spin_up_done:1'b0,  // data mark
 		      RNF,                                 // seek error/record not found
 		      1'b0,                                // crc error
-		      cmd_type_1?1'b0:data_lost,           // track0/data lost
-		      cmd_type_1?~fd_index:drq,            // index mark/drq
+		      cmd_type_1?~fd_trk00:data_lost,           // track0/data lost
+		      cmd_type_1?~fd_index:drq,                 // index mark/drq
 		      cmd_busy } /* synthesis keep */;
 
 reg [7:0] track /* verilator public */;
