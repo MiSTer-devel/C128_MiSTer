@@ -34,7 +34,7 @@ module mos6526_8520 (
   input  wire       tod,
 
   input  wire       sp_in,
-  output reg        sp_out,
+  output wire       sp_out,
 
   input  wire       cnt_in,
   output reg        cnt_out,
@@ -471,11 +471,14 @@ always @(posedge clk) begin
   end
 end
 
+reg    sp_out_reg;
+assign sp_out = sp_out_reg | ~cra[6];
+
 // Serial Port Input/Output
 always @(posedge clk) begin
   if (!res_n) begin
     sp_shiftreg  = 8'h00;
-    sp_out       = 1'b1;
+    sp_out_reg   = 1'b0;
     sdr         <= 8'h00;
     sp_pending  <= 1'b0;
     sp_transmit <= 1'b0;
@@ -500,7 +503,7 @@ always @(posedge clk) begin
 
     if (!cra[6]) begin // input
       if (cnt_in && !cnt_in_prev) begin
-        sp_shiftreg = {sp_shiftreg[6:0], sp_in};
+        sp_shiftreg = { sp_shiftreg[6:0], sp_in };
         if (cnt_pulsecnt == 3'h0) begin
           sdr  <= sp_shiftreg;
           icr3 <= 1'b1;
@@ -518,7 +521,7 @@ always @(posedge clk) begin
           icr3        <= 1'b1;
           sp_transmit <= 1'b0;
         end
-        { sp_out, sp_shiftreg[7:1]} = sp_shiftreg;
+        { sp_out_reg, sp_shiftreg } = { sp_shiftreg, 1'b0 };
       end
     end
   end
