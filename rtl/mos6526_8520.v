@@ -509,6 +509,7 @@ always @(posedge clk) begin
           icr3 <= 1'b1;
         end
       end
+      sp_transmit <= 1'b0;
     end
     else begin // output
       if (sp_pending && !sp_transmit) begin
