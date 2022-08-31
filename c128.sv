@@ -1186,7 +1186,7 @@ iec_drive iec_drive
    .iec_atn_i(c64_iec_atn),
    .iec_data_i(c64_iec_data & ext_iec_data),
    .iec_clk_i(c64_iec_clk & ext_iec_clk),
-   .iec_fclk_i(c64_iec_srq_n),
+   .iec_fclk_i(c64_iec_srq_n & ext_iec_srq_n),
    .iec_data_o(drive_iec_data_o),
    .iec_clk_o(drive_iec_clk_o),
    .iec_fclk_o(drive_iec_srq_n_o),

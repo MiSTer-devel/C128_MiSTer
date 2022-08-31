@@ -155,7 +155,7 @@ c1581_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1581
    .iec_atn_i (iec_atn_i),
    .iec_data_i(iec_data_i & c157x_iec_data),
    .iec_clk_i (iec_clk_i  & c157x_iec_clk),
-   .iec_fclk_i(iec_fclk_i),
+   .iec_fclk_i(iec_fclk_i & c157x_iec_fclk),
    .iec_data_o(c1581_iec_data),
    .iec_clk_o (c1581_iec_clk),
    .iec_fclk_o(c1581_iec_fclk),
