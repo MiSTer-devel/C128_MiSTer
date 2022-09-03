@@ -499,30 +499,30 @@ always @(posedge clk) begin
       if(int_reset) icr[3] <= 1'b0;
       if(icr3) icr[3] <= 1'b1;
       icr3 <= 1'b0;
-    end
 
-    if (!cra[6]) begin // input
-      if (cnt_in && !cnt_in_prev) begin
-        sp_shiftreg = { sp_shiftreg[6:0], sp_in };
-        if (cnt_pulsecnt == 3'h0) begin
-          sdr  <= sp_shiftreg;
-          icr3 <= 1'b1;
+      if (!cra[6]) begin // input
+        if (cnt_in && !cnt_in_prev) begin
+          sp_shiftreg = { sp_shiftreg[6:0], sp_in };
+          if (cnt_pulsecnt == 3'h0) begin
+            sdr  <= sp_shiftreg;
+            icr3 <= 1'b1;
+          end
         end
+        sp_transmit <= 1'b0;
       end
-      sp_transmit <= 1'b0;
-    end
-    else begin // output
-      if (sp_pending && !sp_transmit) begin
-        sp_pending  <= 1'b0;
-        sp_transmit <= 1'b1;
-        sp_shiftreg  = sdr;
-      end
-      else if (!cnt_out_r && cnt_out) begin
-        if (cnt_pulsecnt == 3'h7) begin
-          icr3        <= 1'b1;
-          sp_transmit <= 1'b0;
+      else begin // output
+        if (sp_pending && !sp_transmit) begin
+          sp_pending  <= 1'b0;
+          sp_transmit <= 1'b1;
+          sp_shiftreg  = sdr;
         end
-        { sp_out_reg, sp_shiftreg } = { sp_shiftreg, 1'b0 };
+        else if (!cnt_out_r && cnt_out) begin
+          if (cnt_pulsecnt == 3'h7) begin
+            icr3        <= 1'b1;
+            sp_transmit <= 1'b0;
+          end
+          { sp_out_reg, sp_shiftreg } = { sp_shiftreg, 1'b0 };
+        end
       end
     end
   end
@@ -537,7 +537,7 @@ always @(posedge clk) begin
     cnt_pulsecnt <= 3'h0;
     cra6_prev    <= 1'b0;
   end
-  else begin
+  else if (phi2_p) begin
     cra6_prev <= cra[6];
     cnt_in_prev <= cnt_in;
     cnt_out <= cnt_out_r;
@@ -545,10 +545,8 @@ always @(posedge clk) begin
     if (cra[6] != cra6_prev) cnt_pulsecnt <= 3'h0;
     if (cra[6] ? (!cnt_out_r && cnt_out) : (!cnt_in && cnt_in_prev)) cnt_pulsecnt <= cnt_pulsecnt + 1'b1;
 
-    if (phi2_p) begin
-      if (!cra[6]) cnt_out_r <= 1'b1;
-      else if (timerAoverflow) cnt_out_r <= ~(sp_transmit & cnt_out_r);
-    end
+    if (!cra[6]) cnt_out_r <= 1'b1;
+    else if (timerAoverflow) cnt_out_r <= ~(sp_transmit & cnt_out_r);
   end
 end
 
