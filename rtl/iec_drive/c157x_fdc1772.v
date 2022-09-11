@@ -90,6 +90,9 @@ parameter MODEL            = 0;    // 0 - wd1770, 1 - fd1771, 2 - wd1772, 3 = wd
 // parameter EXT_MOTOR        = 1'b1; // != 0 if motor is controlled externally by floppy_motor
 parameter INVERT_HEAD_RA   = 1'b0; // != 0 - invert head in READ_ADDRESS reply
 
+parameter SYNC_A1_PATTERN  = 16'h4489;
+parameter SYNC_C2_PATTERN  = 16'h5224;
+
 // localparam IMG_ARCHIE      = 0;
 // localparam IMG_ST          = 1;
 // localparam IMG_BBC         = 2; // SSD, DSD formats
@@ -450,6 +453,7 @@ reg track_clear_strobe;
 
 always @(posedge clkcpu) begin
 	reg        busy;
+	reg        sector_found;
 	reg  [1:0] seek_state;
 	reg        notready_wait;
 	reg        irq_at_index;
@@ -484,6 +488,7 @@ always @(posedge clkcpu) begin
 		data_transfer_state <= 2'b00;
 		RNF <= 1'b0;
 		index_pulse_counter <= 0;
+		sector_found <= 0;
 	end else if (clk8m_en) begin
 		// sd_card_read <= 0;
 		// sd_card_write <= 0;
@@ -521,6 +526,8 @@ always @(posedge clkcpu) begin
 			min_busy_cnt <= MIN_BUSY_TIME;
 			notready_wait <= 1'b0;
 			data_transfer_state <= 2'b00;
+			check_crc <= 1'b0;
+			sector_found <= 1'b0;
 
 			if(cmd_type_1 || cmd_type_2 || cmd_type_3) begin
 				RNF <= 1'b0;
@@ -646,24 +653,21 @@ always @(posedge clkcpu) begin
 				end else begin
 					// read sector
 					if(cmd[7:5] == 3'b100) begin
-						if(!cmd_rx && index_pulse_counter == 0) begin
-							RNF <= 1'b1;
-							busy <= 1'b0;
-							irq_req <= 1'b1; // emit irq when command done
+						if(!fd_ready || (!cmd_rx && index_pulse_counter == 0) || (sector_found && data_transfer_done)) begin
+							sector_found <= 1'b0;
+							check_crc <= 1'b0;
+							RNF <= ~data_transfer_done;
+							if (data_transfer_done && cmd[4]) begin
+								sector_inc_strobe <= 1'b1; // multiple sector transfer
+							end else begin
+								busy <= 1'b0;
+								irq_req <= 1'b1; // emit irq when command done
+							end
 						end 
-						else begin
-							if(fd_ready && fd_sector_hdr_valid && (fd_track == track) && (fd_sector == sector) && fd_sector_data_start) begin
-								check_crc <= 1'b1;
-								data_transfer_start <= 1'b1; 
-							end
-
-							if(data_transfer_done) begin
-								if (cmd[4]) sector_inc_strobe <= 1'b1; // multiple sector transfer
-								else begin
-									busy <= 1'b0;
-									irq_req <= 1'b1; // emit irq when command done
-								end
-							end
+						else if(!sector_found && fd_sector_hdr_valid && (fd_track == track) && (fd_sector == sector) && fd_sector_data_start) begin
+							sector_found <= 1'b1;
+							check_crc <= 1'b1;
+							data_transfer_start <= 1'b1;
 						end
 					end
 
@@ -729,17 +733,18 @@ always @(posedge clkcpu) begin
 
 					// read address (used in 1571 rom)
 					if(cmd[7:4] == 4'b1100) begin
-						// we are busy until the next sector header passes under the head
-						if(fd_ready && fd_sector_hdr_start) begin
-							check_crc <= 1'b1;
-							data_transfer_start <= 1'b1;
-						end
-
-						if(data_transfer_done || (!cmd_rx && index_pulse_counter == 0)) begin
+						if(!fd_ready || (!cmd_rx && index_pulse_counter == 0) || (sector_found && data_transfer_done)) begin
+							sector_found <= 1'b0;
+							check_crc <= 1'b0;
  							RNF <= ~data_transfer_done;
 							busy <= 1'b0;
 							irq_req <= 1'b1; // emit irq when command done
-						end
+						end 
+						else if(!sector_found && fd_sector_hdr_start) begin
+							sector_found <= 1'b1;
+							check_crc <= 1'b1;
+							data_transfer_start <= 1'b1;
+						end 
 					end
 				end
 			end
@@ -881,9 +886,9 @@ reg data_transfer_done;
 reg  [15:0] shift_in_reg;
 wire [15:0] shift_in = { shift_in_reg[14:0], hf };
 reg   [3:0] shift_in_count;
- 
-wire sync_a1 = (shift_in == 16'h4489);
-wire sync_c2 = (shift_in == 16'h5224);
+
+wire sync_a1 = (shift_in == SYNC_A1_PATTERN);
+wire sync_c2 = (shift_in == SYNC_C2_PATTERN);
 wire sync    = (sync_a1 || sync_c2);
 
 reg       aligned;
@@ -923,6 +928,7 @@ reg        data_mark;
 reg  [1:0] sector_size_code;
 reg        align_on_sync;
 reg  [2:0] sync_detected;
+reg [10:0] data_read_count; // including CRC bytes
 reg  [7:0] data_out_read;
 reg        fd_track_updated;
 reg        crc_error_hdr, crc_error_data;
@@ -935,10 +941,29 @@ function [10:0] sector_size;
 	end
 endfunction
 
+function [15:0] crc;
+	input [15:0] curcrc;
+	input  [7:0] val;
+	reg    [3:0] i;
+	begin
+		crc = {curcrc[15:8] ^ val, 8'h00};
+		for (i = 0; i < 8; i=i+1'd1) begin
+			if(crc[15]) begin
+				crc = crc << 1;
+				crc = crc ^ 16'h1021;
+			end
+			else crc = crc << 1;
+		end
+		crc = {curcrc[7:0] ^ crc[15:8], crc[7:0]};
+	end
+endfunction
+
 always @(posedge clkcpu)
 begin
-	reg        dam_detected, idam_detected, last_sync_a1, read_header, read_data;
-   reg [10:0] read_count; // including CRC bytes
+	reg        last_sync_a1;
+	reg        dam_detected, idam_detected;
+	reg        read_header, read_data;
+	reg [15:0] crcval;
 
 	fd_track_updated <= 0;
 
@@ -955,8 +980,9 @@ begin
 		align_on_sync       <= 1;
 		read_header         <= 0;
 		read_data           <= 0;
-		read_count          <= 0;
+		data_read_count     <= 0;
 		fd_sector_hdr_valid <= 0;
+ 		crcval              <= 16'hFFFF;
 	end
 
 	if(!floppy_reset) begin
@@ -965,6 +991,8 @@ begin
 		dam_detected  <= 0;
 	end
 	else if(fd_dclk_en) begin
+		crcval <= aligned_sync_a1 ? 16'hCDB4 : crc(crcval, aligned_data);
+
 		if (aligned_sync_a1 || aligned_sync_c2) begin
 			last_sync_a1 <= aligned_sync_a1;
 			if (aligned_sync_a1 != last_sync_a1)
@@ -974,7 +1002,7 @@ begin
 
 			read_header <= 0;
 			read_data   <= 0;
-			read_count  <= 0;
+			data_read_count  <= 0;
 		end
 		else begin
 			sync_detected <= 0;
@@ -999,14 +1027,14 @@ begin
 				if (idam_detected) begin
 					fd_track            <= aligned_data;
 					fd_track_updated    <= 1;
-					read_count          <= 11'd6;
+					data_read_count     <= 11'd6;
 					fd_sector_hdr_start <= 1;
 					fd_sector_hdr_valid <= 0;
 					read_header         <= 1;
 				end
 				else begin
-					read_count <= read_count - 11'd1;
-					case(read_count)
+					data_read_count <= data_read_count - 11'd1;
+					case(data_read_count)
 						5: fd_sector        <= aligned_data;
 						4: sector_size_code <= aligned_data[1:0];
 					endcase
@@ -1016,16 +1044,16 @@ begin
 			else if (dam_detected || read_data) begin
 				data_out_read <= aligned_data;
 				if (dam_detected) begin
-					read_count           <= sector_size(sector_size_code) | 11'd2;
+					data_read_count      <= sector_size(sector_size_code) + 11'd2;
 					fd_sector_data_start <= 1;
 					read_data            <= 1;
 				end
 				else begin
-					read_count <= read_count - 11'd1;
+					data_read_count <= data_read_count - 11'd1;
 				end
 			end
 
-			if (read_count == 1) begin
+			if (data_read_count == 1) begin
 				read_data     <= 0;
 				read_header   <= 0;
 				align_on_sync <= 1;
@@ -1044,37 +1072,7 @@ begin
 	end
 end
 
-// crc calculation
-
-function [15:0] crc;
-	input [15:0] curcrc;
-	input  [7:0] val;
-	reg    [3:0] i;
-	begin
-		crc = {curcrc[15:8] ^ val, 8'h00};
-		for (i = 0; i < 8; i=i+1'd1) begin
-			if(crc[15]) begin
-				crc = crc << 1;
-				crc = crc ^ 16'h1021;
-			end
-			else crc = crc << 1;
-		end
-		crc = {curcrc[7:0] ^ crc[15:8], crc[7:0]};
-	end
-endfunction
-
-reg [15:0] crcval;
-
-always @(posedge clkcpu)
-begin
-	if (!floppy_reset || cmd_rx)
-		crcval = 16'hFFFF;
-	else if (fd_dclk_en)
-		crcval = aligned_sync_a1 ? 16'hCDB4 : crc(crcval, aligned_data);
-end
-
 // todo
-//  - read address & sector (drives 'data_out', 'drq_set' and 'data_lost')
 //  - track & sector writer (drives 'ht' and 'wgate')
 
 // -------------------- CPU data read/write -----------------------
@@ -1119,7 +1117,7 @@ always @(posedge clkcpu) begin
 
 		// read/write sector has SECTOR_SIZE data bytes
 		if(cmd[7:6] == 2'b10)
-			data_transfer_cnt <= sector_size(sector_size_code) | 11'd1;
+			data_transfer_cnt <= sector_size(sector_size_code) + 11'd1;
 
 		// write sector asserts drq earlier to fill up the data register in time
 		// if(cmd[7:5] == 3'b101) drq_set <= !data_in_valid;
@@ -1150,9 +1148,15 @@ always @(posedge clkcpu) begin
 			end
 
 			// count down and stop after last byte
-			data_transfer_cnt <= data_transfer_cnt - 11'd1;
-			if(data_transfer_cnt == 1)
-				data_transfer_done <= 1'b1;
+			if(data_transfer_cnt == 1) begin
+				// wait until data_read_count is 0 to wait on CRC check
+				if (data_read_count == 0) begin
+					data_transfer_done <= 1'b1;
+					data_transfer_cnt  <= 0;
+				end
+			end
+			else
+				data_transfer_cnt <= data_transfer_cnt - 11'd1;
 		end
 	end
 end
