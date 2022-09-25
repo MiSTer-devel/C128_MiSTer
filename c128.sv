@@ -970,6 +970,14 @@ wire        vdcHsync, vdcVsync;
 wire        vdcHblank, vdcVblank;
 wire  [7:0] vdcR, vdcG, vdcB;
 
+wire        c64_iec_atn;
+wire        c64_iec_clk_o;
+wire        c64_iec_data_o;
+wire        c64_iec_srq_n_o;
+wire        c64_iec_clk_i;
+wire        c64_iec_data_i;
+wire        c64_iec_srq_n_i;
+
 fpga64_sid_iec fpga64
 (
    .clk32(clk_sys),
@@ -1071,13 +1079,13 @@ fpga64_sid_iec fpga64
    .audio_l(audio_l),
    .audio_r(audio_r),
 
-   .iec_data_o(c64_iec_data),
    .iec_atn_o(c64_iec_atn),
-   .iec_clk_o(c64_iec_clk),
-   .iec_srq_n_o(c64_iec_srq_n),
-   .iec_data_i(drive_iec_data),
-   .iec_clk_i(drive_iec_clk),
-   .iec_srq_n_i(drive_iec_srq_n),
+   .iec_data_o(c64_iec_data_o),
+   .iec_clk_o(c64_iec_clk_o),
+   .iec_srq_n_o(c64_iec_srq_n_o),
+   .iec_data_i(c64_iec_data_i),
+   .iec_clk_i(c64_iec_clk_i),
+   .iec_srq_n_i(c64_iec_srq_n_i),
 
    .pb_i(pb_i),
    .pb_o(pb_o),
@@ -1128,19 +1136,13 @@ c1351 mouse
 wire       c128_n;
 wire       z80_n;
 
-wire       c64_iec_clk;
-wire       c64_iec_data;
-wire       c64_iec_atn;
-wire       c64_iec_srq_n;
-
-wire       drive_iec_clk   = drive_iec_clk_o   & ext_iec_clk;
-wire       drive_iec_data  = drive_iec_data_o  & ext_iec_data;
-wire       drive_iec_srq_n = drive_iec_srq_n_o & ext_iec_srq_n;
-
 wire [7:0] drive_par_i;
 wire       drive_stb_i;
 wire [7:0] drive_par_o;
 wire       drive_stb_o;
+wire       drive_iec_clk_i;
+wire       drive_iec_data_i;
+wire       drive_iec_srq_n_i;
 wire       drive_iec_clk_o;
 wire       drive_iec_data_o;
 wire       drive_iec_srq_n_o;
@@ -1163,9 +1165,9 @@ iec_drive iec_drive
    .ce(drive_ce),
 
    .iec_atn_i(c64_iec_atn),
-   .iec_data_i(c64_iec_data & ext_iec_data),
-   .iec_clk_i(c64_iec_clk & ext_iec_clk),
-   .iec_fclk_i(c64_iec_srq_n),
+   .iec_data_i(drive_iec_data_i),
+   .iec_clk_i(drive_iec_clk_i),
+   .iec_fclk_i(drive_iec_srq_n_i),
    .iec_data_o(drive_iec_data_o),
    .iec_clk_o(drive_iec_clk_o),
    .iec_fclk_o(drive_iec_srq_n_o),
@@ -1224,12 +1226,12 @@ always @(posedge clk_sys) begin
    reg c64_iec_clk_old, drive_iec_clk_old, drive_stb_i_old, drive_stb_o_old;
    integer to = 0;
 
-   c64_iec_clk_old <= c64_iec_clk;
-   drive_iec_clk_old <= drive_iec_clk;
+   c64_iec_clk_old <= c64_iec_clk_o;
+   drive_iec_clk_old <= drive_iec_clk_o;
    drive_stb_i_old <= drive_stb_i;
    drive_stb_o_old <= drive_stb_o;
 
-   if(((c64_iec_clk_old != c64_iec_clk) || (drive_iec_clk_old != drive_iec_clk)) ||
+   if(((c64_iec_clk_old != c64_iec_clk_o) || (drive_iec_clk_old != drive_iec_clk_o)) ||
       (disk_parport && ((drive_stb_i_old != drive_stb_i) || (drive_stb_o_old != drive_stb_o))))
    begin
       disk_access <= 1;
@@ -1239,16 +1241,49 @@ always @(posedge clk_sys) begin
    else disk_access <= 0;
 end
 
-wire ext_iec_en    = status[25];
-wire ext_iec_clk   = USER_IN[2] | ~ext_iec_en;
-wire ext_iec_data  = USER_IN[4] | ~ext_iec_en;
-wire ext_iec_srq_n = USER_IN[6] | ~ext_iec_en;
+wire ext_iec_en = status[25];
 
-assign USER_OUT[2] = (c64_iec_clk & drive_iec_clk_o)  | ~ext_iec_en;
+iec_io iec_io_clk 
+(
+   .ext_en(ext_iec_en), 
+
+   .cpu_o(c64_iec_clk_o),   
+   .drive_o(drive_iec_clk_o),    
+   .ext_o(USER_IN[2]),
+
+   .cpu_i(c64_iec_clk_i),   
+   .drive_i(drive_iec_clk_i),   
+   .ext_i(USER_OUT[2])
+);
+
+iec_io iec_io_data 
+(
+   .ext_en(ext_iec_en), 
+
+   .cpu_o(c64_iec_data_o),  
+   .drive_o(drive_iec_data_o),   
+   .ext_o(USER_IN[4]),  
+
+   .cpu_i(c64_iec_data_i),  
+   .drive_i(drive_iec_data_i),  
+   .ext_i(USER_OUT[4])
+);
+
+iec_io iec_io_srq_n 
+(
+   .ext_en(ext_iec_en),
+
+   .cpu_o(c64_iec_srq_n_o), 
+   .drive_o(drive_iec_srq_n_o), 
+   .ext_o(USER_IN[6]), 
+
+   .cpu_i(c64_iec_srq_n_i), 
+   .drive_i(drive_iec_srq_n_i), 
+   .ext_i(USER_OUT[6])
+);
+
 assign USER_OUT[3] = (reset_n & ~status[6]) | ~ext_iec_en;
-assign USER_OUT[4] = (c64_iec_data & drive_iec_data_o) | ~ext_iec_en;
 assign USER_OUT[5] = c64_iec_atn | ~ext_iec_en;
-assign USER_OUT[6] = (c64_iec_srq_n & drive_iec_srq_n_o) | ~ext_iec_en;
 
 wire vicHblank, vicVblank;
 wire vicHsync_out, vicVsync_out;

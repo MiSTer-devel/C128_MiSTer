@@ -24,4 +24,5 @@ set_global_assignment -name VHDL_FILE rtl/fpga64_buslogic.vhd
 set_global_assignment -name VHDL_FILE rtl/fpga64_sid_iec.vhd
 set_global_assignment -name VHDL_FILE rtl/rgbicolor.vhd
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/osdinfo.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/iec_io.sv
 set_global_assignment -name SYSTEMVERILOG_FILE c128.sv
