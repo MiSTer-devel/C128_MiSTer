@@ -84,6 +84,7 @@ reg [ 7:0] sp_shiftreg;
 reg        icr3;
 
 reg        cnt_in_prev;
+reg        cnt_in_r;
 reg        cnt_out_r;
 reg [ 2:0] cnt_pulsecnt;
 
@@ -219,7 +220,7 @@ always @(posedge clk) begin
   else begin
     if (phi2_p) begin
       if (int_reset) icr[0] <= 0;
-      countA0 <= cnt_in && ~cnt_in_prev;
+      countA0 <= cnt_in_r && ~cnt_in_prev;
       countA1 <= countA0;
       countA2 <= timerAin & cra[0];
       countA3 <= countA2;
@@ -279,7 +280,7 @@ end
 // Timer B
 reg countB0, countB1, countB2, countB3, loadB1, oneShotB0;
 reg timerBff;
-wire timerBin = crb[6] ? timerAoverflow & (~crb[5] | cnt_in) : (~crb[5] | countB1);
+wire timerBin = crb[6] ? timerAoverflow & (~crb[5] | cnt_in_r) : (~crb[5] | countB1);
 wire [15:0] newTimerBVal = countB3 ? (timer_b - 1'b1) : timer_b;
 wire timerBoverflow = !newTimerBVal & countB2;
 
@@ -299,7 +300,7 @@ always @(posedge clk) begin
         icr[1] <= 0;
         timer_b_int <= 0;
       end
-      countB0 <= cnt_in && ~cnt_in_prev;
+      countB0 <= cnt_in_r && ~cnt_in_prev;
       countB1 <= countB0;
       countB2 <= timerBin & crb[0];
       countB3 <= countB2;
@@ -501,7 +502,7 @@ always @(posedge clk) begin
       icr3 <= 1'b0;
 
       if (!cra[6]) begin // input
-        if (cnt_in && !cnt_in_prev) begin
+        if (cnt_in_r && !cnt_in_prev) begin
           sp_shiftreg = { sp_shiftreg[6:0], sp_in };
           if (cnt_pulsecnt == 3'h0) begin
             sdr  <= sp_shiftreg;
@@ -532,6 +533,8 @@ end
 always @(posedge clk) begin
   reg cra6_prev;
   if (!res_n) begin
+    cnt_in_r     <= 1'b1;
+    cnt_in_prev  <= 1'b1;
     cnt_out_r    <= 1'b1;
     cnt_out      <= 1'b1;
     cnt_pulsecnt <= 3'h0;
@@ -539,11 +542,12 @@ always @(posedge clk) begin
   end
   else if (phi2_p) begin
     cra6_prev <= cra[6];
-    cnt_in_prev <= cnt_in;
+    cnt_in_r <= cnt_in;
+    cnt_in_prev <= cnt_in_r;
     cnt_out <= cnt_out_r;
 
     if (cra[6] != cra6_prev) cnt_pulsecnt <= 3'h0;
-    if (cra[6] ? (!cnt_out_r && cnt_out) : (!cnt_in && cnt_in_prev)) cnt_pulsecnt <= cnt_pulsecnt + 1'b1;
+    if (cra[6] ? (!cnt_out_r && cnt_out) : (!cnt_in_r && cnt_in_prev)) cnt_pulsecnt <= cnt_pulsecnt + 1'b1;
 
     if (!cra[6]) cnt_out_r <= 1'b1;
     else if (timerAoverflow) cnt_out_r <= ~(sp_transmit & cnt_out_r);
