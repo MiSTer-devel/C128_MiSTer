@@ -138,10 +138,9 @@ in that case `-l 0xC000` should be used.
 
 All signals are 3.3V LVTTL and must be properly converted to required levels!
 
-The IEC/SRQ (USER_IO6) line is required for IEC fast serial operation with an external 157x or 1581 drive.
-You will need a MiSTer user port adapter that supports the SRQ line. C64 MiSTer user port to IEC adapters do not connect this line.
-
-:warning: External fast serial is currently untested. Use at your own risk.
+The IEC /SRQ (USER_IO6) line is required for IEC fast serial operation with an external 157x or 1581 drive.
+You will need a MiSTer user port adapter that connects the /SRQ line. 
+Assume a MiSTer user port to IEC adapter does not connect this line unless it is explicitly stated that it supports the C128 fast serial protocol.
 
 # C64 features
 
