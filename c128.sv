@@ -1266,6 +1266,7 @@ wire ext_iec_en = status[25];
 
 iec_io iec_io_clk 
 (
+   .clk(clk_sys),
    .ext_en(ext_iec_en), 
 
    .cpu_o(c64_iec_clk_o),   
@@ -1279,6 +1280,7 @@ iec_io iec_io_clk
 
 iec_io iec_io_data 
 (
+   .clk(clk_sys),
    .ext_en(ext_iec_en), 
 
    .cpu_o(c64_iec_data_o),  
@@ -1292,6 +1294,7 @@ iec_io iec_io_data
 
 iec_io iec_io_srq_n 
 (
+   .clk(clk_sys),
    .ext_en(ext_iec_en),
 
    .cpu_o(c64_iec_srq_n_o), 

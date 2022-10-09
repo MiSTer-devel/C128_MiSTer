@@ -95,27 +95,26 @@ always @(posedge clk) begin
 end
 
 // reset drive when drive mode changes
-reg  drv_mode_chg = 0;
-wire reset_drv = reset | drv_mode_chg;
+wire reset_drv;
 always @(posedge clk) begin
 	reg [1:0] last_drv_mode;
-	reg [7:0] reset_hold;
-	
+	reg [3:0] reset_hold;
+
 	if (reset) begin
 		last_drv_mode <= drv_mode;
-		drv_mode_chg  <= 0;
 		reset_hold    <= 0;
+		reset_drv	  <= 1;
 	end
-	else if (ph2_r[1]) begin
+	else if (ph2_r[0]) begin
 		last_drv_mode <= drv_mode;
 		if (last_drv_mode != drv_mode) begin
-			reset_hold   <= '1;
-			drv_mode_chg <= 1;
+			reset_hold <= '1;
+			reset_drv  <= 1;
 		end
-		else if (|reset_hold)
-			reset_hold   <= reset_hold - 1'd1;
+		else if (reset_hold)
+			reset_hold <= reset_hold - 1'd1;
 		else
-			drv_mode_chg <= 0;
+			reset_drv  <= 0;
 	end
 end
 

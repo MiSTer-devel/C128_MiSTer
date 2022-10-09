@@ -55,7 +55,7 @@ module c157x_multi #(parameter PARPORT=1,DRIVES=2)
 	output  [7:0] sd_buff_din[NDR],
 	input         sd_buff_wr,
 
-   input   [1:0] rom_sel,
+	input   [1:0] rom_sel,
 	input  [14:0] rom_addr,
 	input   [7:0] rom_data,
 	input         rom_wr

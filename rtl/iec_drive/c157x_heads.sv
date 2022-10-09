@@ -16,12 +16,12 @@ module c157x_heads #(parameter DRIVE, parameter TRACK_BUF_LEN)
 	input        enable,
 
 	input  [1:0] freq,  // GCR bitrate
-   input        mode,  // GCR mode (0=write, 1=read)
-   input        wgate, // MFM wgate (0=read, 1=write)
+	input        mode,  // GCR mode (0=write, 1=read)
+	input        wgate, // MFM wgate (0=read, 1=write)
 	output       write, // Write mode
 
 	input	       hinit,	
-   output       hclk,
+	output       hclk,
 	output       hf,    // signal from head
 	input        ht,    // signal to head
 
@@ -44,7 +44,7 @@ wire [5:0] bitrate   = mfm ? 6'b100000 : {2'b00,freq,2'b00};
 
 wire [7:0] sd_buff_do;
 assign sd_buff_din = sd_buff_addr == 0 ? track_len[7:0]
-                   : sd_buff_addr == 1 ? {2'b00, track_len[13:8]}
+						 : sd_buff_addr == 1 ? {2'b00, track_len[13:8]}
 						 : sd_buff_addr > track_len+2 ? 8'hFF : sd_buff_do;
 
 reg [13:0] track_len;
@@ -61,7 +61,7 @@ always @(posedge sd_clk) begin
 	freq_l <= freq;
 	if (!sd_busy && write && (track_len == 0 || wgate != mfm || freq_l != freq))
 		track_len <= wgate ? 14'd12500 
-		       : freq == 0 ? 14'd6250 
+				 : freq == 0 ? 14'd6250 
 				 : freq == 1 ? 14'd6666 
 				 : freq == 2 ? 14'd7142 : 14'd7692;
 end

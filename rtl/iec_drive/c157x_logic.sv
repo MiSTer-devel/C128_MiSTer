@@ -24,10 +24,10 @@ module c157x_logic #(DRIVE)
 	input        iec_clk_in,
 	input        iec_data_in,
 	input        iec_atn_in,
-   input        iec_fclk_in,
+	input        iec_fclk_in,
 	output       iec_clk_out,
 	output       iec_data_out,
-   output       iec_fclk_out,
+	output       iec_fclk_out,
 
 	input        ext_en,
 	output[14:0] rom_addr,
@@ -62,8 +62,12 @@ module c157x_logic #(DRIVE)
 // clock control
 reg [2:0] accl;
 always @(posedge clk)
-	if (ph2_r[accl[1]]) 
+begin
+	if (~|drv_mode)
+		accl <= 3'b000;
+	else if (ph2_r[accl[1]]) 
 		accl <= {accl[1:0],accl_ctl};
+end
 
 wire halt  = accl[0]^accl[2];
 wire ena_f = ph2_f[accl[1]] & ~halt;
@@ -304,43 +308,43 @@ assign     iec_fclk_out = ~fser_dir | cia_cnt_out;
 mos6526_8520 cia
 (
 	.res_n(~reset & |drv_mode),
-   .clk(clk),
-   .mode(&drv_mode ? 2'b11 : 2'b00),
-   .phi2_p(ena_f),
-   .phi2_n(ena_r),
-   .cs_n(~cia_cs),
-   .rw(cpu_rw),
+	.clk(clk),
+	.mode(&drv_mode ? 2'b11 : 2'b00),
+	.phi2_p(ena_f),
+	.phi2_n(ena_r),
+	.cs_n(~cia_cs),
+	.rw(cpu_rw),
 
-   .rs(cpu_a[3:0]),
-   .db_in(cpu_do),
-   .db_out(cia_do),
+	.rs(cpu_a[3:0]),
+	.db_in(cpu_do),
+	.db_out(cia_do),
 
 	.pa_out(cia_pa_o),
 	.pa_oe(cia_pa_oe),
-   .pa_in(cia_pa_o | ~cia_pa_oe),
+	.pa_in(cia_pa_o | ~cia_pa_oe),
 
 	.pb_out(cia_pb_o),
 	.pb_oe(cia_pb_oe),
-   .pb_in((ext_en ? par_data_in : 8'hff) & (cia_pb_o | ~cia_pb_oe)),
+	.pb_in((ext_en ? par_data_in : 8'hff) & (cia_pb_o | ~cia_pb_oe)),
 
 	.pc_n(cia_pc_n),
 
-   .flag_n(ext_en ? par_stb_in : 1'b1),
+	.flag_n(ext_en ? par_stb_in : 1'b1),
 
-   .tod(1'b1),
+	.tod(1'b1),
 
-   .sp_in(fser_dir | iec_data_in),
-   .sp_out(cia_sp_out),
+	.sp_in(fser_dir | iec_data_in),
+	.sp_out(cia_sp_out),
 
-   .cnt_in(fser_dir | iec_fclk_in),
-   .cnt_out(cia_cnt_out),
+	.cnt_in(fser_dir | iec_fclk_in),
+	.cnt_out(cia_cnt_out),
 
-   .irq_n(cia_irq_n)
+	.irq_n(cia_irq_n)
 );
 
 // Head signals mux
 
-assign     ht    =  gcr_ht | mfm_ht;
+assign     ht = gcr_ht | (mfm_ht & |drv_mode);
 
 // 64H156 1571-U6 signals
 
@@ -351,7 +355,7 @@ wire       gcr_ht;
 c157x_h156 c157x_h156
 (
 	.clk(clk),
-	.reset(reset | ~|drv_mode),
+	.reset(reset),
 	.enable(drive_enable),
 	.mhz1_2(accl[1]),
 	
@@ -374,13 +378,16 @@ c157x_h156 c157x_h156
 
 wire [7:0] wd_do;
 wire       mfm_ht;
+wire       mfm_wgate;
+
+assign     wgate = mfm_wgate & |drv_mode;
 
 c157x_fdc1772 #(.MODEL(0)) c157x_fdc1772
 (
-   .clkcpu(clk),
-   .clk8m_en(wd_ce),
+	.clkcpu(clk),
+	.clk8m_en(wd_ce),
 
-   .floppy_reset(~reset & |drv_mode),
+	.floppy_reset(~reset & |drv_mode),
 	.floppy_present(disk_present),
 	.floppy_side(side),
 	.floppy_motor(mtr),
@@ -390,13 +397,13 @@ c157x_fdc1772 #(.MODEL(0)) c157x_fdc1772
 	.hclk(hclk),
 	.ht(mfm_ht),
 	.hf(hf),
-	.wgate(wgate),
+	.wgate(mfm_wgate),
 
-   .cpu_addr(cpu_a[1:0]),
-   .cpu_sel(wd_cs),
-   .cpu_rw(cpu_rw | ~ena_r),
-   .cpu_din(cpu_do),
-   .cpu_dout(wd_do)
+	.cpu_addr(cpu_a[1:0]),
+	.cpu_sel(wd_cs),
+	.cpu_rw(cpu_rw | ~ena_r),
+	.cpu_din(cpu_do),
+	.cpu_dout(wd_do)
 );
 
 endmodule

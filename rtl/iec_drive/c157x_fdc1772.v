@@ -419,12 +419,12 @@ reg [15:0] step_pulse_cnt;
 
 // the step rate is only valid for command type I
 wire [15:0] step_rate_clk = 
-           (cmd[1:0]==2'b00)               ? (16'd6 *CLK_EN-1'd1):   //  6ms
-           (cmd[1:0]==2'b01)               ? (16'd12*CLK_EN-1'd1):   // 12ms
-           (MODEL == 2 && cmd[1:0]==2'b10) ? (16'd2 *CLK_EN-1'd1):   //  2ms
-           (cmd[1:0]==2'b10)               ? (16'd20*CLK_EN-1'd1):   // 20ms
-           (MODEL == 2)                    ? (16'd3 *CLK_EN-1'd1):   //  3ms
-                                             (16'd30*CLK_EN-1'd1);   // 30ms
+		   (cmd[1:0]==2'b00)               ? (16'd6 *CLK_EN-1'd1):   //  6ms
+		   (cmd[1:0]==2'b01)               ? (16'd12*CLK_EN-1'd1):   // 12ms
+		   (MODEL == 2 && cmd[1:0]==2'b10) ? (16'd2 *CLK_EN-1'd1):   //  2ms
+		   (cmd[1:0]==2'b10)               ? (16'd20*CLK_EN-1'd1):   // 20ms
+		   (MODEL == 2)                    ? (16'd3 *CLK_EN-1'd1):   //  3ms
+											 (16'd30*CLK_EN-1'd1);   // 30ms
 
 reg [15:0] step_rate_cnt;
 reg [23:0] delay_cnt;
@@ -980,13 +980,13 @@ end
 
 // the status byte
 wire [7:0] status = { (MODEL == 1 || MODEL == 3) ? !floppy_ready : motor_on,
-		      (cmd[7:5] == 3'b101 || cmd[7:4] == 4'b1111 || cmd_type_1) && fd_writeprot, // wrprot (only for write!)
-		      cmd_type_1?motor_spin_up_done:1'b0,  // data mark
-		      RNF,                                 // seek error/record not found
-		      1'b0,                                // crc error
-		      cmd_type_1?1'b0:data_lost,           // track0/data lost
-		      cmd_type_1?~fd_index:drq,            // index mark/drq
-		      cmd_busy } /* synthesis keep */;
+			  (cmd[7:5] == 3'b101 || cmd[7:4] == 4'b1111 || cmd_type_1) && fd_writeprot, // wrprot (only for write!)
+			  cmd_type_1?motor_spin_up_done:1'b0,  // data mark
+			  RNF,                                 // seek error/record not found
+			  1'b0,                                // crc error
+			  cmd_type_1?1'b0:data_lost,           // track0/data lost
+			  cmd_type_1?~fd_index:drq,            // index mark/drq
+			  cmd_busy } /* synthesis keep */;
 
 reg [7:0] track /* verilator public */;
 reg [7:0] sector;
