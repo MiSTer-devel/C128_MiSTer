@@ -12,13 +12,13 @@ module c157x_logic #(DRIVE)
 (
 	input        clk,
 	input        reset,
-	input  [1:0] drv_mode,     // 00: 1541, 01: 1570, 10: 1571, (11: 1571CR todo)
+	input  [1:0] drv_mode,      // 00: 1541, 01: 1570, 10: 1571, (11: 1571CR todo)
 
 	input        wd_ce,
 	input  [1:0] ph2_r,
 	input  [1:0] ph2_f,
 
-	output       act,		      // activity LED
+	output       act,		    // activity LED
 
 	// serial bus
 	input        iec_clk_in,
@@ -50,8 +50,9 @@ module c157x_logic #(DRIVE)
 	
 	output       mode,          // GCR mode (0=write, 1=read)
 	output       wgate,         // MFM wgate (0=read, 1=write)
-	output [1:0] stp,			    // stepper motor control
-	output       mtr,			    // drive motor on/off
+	output       fdc_busy,      // WD1770 busy
+	output [1:0] stp,			// stepper motor control
+	output       mtr,			// drive motor on/off
 	output [1:0] freq,		    // motor frequency
 	input        tr00_sense,    // track 0 sense
 	input        index_sense,   // index pulse
@@ -389,7 +390,7 @@ c157x_fdc1772 #(.MODEL(0)) c157x_fdc1772
 
 	.floppy_reset(~reset & |drv_mode),
 	.floppy_present(disk_present),
-	.floppy_side(side),
+	// .floppy_side(side),
 	.floppy_motor(mtr),
 	.floppy_index(~index_sense),
 	.floppy_wprot(~wps_n),
@@ -399,6 +400,7 @@ c157x_fdc1772 #(.MODEL(0)) c157x_fdc1772
 	.ht(mfm_ht),
 	.hf(hf),
 	.wgate(mfm_wgate),
+	.busy(fdc_busy),
 
 	.cpu_addr(cpu_a[1:0]),
 	.cpu_sel(wd_cs),

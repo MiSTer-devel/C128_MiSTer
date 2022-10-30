@@ -122,6 +122,7 @@ wire       mode, wgate;
 wire [1:0] stp;
 wire       mtr;
 wire       act;
+wire       fdc_busy;
 wire [1:0] freq;
 
 c157x_logic #(.DRIVE(DRIVE)) c157x_logic
@@ -159,6 +160,7 @@ c157x_logic #(.DRIVE(DRIVE)) c157x_logic
 	.side(side),
 	.mode(mode),
 	.wgate(wgate),
+	.fdc_busy(fdc_busy),
 
 	// .din(dgcr_do),
 	// .dout(gcr_di),
@@ -267,7 +269,7 @@ c157x_heads #(.DRIVE(DRIVE), .TRACK_BUF_LEN(SD_BLK_CNT_157X*256)) c157x_heads
 
 	.index(index),
 
-	.sd_busy(sd_busy),
+	// .sd_busy(sd_busy),
 	.sd_clk(clk_sys),
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
@@ -320,7 +322,7 @@ always @(posedge clk) begin
 		track_modified <= 0;
 	end else begin
 		if (mtr) begin
-			if (move[0] && ~move[1] && track_num < 84) track_num <= track_num + 1'b1;
+			if (move[0] && !move[1] && track_num < 84) track_num <= track_num + 1'b1;
 			if (move[0] &&  move[1] && track_num > 0 ) track_num <= track_num - 1'b1;
 			if ((move[0] || side != side_old) && track_modified) begin
 				save_track <= ~save_track;
@@ -328,7 +330,7 @@ always @(posedge clk) begin
 			end
 		end
 
-		if (track_modified & ~write & ~act) begin	// stopping activity
+		if (track_modified && !write && !act && !fdc_busy && !sd_busy) begin	// stopping activity
 			save_track <= ~save_track;
 			track_modified <= 0;
 		end

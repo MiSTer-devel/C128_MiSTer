@@ -20,14 +20,14 @@ module c157x_heads #(parameter DRIVE, parameter TRACK_BUF_LEN)
 	input        wgate, // MFM wgate (0=read, 1=write)
 	output       write, // Write mode
 
-	input	       hinit,	
+	input	     hinit,	
 	output       hclk,
 	output       hf,    // signal from head
 	input        ht,    // signal to head
 
 	output       index,
 	
-	input			 sd_busy,
+	// input        sd_busy,
 	input        sd_clk,
 	input [15:0] sd_buff_addr,
 	input  [7:0] sd_buff_dout,
@@ -40,7 +40,7 @@ assign     write     = ~mode ^ wgate;
 assign     sd_update = buff_we;
 
 wire       mfm       = track_len[13]; // assume tracks >= 8192 bytes are MFM
-wire [5:0] bitrate   = mfm ? 6'b100000 : {2'b00,freq,2'b00};
+wire [5:0] bitrate   = mfm ? 6'b10_0000 : {2'b00,freq,2'b00};
 
 wire [7:0] sd_buff_do;
 assign sd_buff_din = sd_buff_addr == 0 ? track_len[7:0]
@@ -59,7 +59,7 @@ always @(posedge sd_clk) begin
 		endcase
 
 	freq_l <= freq;
-	if (!sd_busy && write && (track_len == 0 || wgate != mfm || freq_l != freq))
+	if (/*!sd_busy &&*/ write && (track_len == 0 || wgate != mfm || freq_l != freq))
 		track_len <= wgate ? 14'd12500 
 				 : freq == 0 ? 14'd6250 
 				 : freq == 1 ? 14'd6666 
@@ -94,7 +94,7 @@ always @(posedge clk) begin
 		pulse_cnt <= 22'd3_200_000;
 		index <= 0;
 	end
-	else if (ce && ~sd_busy) begin
+	else if (ce /*&& !sd_busy*/) begin
 		if (track_len == 0 && pulse_cnt) begin
 			pulse_cnt <= pulse_cnt - 22'd1;
 			index <= 0;
@@ -142,12 +142,12 @@ always @(posedge clk) begin
 			buff_we   <= 1;
 		end
 	end
-	else if (~sd_busy && ce) begin
+	else if (/*~sd_busy &&*/ ce) begin
 		if (buff_addr >= track_len+2)
 			buff_addr <= 2;
 
-		if (bit_clk_cnt == 'b110000) begin
-			if (bit_cnt == 0)	buff_di <= buff_do;
+		if (bit_clk_cnt == 'b11_0000) begin
+			if (bit_cnt == 0) buff_di <= buff_do;
 			if (write) begin
 				buff_di[~bit_cnt] <= ht;
 				hf <= ht;

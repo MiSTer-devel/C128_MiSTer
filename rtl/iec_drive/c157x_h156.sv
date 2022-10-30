@@ -23,7 +23,7 @@ module c157x_h156
 
 	input  [7:0] din,
 	output [7:0] dout,
-	input		    ted,
+	input        ted,
 	input        soe,
 	output       sync_n,
 	output       byte_n
