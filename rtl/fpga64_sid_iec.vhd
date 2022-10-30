@@ -1179,8 +1179,9 @@ d4080_sense <= d4080_sense_kb;
 Keyboard: entity work.fpga64_keyboard
 port map (
    clk => clk32,
-
    reset => kbd_reset,
+   alt_crsr => not mmu_z80_n,  -- use alternative (top row) cursor keys by default in Z80 mode
+
    ps2_key => ps2_key,
 
    joyA => not unsigned(joyA(6 downto 0)),
