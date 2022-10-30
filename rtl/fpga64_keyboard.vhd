@@ -37,18 +37,19 @@ use IEEE.numeric_std.ALL;
 
 entity fpga64_keyboard is
 	port (
-		clk     : in std_logic;
-		reset   : in std_logic;
-
-		ps2_key : in std_logic_vector(10 downto 0);
-		joyA    : in unsigned(6 downto 0);
-		joyB    : in unsigned(6 downto 0);
-
-		pai     : in unsigned(7 downto 0);
-		pbi     : in unsigned(7 downto 0);
-		pao     : out unsigned(7 downto 0);
-		pbo     : out unsigned(7 downto 0);
-		ki      : in unsigned(2 downto 0);
+		clk         : in std_logic;
+		reset       : in std_logic;
+		alt_crsr    : in std_logic;  -- when set, uses top-row cursor keys as default and FN switches to the original cursor keys
+    
+		ps2_key     : in std_logic_vector(10 downto 0);
+		joyA        : in unsigned(6 downto 0);
+		joyB        : in unsigned(6 downto 0);
+    
+		pai         : in unsigned(7 downto 0);
+		pbi         : in unsigned(7 downto 0);
+		pao         : out unsigned(7 downto 0);
+		pbo         : out unsigned(7 downto 0);
+		ki          : in unsigned(2 downto 0);
 
 		restore_key : out std_logic;
 		mod_key     : out std_logic;
@@ -203,6 +204,8 @@ architecture rtl of fpga64_keyboard is
 
 	signal last_key : std_logic_vector(10 downto 0);
 
+	signal key_fn_crsr : std_logic;
+
 begin
 	delay_end <= '1' when delay_cnt = 0 else '0';
 
@@ -252,6 +255,7 @@ begin
 	end process;
 
 	key_shift <= key_shiftl or key_shiftr or shift_lock_state;
+	key_fn_crsr <= key_fn xor alt_crsr;
 
 	pressed <= ps2_key(9);
 	extended<= ps2_key(8) = '1';
@@ -281,12 +285,12 @@ begin
 				((not backwardsReadingEnabled) or
 				((pbi(0) or not (key_del or key_inst)) and
 				(pbi(1) or not (key_return and not key_fn)) and
-				(pbi(2) or not ((key_left or key_right) and not key_fn)) and
+				(pbi(2) or not ((key_left or key_right) and not key_fn_crsr)) and
 				(pbi(3) or not ((key_F7 or key_F8) and not key_fn)) and
 				(pbi(4) or not ((key_F1 or key_F2) and not key_fn)) and
 				(pbi(5) or not ((key_F3 or key_F4) and not key_fn)) and
 				(pbi(6) or not ((key_F5 or key_F6) and not key_fn)) and
-				(pbi(7) or not ((key_up or key_down) and not key_fn))));
+				(pbi(7) or not ((key_up or key_down) and not key_fn_crsr))));
 			pao(1) <= pai(1) and joyB(1) and
 				((not backwardsReadingEnabled) or
 				((pbi(0) or not (key_3 and not key_fn)) and
@@ -298,7 +302,7 @@ begin
 				(pbi(6) or not key_E) and
 				(pbi(7) or not (
 					key_inst 
-					or ((key_left or key_up) and not key_fn) 
+					or ((key_left or key_up) and not key_fn_crsr) 
 					or ((key_F2 or key_F4 or key_F6 or key_F8) and not key_fn) 
 					or ((key_shiftl or shift_lock_state) and not key_8s)
 				))));
@@ -350,7 +354,7 @@ begin
 				(pbi(3) or not key_home) and
 				(pbi(4) or not (
 					key_inst 
-					or ((key_left or key_up) and not key_fn) 
+					or ((key_left or key_up) and not key_fn_crsr) 
 					or ((key_F2 or key_F4 or key_F6 or key_F8) and not key_fn) 
 					or (key_shiftr and not key_8s)
 				)) and
@@ -394,7 +398,7 @@ begin
 				(ki(1) or not (key_numplus or (key_plus and key_fn))) and
 				(ki(2) or not (key_num0 or (key_0 and key_fn)));
 			pbo(2) <= pbi(2) and joyA(2) and
-				(pai(0) or not ((key_left or key_right) and not key_fn)) and
+				(pai(0) or not ((key_left or key_right) and not key_fn_crsr)) and
 				(pai(1) or not key_A) and
 				(pai(2) or not key_D) and
 				(pai(3) or not key_G) and
@@ -416,7 +420,7 @@ begin
 				(pai(7) or not (key_2 and not key_fn)) and
 				(ki(0) or not (key_tab or (key_F3 and key_fn))) and
 				(ki(1) or not (key_linefd or (key_F6 and key_fn))) and
-				(ki(2) or not (key_up and key_fn));
+				(ki(2) or not (key_up and key_fn_crsr));
 			pbo(4) <= pbi(4) and joyA(4) and
 				(pai(0) or not ((key_F1 or key_F2) and not key_fn)) and
 				(pai(1) or not key_Z) and
@@ -426,14 +430,14 @@ begin
 				(pai(5) or not (key_dot and not key_fn)) and
 				(pai(6) or not (
 					key_inst 
-					or ((key_left or key_up) and not key_fn)
+					or ((key_left or key_up) and not key_fn_crsr)
 					or ((key_F2 or key_F4 or key_F6 or key_F8) and not key_fn) 
 					or (key_shiftr and not key_8s)
 				)) and
 				(pai(7) or not ((key_space and not key_fn) or not joyA(5) or not joyB(5))) and
 				(ki(0) or not (key_num2 or (key_2 and key_fn))) and
 				(ki(1) or not (key_enter or (key_return and key_fn))) and
-				(ki(2) or not (key_down and key_fn));
+				(ki(2) or not (key_down and key_fn_crsr));
 			pbo(5) <= pbi(5) and
 				(pai(0) or not ((key_F3 or key_F4) and not key_fn)) and
 				(pai(1) or not key_S) and
@@ -445,7 +449,7 @@ begin
 				(pai(7) or not key_commodore) and
 				(ki(0) or not (key_num4 or (key_4 and key_fn))) and
 				(ki(1) or not (key_num6 or (key_6 and key_fn))) and
-				(ki(2) or not (key_left and key_fn));
+				(ki(2) or not (key_left and key_fn_crsr));
 			pbo(6) <= pbi(6) and
 				(pai(0) or not ((key_F5 or key_F6) and not key_fn)) and
 				(pai(1) or not key_E) and
@@ -457,12 +461,12 @@ begin
 				(pai(7) or not key_Q) and
 				(ki(0) or not (key_num7 or (key_7 and key_fn))) and
 				(ki(1) or not (key_num9 or (key_9 and key_fn))) and
-				(ki(2) or not (key_right and key_fn));
+				(ki(2) or not (key_right and key_fn_crsr));
 			pbo(7) <= pbi(7) and
-				(pai(0) or not ((key_up or key_down) and not key_fn)) and
+				(pai(0) or not ((key_up or key_down) and not key_fn_crsr)) and
 				(pai(1) or not (
 					key_inst 
-					or ((key_left or key_up) and not key_fn) 
+					or ((key_left or key_up) and not key_fn_crsr) 
 					or ((key_F2 or key_F4 or key_F6 or key_F8) and not key_fn) 
 					or ((key_shiftl or shift_lock_state) and not key_8s)
 				)) and

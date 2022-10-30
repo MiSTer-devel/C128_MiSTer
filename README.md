@@ -102,7 +102,7 @@ It is possible to access the C128 top-row cursor keys, and the numpad keys on a 
 * <kbd>AltGr</kbd>+<kbd>-</kbd> - Numpad <kbd>-</kbd>
 * <kbd>AltGr</kbd>+<kbd>+</kbd> - Numpad <kbd>+</kbd>
 * <kbd>AltGr</kbd>+<kbd>.</kbd> - Numpad <kbd>.</kbd>
-* <kbd>AltGr</kbd>+Cursor keys - Top row cursor keys
+* <kbd>AltGr</kbd>+Cursor keys - Top-row cursor keys (** see note below)
 
 <kbd>Shift lock</kbd> can be activated by pressing <kbd>AltGr</kbd>+<kbd>Shift</kbd>. This is a toggle, to release <kbd>Shift lock</kbd>, press the <kbd>AltGr</kbd>+<kbd>Shift</kbd> combination again.
 
@@ -111,6 +111,8 @@ It is possible to access the C128 top-row cursor keys, and the numpad keys on a 
 Keys marked in blue are the keys sent when combined with <kbd>AltGr</kbd>.
 
 *): The <kbd>Pause/Break</kbd> key acts like the <kbd>No scroll</kbd> key, however the <kbd>Pause/Break</kbd> PC key is special as it does not send a signal when it is released. To solve this, when the <kbd>Pause/Break</kbd> key is pressed, the <kbd>No scroll</kbd> key signal to the C128 is pulsed for short period. To hold <kbd>No scroll</kbd> on the C128 for longer, either use <kbd>AltGr</kbd>+<kbd>F8</kbd>, or quickly double press <kbd>Pause/break</kbd> and press any key to release <kbd>No scroll</kbd>.
+
+**): When the Z80 CPU is active the top-row cursor keys become the default and <kbd>AltGr</kbd> selects the regular cursor keys.
 
 ## C128 cartridges
 
