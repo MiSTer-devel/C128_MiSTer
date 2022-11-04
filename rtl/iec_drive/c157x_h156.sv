@@ -45,10 +45,10 @@ always @(posedge clk) begin
 	reg [9:0] fmtcnt;
 
 	hinit <= 0;
-	if (reset | ~enable | mode) begin
+	if (reset || !enable || mode) begin
 		fmtcnt <= 0;
 	end 
-	else if (hclk & &bit_cnt) begin
+	else if (hclk && &bit_cnt) begin
 		if (buff_di == 8'h55) begin
 			if (~&fmtcnt) fmtcnt <= fmtcnt + 1'd1;
 		end
@@ -65,7 +65,7 @@ always @(posedge clk) begin
 	else if (ted | ~byte_n_ena)
 		byte_n <= 1;
 
-	if(reset | ~enable) begin
+	if(reset || !enable) begin
 		bit_cnt <= 0;
 		shreg   <= 0;
 		byte_n  <= 1;
@@ -77,7 +77,7 @@ always @(posedge clk) begin
 			bit_cnt <= bit_cnt + 1'b1;
 			shreg   <= shcur;
 
-			if (~sync_n) bit_cnt <= 0;
+			if (!sync_n) bit_cnt <= 0;
 
 			if (&bit_cnt) begin
 				buff_di <= din;

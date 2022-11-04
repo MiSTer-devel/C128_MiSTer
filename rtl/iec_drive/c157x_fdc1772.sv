@@ -32,6 +32,7 @@ module c157x_fdc1772
     output           busy,
 
     // signals to/from heads
+    output           hinit,
     input            hclk,
     output           ht,
     input            hf,
@@ -485,7 +486,7 @@ always @(posedge clkcpu) begin
         // step_out <= 1'b0;
         // sd_card_read <= 0;
         // sd_card_write <= 0;
-        check_crc <= 1'b0;
+        // check_crc <= 1'b0;
         seek_state <= 0;
         notready_wait <= 1'b0;
         // data_transfer_state <= 2'b00;
@@ -511,8 +512,8 @@ always @(posedge clkcpu) begin
         if(delay_cnt != 0) 
             delay_cnt <= delay_cnt - 1'd1;
 
-        if (!ctl_busy)
-            check_crc <= 0;
+        // if (!ctl_busy)
+        //     check_crc <= 0;
 
         // minimum busy timer
         if(min_busy_cnt != 0)
@@ -530,7 +531,7 @@ always @(posedge clkcpu) begin
             min_busy_cnt <= MIN_BUSY_TIME;
             notready_wait <= 1'b0;
             // data_transfer_state <= 2'b00;
-            check_crc <= 1'b0;
+            // check_crc <= 1'b0;
 
             if(cmd_type_1 || cmd_type_2 || cmd_type_3) begin
                 RNF <= 1'b0;
@@ -654,6 +655,10 @@ always @(posedge clkcpu) begin
                     delay_cnt <= SETTLING_DELAY;
                     notready_wait <= 1'b1;
                     // read sector
+                end else if(cmd[5] && fd_writeprot) begin
+                    // abort if write protect enabled
+                    ctl_busy <= 1'b0;
+                    irq_req <= 1'b1; // emit irq when command done
                 end else if((!cmd_rx && index_pulse_counter == 0) || data_transfer_done) begin
                     if (!data_transfer_done)
                         RNF <= 1;
@@ -665,8 +670,8 @@ always @(posedge clkcpu) begin
                         irq_req <= 1'b1; // emit irq when command done
                     end
                 end else if(!data_transfer_active && fd_sector_hdr_valid && fd_track == track && fd_sector == sector) begin
-                    if (!cmd[5])
-                        check_crc <= 1;
+                    // if (!cmd[5])
+                    //     check_crc <= 1;
                     data_transfer_start <= 1'b1;
                 end
             end
@@ -688,9 +693,32 @@ always @(posedge clkcpu) begin
 
                     // write track
                     if(cmd[7:4] == 4'b1111) begin
-                        // TODO
-                        ctl_busy <= 1'b0;
-                        irq_req <= 1'b1; // emit irq when command done
+                        // write track
+                        if(!fd_present) begin
+                            // no image selected -> send irq after 6 ms
+                            if (!notready_wait) begin
+                                delay_cnt <= 16'd6*CLK_EN;
+                                notready_wait <= 1'b1;
+                            end else begin
+                                RNF <= 1'b1;
+                                ctl_busy <= 1'b0;
+                                irq_set <= 1'b1; // emit irq when command done
+                            end
+                        end else if(cmd[2] && !notready_wait) begin
+                            // e flag: 15/30 ms settling delay
+                            delay_cnt <= SETTLING_DELAY;
+                            notready_wait <= 1'b1;
+                            // read sector
+                        end else if(cmd[5] && fd_writeprot) begin
+                            // abort if write protect enabled
+                            ctl_busy <= 1'b0;
+                            irq_req <= 1'b1; // emit irq when command done
+                        end else if(data_transfer_done) begin
+                            ctl_busy <= 1'b0;
+                            irq_req <= 1'b1; // emit irq when command done
+                        end else if(!data_transfer_active) begin
+                            data_transfer_start <= 1'b1;
+                        end
                     end
 
                     // read address (used in 1571 rom)
@@ -699,12 +727,12 @@ always @(posedge clkcpu) begin
                             if (data_transfer_done)
                                 address_update_strobe <= 1;
                             else
-                                 RNF <= 1;
+                                RNF <= 1;
 
                             ctl_busy <= 1'b0;
                             irq_req <= 1'b1; // emit irq when command done
                         end else if(!data_transfer_active && fd_dclk_en && idam_detected) begin
-                            check_crc <= 1'b1;
+                            // check_crc <= 1'b1;
                             data_transfer_start <= 1'b1;
                         end
                     end
@@ -744,7 +772,7 @@ end
 
 // floppy delivers data at a floppy generated rate (usually 250kbit/s), so the start and stop
 // signals need to be passed forth and back from cpu clock domain to floppy data clock domain
-reg check_crc;
+// reg check_crc;
 reg data_transfer_start;
 reg data_transfer_done;
 
@@ -863,7 +891,7 @@ begin
         read_data           <= 0;
         data_read_count     <= 0;
         fd_sector_hdr_valid <= 0;
-         crcchk              <= 16'hFFFF;
+        crcchk              <= 16'hFFFF;
         sync_detected       <= 0;
         idam_detected       <= 0;
         dam_detected        <= 0;
@@ -897,8 +925,8 @@ begin
                 if (cmd[7:4] != 4'b1101)  // disable sync detection, unless we are reading a track
                     align_on_sync <= 0;
             end
-            else if (sync_detected == 3 && aligned_data[7:2] == 6'b1111_11) begin
-                // IDAM = FC..FF
+            else if (sync_detected == 3 && aligned_data[7:1] == 7'b1111_111) begin
+                // IDAM = FE..FF
                 idam_detected <= 1;
                 if (cmd[7:4] != 4'b1101)  // disable sync detection, unless we are reading a track
                     align_on_sync <= 0;
@@ -935,12 +963,12 @@ begin
                 read_header   <= 0;
                 align_on_sync <= 1;
 
-                if (crcchk && check_crc) begin
-                    if (read_data)   crc_error_data <= 1;
-                    if (read_header) crc_error_hdr  <= 1;
+                if (crcchk && cmd_busy) begin
+                    if (read_data   && cmd[7:5] == 3'b100)  crc_error_data <= 1;
+                    if (read_header && cmd[7:4] == 4'b1100) crc_error_hdr  <= 1;
                 end
 
-                if (!read_data && !crcchk)
+                if (read_header && !crcchk)
                     fd_sector_hdr_valid <= 1;
             end
         end
@@ -984,14 +1012,16 @@ endfunction
 
 xfer_state_t xfer_state = XF_IDLE;
 
-wire data_transfer_active = xfer_state != XF_IDLE;
+wire       data_transfer_active = xfer_state != XF_IDLE;
+wire [7:0] data_in_drq = drq ? 8'h00 : data_in;
+wire [7:0] DAM = cmd[0] ? 8'hF8 : 8'hFB;
 
 always @(posedge clkcpu) begin
-    reg   [10:0] xfer_cnt;
-    reg   [15:0] crccalc = 16'hFFFF;
-    reg    [7:0] tmp_data;
+    reg [12:0] xfer_cnt;
+    reg [15:0] crccalc;
 
     drq_set <= 1'b0;
+    hinit <= 0;
 
     if (cpu_we && cpu_addr == FDC_REG_DATA)
         data_out <= data_in;
@@ -1013,13 +1043,13 @@ always @(posedge clkcpu) begin
         // read address
         if(cmd[7:4] == 4'b1100) begin
             xfer_state <= XF_RDAD;
-            xfer_cnt <= 11'd6;
+            xfer_cnt <= 13'd6;
         end
 
         // read sector
         if(cmd[7:5] == 3'b100) begin
             xfer_state <= XF_RDSC;
-            xfer_cnt <= 11'd43;
+            xfer_cnt <= 13'd43;
         end
 
         // todo read track
@@ -1027,10 +1057,15 @@ always @(posedge clkcpu) begin
         // write sector
         if(cmd[7:5] == 3'b101) begin
             xfer_state <= XF_WRSC;
-            xfer_cnt <= 11'd22;
+            xfer_cnt <= 13'd22;
         end
 
-        // todo write track
+        // write track
+        if(cmd[7:4] == 4'b1111) begin
+            xfer_state <= XF_WRTR;
+            xfer_cnt <= 13'd3;
+            drq_set <= 1;
+        end
     end
 
     if(fd_dclk_en) begin
@@ -1038,11 +1073,13 @@ always @(posedge clkcpu) begin
             // read sector / read address
 
             XF_RDSC: begin
-                // Read sector: wait for DAM, abort after 43 bytes or when another header was detected
-                xfer_cnt <= xfer_cnt - 11'd1;
+                // Read sector: wait 43 bytes for DAM
+                xfer_cnt <= xfer_cnt - 1'd1;
                 if (!xfer_cnt) begin
+                    // no DAM seen, abort
                     xfer_state <= XF_IDLE;
                 end else if (dam_detected) begin
+                    // DAM detected, start transfering data
                     xfer_state <= XF_RDSC_DATA;
                     xfer_cnt <= sector_size(sector_size_code);
                 end
@@ -1057,7 +1094,7 @@ always @(posedge clkcpu) begin
 
                     drq_set <= 1;
                     data_out <= data_out_read;
-                    xfer_cnt <= xfer_cnt - 11'd1;
+                    xfer_cnt <= xfer_cnt - 1'd1;
                 end else if (!data_read_count) begin
                     data_transfer_done <= 1'b1;
                     xfer_state <= XF_IDLE;
@@ -1069,7 +1106,7 @@ always @(posedge clkcpu) begin
             XF_WRSC: begin
                 // Write sector: delay 22 gap bytes
                 if (xfer_cnt) begin
-                    xfer_cnt <= xfer_cnt - 11'd1;
+                    xfer_cnt <= xfer_cnt - 1'd1;
                     if(xfer_cnt == 20)
                         drq_set <= 1;
 
@@ -1082,29 +1119,30 @@ always @(posedge clkcpu) begin
                     end
                 end else begin
                     xfer_state <= XF_WRSC_SYNC;
-                    xfer_cnt <= 11'd16;
+                    xfer_cnt <= 1'd16;
                 end
             end
 
             XF_WRSC_SYNC: begin
                 // Write sector: write preamble and address mark (12 "00" bytes, 3 "A1" sync markers and 1 DAM or DDAM byte)
                 if (xfer_cnt) begin
-                    xfer_cnt <= xfer_cnt - 11'd1;
+                    // write A1 sync
+                    xfer_cnt <= xfer_cnt - 1'd1;
                     write_out_strobe <= 1;
                     write_out <= xfer_cnt > 3 ? mfm_encode(9'h000) : SYNC_A1_PATTERN;
                 end else begin
-                    tmp_data = cmd[0] ? 8'hF8 : 8'hFB;
+                    // write address mark, initialize CRC
                     write_out_strobe <= 1;
-                    write_out <= mfm_encode({SYNC_A1_PATTERN[0], tmp_data});
-                    crccalc <= crc(SYNC_A1_CRC, tmp_data);
+                    write_out <= mfm_encode({SYNC_A1_PATTERN[0], DAM});
+                    crccalc <= crc(SYNC_A1_CRC, DAM);
                     xfer_state <= XF_WRSC_DATA;
                     xfer_cnt <= sector_size(sector_size_code);
                 end
             end
 
             XF_WRSC_DATA: begin
-                // Write sector: receive data from cpu and generate write signals
-                xfer_cnt <= xfer_cnt - 11'd1;
+                // Write sector: transfer data from CPU to disk, update CRC
+                xfer_cnt <= xfer_cnt - 1'd1;
 
                 if (drq) 
                     data_lost <= 1;
@@ -1112,21 +1150,20 @@ always @(posedge clkcpu) begin
                 if (xfer_cnt > 1)
                     drq_set <= 1;
 
-                tmp_data = drq ? 8'h00 : data_in;
                 write_out_strobe <= 1;
-                write_out <= mfm_encode({write_out[0], tmp_data});
-                crccalc <= crc(crccalc, tmp_data);
+                write_out <= mfm_encode({write_out[0], data_in_drq});
+                crccalc <= crc(crccalc, data_in_drq);
 
                 if(xfer_cnt == 1) begin
                     xfer_state <= XF_WRSC_CRC;
-                    xfer_cnt <= 11'd3;
+                    xfer_cnt <= 13'd3;
                 end
             end
 
             XF_WRSC_CRC: begin
                 // Write sector: write 2 CRC bytes, 1 trailing "FF" byte
                 if (xfer_cnt) begin
-                    xfer_cnt <= xfer_cnt - 11'd1;
+                    xfer_cnt <= xfer_cnt - 1'd1;
                     crccalc <= {crccalc[7:0], 8'hFF};
                     write_out_strobe <= 1;
                     write_out <= mfm_encode({write_out[0], crccalc[15:8]});
@@ -1135,15 +1172,80 @@ always @(posedge clkcpu) begin
                     data_transfer_done <= 1;
                 end
             end
+
+            // write track
+
+            XF_WRTR: begin
+                // Write track: wait 3 bytes for data from CPU, initialize CRC and signal initialization state to heads module
+                if (xfer_cnt) begin
+                    xfer_cnt <= xfer_cnt - 1'd1;
+                end else if (drq) begin
+                    // no data received from CPU, abort
+                    data_lost <= 1;
+                    data_transfer_done <= 1;
+                end else begin
+                    // set up track initialization state
+                    xfer_state <= XF_WRTR_DATA;
+                    xfer_cnt <= 13'd6250; // track buffer is exactly 12500 bytes, or 6250 MFM encoded bytes
+                    crccalc <= 16'hFFFF;
+                    hinit <= 1;
+                end
+            end
+
+            XF_WRTR_DATA: begin
+                // Write track: receive and decode data from CPU, update CRC
+                if (xfer_cnt) begin
+                    xfer_cnt <= xfer_cnt - 1'd1;
+
+                    drq_set <= 1;
+                    if (drq) 
+                        data_lost <= 1;
+
+                    write_out_strobe <= 1;
+                    case(data_in_drq)
+                        8'hF5: begin
+                            // write A1 sync, initialize CRC
+                            write_out <= SYNC_A1_PATTERN;
+                            crccalc <= SYNC_A1_CRC;
+                        end
+
+                        8'hF6: begin
+                            // write C2 sync, update CRC
+                            write_out <= SYNC_C2_PATTERN;
+                            crccalc <= crc(crccalc, 8'hC2);
+                        end
+
+                        8'hF7: begin
+                            // write first CRC byte, switch to XF_WRTR_CRC state
+                            write_out <= mfm_encode({write_out[0], crccalc[15:8]});
+                            xfer_state <= XF_WRTR_CRC;
+                        end
+
+                        default: begin
+                            // write received data, update CRC
+                            write_out <= mfm_encode({write_out[0], data_in_drq});
+                            crccalc <= crc(crccalc, data_in_drq);
+                        end
+                    endcase
+                end else begin
+                    xfer_state <= XF_IDLE;
+                    data_transfer_done <= 1;
+                end
+            end
+
+            XF_WRTR_CRC: begin
+                // Write track: write second CRC byte, reset CRC to zero, return to XF_WRTR_DATA state
+                if (xfer_cnt)
+                    xfer_cnt <= xfer_cnt - 1'd1;
+
+                write_out_strobe <= 1;
+                write_out <= mfm_encode(crccalc[8:0]);
+                crccalc <= 16'h0000;
+                xfer_state <= XF_WRTR_DATA;
+            end
         endcase
     end
 end
-
-// reg data_lost, data_lost_set, data_lost_clr;
-// always @(posedge clkcpu) begin
-// 	if(data_lost_clr) data_lost <= 0;
-// 	else if(data_lost_set) data_lost <= 1;
-// end
 
 wire [7:0] status = { (MODEL == 1 || MODEL == 3) ? !floppy_ready : motor_on,
               (cmd[7:5] == 3'b101 | cmd[7:4] == 4'b1111 | cmd_type_1) & fd_writeprot, // wrprot (only for write!)

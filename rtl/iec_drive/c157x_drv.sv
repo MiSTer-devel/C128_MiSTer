@@ -269,7 +269,7 @@ c157x_heads #(.DRIVE(DRIVE), .TRACK_BUF_LEN(SD_BLK_CNT_157X*256)) c157x_heads
 
 	.index(index),
 
-	// .sd_busy(sd_busy),
+	.sd_busy(sd_busy),
 	.sd_clk(clk_sys),
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),

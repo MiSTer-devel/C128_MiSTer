@@ -346,12 +346,13 @@ mos6526_8520 cia
 // Head signals mux
 
 assign     ht = gcr_ht | (mfm_ht & |drv_mode);
+assign     hinit = gcr_hinit | (mfm_hinit & |drv_mode);
 
 // 64H156 1571-U6 signals
 
 wire [7:0] gcr_do;
 wire       sync_n, byte_n, dgcr_we;
-wire       gcr_ht;
+wire       gcr_ht, gcr_hinit;
 
 c157x_h156 c157x_h156
 (
@@ -360,7 +361,7 @@ c157x_h156 c157x_h156
 	.enable(drive_enable),
 	.mhz1_2(accl[1]),
 	
-	.hinit(hinit),
+	.hinit(gcr_hinit),
 	.hclk(hclk),
 	.ht(gcr_ht),
 	.hf(hf),
@@ -378,7 +379,7 @@ c157x_h156 c157x_h156
 // FDC 1571-U11 (WD1770) signals
 
 wire [7:0] wd_do;
-wire       mfm_ht;
+wire       mfm_ht, mfm_hinit;
 wire       mfm_wgate;
 
 assign     wgate = mfm_wgate & |drv_mode;
@@ -396,6 +397,7 @@ c157x_fdc1772 #(.MODEL(0)) c157x_fdc1772
 	.floppy_wprot(~wps_n),
 	.floppy_track00(1),
 
+	.hinit(mfm_hinit),
 	.hclk(hclk),
 	.ht(mfm_ht),
 	.hf(hf),
