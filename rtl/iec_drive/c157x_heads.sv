@@ -48,7 +48,13 @@ assign sd_buff_din = sd_buff_addr == 0 ? track_len[7:0]
 						 : sd_buff_addr > track_len+2 ? 8'hFF : sd_buff_do;
 
 reg [13:0] track_len;
+
+reg empty_track_l;
 wire empty_track = track_len == 0;
+always @(posedge clk)
+	empty_track_l <= empty_track;
+
+wire track_init = ~empty_track & empty_track_l;
 
 always @(posedge sd_clk) begin
 	reg [1:0] freq_l;
@@ -112,17 +118,14 @@ reg [2:0] bit_cnt;
 
 always @(posedge clk) begin
 	reg write_r;
-	reg empty_track_l;
-	reg track_init;
 	reg buff_init;
 
 	buff_we <= 0;
 	hclk    <= 0;
-	write_r <= write;
-	empty_track_l <= empty_track;
 
-	track_init = ~empty_track & empty_track_l;
-	if (reset || hinit || track_init || sd_buff_wr) begin
+	write_r <= write;
+
+	if (reset || !enable || hinit || track_init || sd_buff_wr) begin
 		bit_clk_cnt <= bitrate;
 		bit_cnt     <= 0;
 		if (hinit || (write && track_init)) begin
@@ -133,12 +136,26 @@ always @(posedge clk) begin
 		else
 			buff_addr <= 2;
 	end
-	else if (!enable || (write && !write_r)) begin
+	else if (write && !write_r) begin
 		bit_clk_cnt <= bitrate;
 		bit_cnt     <= 0;
 	end
 	else if (!sd_busy) begin
-		if (buff_init && !empty_track_l) begin
+		if (ce) begin
+			bit_clk_cnt <= bit_clk_cnt + 1'b1;
+			if (&bit_clk_cnt) begin
+				bit_cnt <= bit_cnt + 1'b1;
+				bit_clk_cnt <= bitrate;
+			end
+		end
+
+		if (empty_track_l) begin
+			if (ce && bit_clk_cnt == 'b11_0000 && !write) begin
+				hclk <= 1;
+				hf <= 0;
+			end
+		end
+		else if (buff_init) begin
 			if (buff_addr >= track_len+2) begin
 				buff_addr <= 2;
 				buff_init <= 0;
@@ -149,15 +166,18 @@ always @(posedge clk) begin
 			end
 		end
 		else if (ce) begin
-			if (empty_track_l || (buff_addr >= track_len+2))
+			if (buff_addr >= track_len+2)
 				buff_addr <= 2;
 
-			if (bit_clk_cnt == 'b11_0000 && !empty_track_l) begin
-				if (bit_cnt == 0) buff_di <= buff_do;
+			if (bit_clk_cnt == 'b11_0000) begin
+				if (!bit_cnt) 
+					buff_di <= buff_do;
+
 				if (write) begin
 					buff_di[~bit_cnt] <= ht;
 					hf <= ht;
-					if (&bit_cnt) buff_we <= 1;
+					if (&bit_cnt) 
+						buff_we <= 1;
 				end
 				else begin
 					hf   <= buff_do[~bit_cnt];
@@ -165,17 +185,12 @@ always @(posedge clk) begin
 				end
 			end
 
-			bit_clk_cnt <= bit_clk_cnt + 1'b1;
 			if (&bit_clk_cnt) begin
-				bit_clk_cnt <= bitrate;
-				bit_cnt <= bit_cnt + 1'b1;
+				if (write) 
+					hclk <= 1;
 
-				if (write || empty_track_l) hclk <= 1;
-				if (&bit_cnt && !empty_track_l) begin
+				if (&bit_cnt)
 					buff_addr <= buff_addr + 1'd1;
-					if (buff_addr >= track_len+1)
-						buff_addr <= 2;
-				end
 			end
 		end
 	end
