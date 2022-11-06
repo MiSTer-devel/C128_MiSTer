@@ -213,7 +213,7 @@ always @(posedge clk) begin
       ta_hi <= 8'hff;
       cra   <= 8'h00;
     end;
-    timer_a  <= 16'h0000;
+    timer_a  <= 16'hffff;
     timerAff <= 1'b0;
     icr[0]   <= 1'b0;
   end
@@ -289,7 +289,7 @@ always @(posedge clk) begin
     tb_lo          <= 8'hff;
     tb_hi          <= 8'hff;
     crb            <= 8'h00;
-    timer_b        <= 16'h0000;
+    timer_b        <= 16'hffff;
     timerBff       <= 1'b0;
     icr[1]         <= 1'b0;
     timer_b_int    <= 0;
