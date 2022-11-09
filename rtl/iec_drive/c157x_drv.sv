@@ -26,7 +26,6 @@ module c157x_drv #(parameter DRIVE)
 	input         reset,
 
 	input   [1:0] drv_mode,
-	// input         gcr_mode,
 
 	input         ce,
 	input         wd_ce,
@@ -36,6 +35,8 @@ module c157x_drv #(parameter DRIVE)
 	input         img_mounted,
 	input         img_readonly,
 	input  [31:0] img_size,
+	input         img_ds,
+	input         img_mfm,
 
 	output        led,
 
@@ -180,7 +181,9 @@ c157x_logic #(.DRIVE(DRIVE)) c157x_logic
 	.tr00_sense(~|track),
 	.index_sense(index),
 	.drive_enable(drive_enable),
-	.disk_present(disk_present)
+	.disk_present(disk_present),
+
+	.img_mfm(img_mfm)
 );
 
 // wire  [7:0] gcr_di;
@@ -256,8 +259,10 @@ c157x_heads #(.DRIVE(DRIVE), .TRACK_BUF_LEN(SD_BLK_CNT_157X*256)) c157x_heads
 	.ce(ce),
 	.reset(reset_drv),
 	.enable(drive_enable),
+	.img_ds(img_ds),
 
 	.freq(freq),
+	.side(side),
 	.mode(mode),
 	.wgate(wgate),
 	.write(write),

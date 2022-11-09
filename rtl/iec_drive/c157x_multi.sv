@@ -20,11 +20,12 @@ module c157x_multi #(parameter PARPORT=1,DRIVES=2)
 	input   [1:0] drv_mode[NDR],
 
 	input         pause,
-	// input   [N:0] gcr_mode,
 
 	input   [N:0] img_mounted,
 	input         img_readonly,
 	input  [31:0] img_size,
+	input   [N:0] img_ds,
+	input   [N:0] img_mfm,
 
 	output  [N:0] led,
 
@@ -213,8 +214,6 @@ generate
 			.reset(reset_drv[i]),
 			.drv_mode(drv_mode[i]),
 
-			// .gcr_mode(gcr_mode[i]),
-
 			.ce(ce),
 			.wd_ce(wd_ce),
 			.ph2_r(ph2_r),
@@ -223,6 +222,8 @@ generate
 			.img_mounted(img_mounted[i]),
 			.img_readonly(img_readonly),
 			.img_size(img_size),
+			.img_ds(img_ds[i]),
+			.img_mfm(img_mfm[i]),
 
 			.led(led_drv[i]),
 

@@ -20,8 +20,7 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
    input   [N:0] img_mounted,
    input         img_readonly,
    input  [31:0] img_size,
-   input         img_type,
-
+   input   [2:0] img_type,
    output  [N:0] led,
 
    input         iec_atn_i,
@@ -60,8 +59,13 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
 localparam NDR = (DRIVES < 1) ? 1 : (DRIVES > 4) ? 4 : DRIVES;
 localparam N   = NDR - 1;
 
-reg [N:0] dtype;
-always @(posedge clk_sys) for(int i=0; i<NDR; i=i+1) if(img_mounted[i] && img_size) dtype[i] <= img_type;
+reg [N:0] img_mfm; // mfm enabled disk image (g64/g71)
+reg [N:0] img_ds;  // dual sided disk image (d71/g71)
+reg [N:0] img_hd;  // HD (3.5") disk image (d81)
+always @(posedge clk_sys) 
+   for(int i=0; i<NDR; i=i+1) 
+      if(img_mounted[i] && img_size) 
+         {img_hd[i], img_mfm[i], img_ds[i]} <= img_type;
 
 wire [1:0] rom_sel = rom_file_ext[15:0] == "41" ? 2'b00
                    : rom_file_ext[15:0] == "70" ? 2'b01
@@ -76,11 +80,11 @@ assign par_stb_o    = c1581_stb_o     & c157x_stb_o;
 assign par_data_o   = c1581_par_o     & c157x_par_o;
 
 always_comb for(int i=0; i<NDR; i=i+1) begin
-   sd_buff_din[i] = (dtype[i] ? c1581_sd_buff_dout[i] : c157x_sd_buff_dout[i] );
-   sd_lba[i]      = (dtype[i] ? c1581_sd_lba[i] << 1  : c157x_sd_lba[i]       );
-   sd_rd[i]       = (dtype[i] ? c1581_sd_rd[i]        : c157x_sd_rd[i]        );
-   sd_wr[i]       = (dtype[i] ? c1581_sd_wr[i]        : c157x_sd_wr[i]        );
-   sd_blk_cnt[i]  = (dtype[i] ? 6'd1                  : c157x_sd_blk_cnt[i]   );
+   sd_buff_din[i] = (img_hd[i] ? c1581_sd_buff_dout[i] : c157x_sd_buff_dout[i] );
+   sd_lba[i]      = (img_hd[i] ? c1581_sd_lba[i] << 1  : c157x_sd_lba[i]       );
+   sd_rd[i]       = (img_hd[i] ? c1581_sd_rd[i]        : c157x_sd_rd[i]        );
+   sd_wr[i]       = (img_hd[i] ? c1581_sd_wr[i]        : c157x_sd_wr[i]        );
+   sd_blk_cnt[i]  = (img_hd[i] ? 6'd1                  : c157x_sd_blk_cnt[i]   );
 end
 
 wire        c157x_iec_data, c157x_iec_clk, c157x_iec_fclk, c157x_stb_o;
@@ -94,11 +98,10 @@ wire  [5:0] c157x_sd_blk_cnt[NDR];
 c157x_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c157x
 (
    .clk(clk),
-   .reset(reset | dtype),
+   .reset(reset | img_hd),
    .ce(ce),
 
    .drv_mode(drv_mode),
-   // .gcr_mode(dtype[0]),
 
    .iec_atn_i (iec_atn_i),
    .iec_data_i(iec_data_i & c1581_iec_data),
@@ -126,6 +129,8 @@ c157x_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c157x
    .img_mounted(img_mounted),
    .img_size(img_size),
    .img_readonly(img_readonly),
+   .img_ds(img_ds),
+   .img_mfm(img_mfm),
 
    .sd_lba(c157x_sd_lba),
    .sd_blk_cnt(c157x_sd_blk_cnt),
@@ -149,7 +154,7 @@ wire  [N:0] c1581_sd_rd, c1581_sd_wr;
 c1581_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1581
 (
    .clk(clk),
-   .reset(reset | ~dtype),
+   .reset(reset | ~img_hd),
    .ce(ce),
 
    .iec_atn_i (iec_atn_i),

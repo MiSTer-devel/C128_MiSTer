@@ -57,7 +57,9 @@ module c157x_logic #(DRIVE)
 	input        tr00_sense,    // track 0 sense
 	input        index_sense,   // index pulse
 	input        drive_enable,  // sd busy
-	input        disk_present
+	input        disk_present,
+
+	input        img_mfm        // mfm supported by disk image
 );
 
 // clock control
@@ -394,7 +396,7 @@ c157x_fdc1772 #(.MODEL(0)) c157x_fdc1772
 	// .floppy_side(side),
 	.floppy_motor(mtr),
 	.floppy_index(~index_sense),
-	.floppy_wprot(~wps_n),
+	.floppy_wprot(~(wps_n & img_mfm)),
 	.floppy_track00(1),
 
 	.hinit(mfm_hinit),
