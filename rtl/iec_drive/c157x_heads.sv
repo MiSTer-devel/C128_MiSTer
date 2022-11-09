@@ -49,13 +49,6 @@ assign sd_buff_din = sd_buff_addr == 0 ? track_len[7:0]
 
 reg [13:0] track_len;
 
-reg empty_track_l;
-wire empty_track = track_len == 0;
-always @(posedge clk)
-	empty_track_l <= empty_track;
-
-wire track_init = ~empty_track & empty_track_l;
-
 always @(posedge sd_clk) begin
 	reg [1:0] freq_l;
 
@@ -66,9 +59,9 @@ always @(posedge sd_clk) begin
 			2: if (track_len+2 > TRACK_BUF_LEN) track_len <= 14'(TRACK_BUF_LEN-2);
 		endcase
 
-	if (write && !sd_busy) begin
+	if (!sd_busy && (write || buff_init)) begin
 		freq_l <= freq;
-		if (empty_track || wgate != mfm || freq_l != freq)
+		if (track_len == 0 || wgate != mfm || freq_l != freq)
 			track_len <= wgate ? 14'd12500 
 					: freq == 0 ? 14'd6250 
 					: freq == 1 ? 14'd6666 
@@ -96,6 +89,17 @@ iecdrv_trackmem #(14, TRACK_BUF_LEN) buffer
 	.q_b(buff_do)
 );
 
+reg empty_track;
+reg empty_track_l;
+always @(posedge clk) begin
+	if (!sd_busy) begin
+		empty_track <= !track_len;
+		empty_track_l <= empty_track;
+	end
+end
+
+wire track_init = ~empty_track & empty_track_l;
+
 always @(posedge clk) begin
 	reg [21:0] pulse_cnt;
 	index <= 0;
@@ -113,17 +117,15 @@ always @(posedge clk) begin
 	end
 end
 
+reg       buff_init;
 reg [5:0] bit_clk_cnt;
 reg [2:0] bit_cnt;
 
 always @(posedge clk) begin
 	reg write_r;
-	reg buff_init;
 
 	buff_we <= 0;
 	hclk    <= 0;
-
-	write_r <= write;
 
 	if (reset || !enable || hinit || track_init || sd_buff_wr) begin
 		bit_clk_cnt <= bitrate;
@@ -136,12 +138,14 @@ always @(posedge clk) begin
 		else
 			buff_addr <= 2;
 	end
-	else if (write && !write_r) begin
-		bit_clk_cnt <= bitrate;
-		bit_cnt     <= 0;
-	end
 	else if (!sd_busy) begin
-		if (ce) begin
+		write_r <= write;
+
+		if (buff_init || (write && !write_r)) begin
+			bit_clk_cnt <= bitrate;
+			bit_cnt <= 0;
+		end 
+		else if (ce) begin
 			bit_clk_cnt <= bit_clk_cnt + 1'b1;
 			if (&bit_clk_cnt) begin
 				bit_cnt <= bit_cnt + 1'b1;
