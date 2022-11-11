@@ -20,7 +20,7 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
    input   [N:0] img_mounted,
    input         img_readonly,
    input  [31:0] img_size,
-   input   [2:0] img_type,
+   input   [3:0] img_type,
    output  [N:0] led,
 
    input         iec_atn_i,
@@ -59,13 +59,14 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
 localparam NDR = (DRIVES < 1) ? 1 : (DRIVES > 4) ? 4 : DRIVES;
 localparam N   = NDR - 1;
 
-reg [N:0] img_mfm; // mfm enabled disk image (g64/g71)
 reg [N:0] img_ds;  // dual sided disk image (d71/g71)
+reg [N:0] img_gcr; // mfm enabled disk image (d64/g64/d71/g71)
+reg [N:0] img_mfm; // mfm enabled disk image (g64/g71)
 reg [N:0] img_hd;  // HD (3.5") disk image (d81)
 always @(posedge clk_sys) 
    for(int i=0; i<NDR; i=i+1) 
       if(img_mounted[i] && img_size) 
-         {img_hd[i], img_mfm[i], img_ds[i]} <= img_type;
+         {img_hd[i], img_mfm[i], img_gcr[i], img_ds[i]} <= img_type;
 
 wire [1:0] rom_sel = rom_file_ext[15:0] == "41" ? 2'b00
                    : rom_file_ext[15:0] == "70" ? 2'b01
@@ -130,6 +131,7 @@ c157x_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c157x
    .img_size(img_size),
    .img_readonly(img_readonly),
    .img_ds(img_ds),
+   .img_gcr(img_gcr),
    .img_mfm(img_mfm),
 
    .sd_lba(c157x_sd_lba),

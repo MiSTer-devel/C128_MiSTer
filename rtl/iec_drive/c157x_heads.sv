@@ -15,18 +15,20 @@ module c157x_heads #(parameter DRIVE, parameter TRACK_BUF_LEN)
 	input        reset,
 	input        enable,
 
-	input        img_ds,  // Dual sided disk image
+	input        img_ds,   // Dual sided disk image
+	input        img_gcr,  // GCR supported
+	input        img_mfm,  // MFM supported
 
-	input  [1:0] freq,  // GCR bitrate
-	input        side,  // Current side
-	input        mode,  // GCR mode (0=write, 1=read)
-	input        wgate, // MFM wgate (0=read, 1=write)
-	output       write, // Write mode
+	input  [1:0] freq,     // GCR bitrate
+	input        side,     // Current side
+	input        mode,     // GCR mode (0=write, 1=read)
+	input        wgate,    // MFM wgate (0=read, 1=write)
+	output       write,    // Write mode
 
 	input	     hinit,	
 	output       hclk,
-	output       hf,    // signal from head
-	input        ht,    // signal to head
+	output       hf,       // signal from head
+	input        ht,       // signal to head
 
 	output       index,
 	
@@ -40,7 +42,7 @@ module c157x_heads #(parameter DRIVE, parameter TRACK_BUF_LEN)
 );
 
 wire       write_ok  = ~side | img_ds;
-assign     write     = write_ok & (~mode ^ wgate);
+assign     write     = write_ok & ((img_gcr & ~mode) ^ (img_mfm & wgate));
 assign     sd_update = buff_we;
 
 wire       mfm       = track_len[13]; // assume tracks >= 8192 bytes are MFM

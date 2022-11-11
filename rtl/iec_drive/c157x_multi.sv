@@ -25,6 +25,7 @@ module c157x_multi #(parameter PARPORT=1,DRIVES=2)
 	input         img_readonly,
 	input  [31:0] img_size,
 	input   [N:0] img_ds,
+	input   [N:0] img_gcr,
 	input   [N:0] img_mfm,
 
 	output  [N:0] led,
@@ -223,6 +224,7 @@ generate
 			.img_readonly(img_readonly),
 			.img_size(img_size),
 			.img_ds(img_ds[i]),
+			.img_gcr(img_gcr[i]),
 			.img_mfm(img_mfm[i]),
 
 			.led(led_drv[i]),

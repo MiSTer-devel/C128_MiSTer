@@ -36,6 +36,7 @@ module c157x_drv #(parameter DRIVE)
 	input         img_readonly,
 	input  [31:0] img_size,
 	input         img_ds,
+	input         img_gcr,
 	input         img_mfm,
 
 	output        led,
@@ -260,6 +261,8 @@ c157x_heads #(.DRIVE(DRIVE), .TRACK_BUF_LEN(SD_BLK_CNT_157X*256)) c157x_heads
 	.reset(reset_drv),
 	.enable(drive_enable),
 	.img_ds(img_ds),
+	.img_gcr(img_gcr),
+	.img_mfm(img_mfm),
 
 	.freq(freq),
 	.side(side),

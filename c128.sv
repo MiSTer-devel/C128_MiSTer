@@ -415,7 +415,7 @@ wire        forced_scandoubler;
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_data;
-wire  [8:0] ioctl_index;
+wire  [9:0] ioctl_index;
 wire        ioctl_download;
 wire [31:0] ioctl_file_ext;
 
@@ -1198,7 +1198,7 @@ iec_drive iec_drive
    .img_mounted(img_mounted),
    .img_size(img_size),
    .img_readonly(img_readonly),
-   .img_type(ioctl_index[8:6]),
+   .img_type(ioctl_index[9:6]),
 
    .led(drive_led),
 
