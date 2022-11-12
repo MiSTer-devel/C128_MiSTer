@@ -48,37 +48,38 @@ module emu
    output [12:0] VIDEO_ARX,
    output [12:0] VIDEO_ARY,
 
-   output  [7:0] VGA_R,
-   output  [7:0] VGA_G,
-   output  [7:0] VGA_B,
-   output        VGA_HS,
-   output        VGA_VS,
-   output        VGA_DE,    // = ~(VBlank | HBlank)
-   output        VGA_F1,
-   output [1:0]  VGA_SL,
-   output        VGA_SCALER, // Force VGA scaler
+	output  [7:0] VGA_R,
+	output  [7:0] VGA_G,
+	output  [7:0] VGA_B,
+	output        VGA_HS,
+	output        VGA_VS,
+	output        VGA_DE,    // = ~(VBlank | HBlank)
+	output        VGA_F1,
+	output [1:0]  VGA_SL,
+	output        VGA_SCALER, // Force VGA scaler
+	output        VGA_DISABLE, // analog out is off
 
    input  [11:0] HDMI_WIDTH,
    input  [11:0] HDMI_HEIGHT,
    output        HDMI_FREEZE,
 
 `ifdef MISTER_FB
-   // Use framebuffer in DDRAM (USE_FB=1 in qsf)
-   // FB_FORMAT:
-   //    [2:0] : 011=8bpp(palette) 100=16bpp 101=24bpp 110=32bpp
-   //    [3]   : 0=16bits 565 1=16bits 1555
-   //    [4]   : 0=RGB  1=BGR (for 16/24/32 modes)
-   //
-   // FB_STRIDE either 0 (rounded to 256 bytes) or multiple of pixel size (in bytes)
-   output        FB_EN,
-   output  [4:0] FB_FORMAT,
-   output [11:0] FB_WIDTH,
-   output [11:0] FB_HEIGHT,
-   output [31:0] FB_BASE,
-   output [13:0] FB_STRIDE,
-   input         FB_VBL,
-   input         FB_LL,
-   output        FB_FORCE_BLANK,
+	// Use framebuffer in DDRAM
+	// FB_FORMAT:
+	//    [2:0] : 011=8bpp(palette) 100=16bpp 101=24bpp 110=32bpp
+	//    [3]   : 0=16bits 565 1=16bits 1555
+	//    [4]   : 0=RGB  1=BGR (for 16/24/32 modes)
+	//
+	// FB_STRIDE either 0 (rounded to 256 bytes) or multiple of pixel size (in bytes)
+	output        FB_EN,
+	output  [4:0] FB_FORMAT,
+	output [11:0] FB_WIDTH,
+	output [11:0] FB_HEIGHT,
+	output [31:0] FB_BASE,
+	output [13:0] FB_STRIDE,
+	input         FB_VBL,
+	input         FB_LL,
+	output        FB_FORCE_BLANK,
 
 `ifdef MISTER_FB_PALETTE
    // Palette control for 8bit modes.
@@ -185,6 +186,7 @@ assign LED_DISK   = 0;
 assign LED_POWER  = 0;
 assign LED_USER   = |drive_led | ioctl_download | tape_led;
 assign BUTTONS    = 0;
+assign VGA_DISABLE = 0;
 assign VGA_SCALER = 0;
 
 // Status Bit Map:
