@@ -48,38 +48,38 @@ module emu
    output [12:0] VIDEO_ARX,
    output [12:0] VIDEO_ARY,
 
-	output  [7:0] VGA_R,
-	output  [7:0] VGA_G,
-	output  [7:0] VGA_B,
-	output        VGA_HS,
-	output        VGA_VS,
-	output        VGA_DE,    // = ~(VBlank | HBlank)
-	output        VGA_F1,
-	output [1:0]  VGA_SL,
-	output        VGA_SCALER, // Force VGA scaler
-	output        VGA_DISABLE, // analog out is off
+   output  [7:0] VGA_R,
+   output  [7:0] VGA_G,
+   output  [7:0] VGA_B,
+   output        VGA_HS,
+   output        VGA_VS,
+   output        VGA_DE,    // = ~(VBlank | HBlank)
+   output        VGA_F1,
+   output [1:0]  VGA_SL,
+   output        VGA_SCALER, // Force VGA scaler
+   output        VGA_DISABLE, // analog out is off
 
    input  [11:0] HDMI_WIDTH,
    input  [11:0] HDMI_HEIGHT,
    output        HDMI_FREEZE,
 
 `ifdef MISTER_FB
-	// Use framebuffer in DDRAM
-	// FB_FORMAT:
-	//    [2:0] : 011=8bpp(palette) 100=16bpp 101=24bpp 110=32bpp
-	//    [3]   : 0=16bits 565 1=16bits 1555
-	//    [4]   : 0=RGB  1=BGR (for 16/24/32 modes)
-	//
-	// FB_STRIDE either 0 (rounded to 256 bytes) or multiple of pixel size (in bytes)
-	output        FB_EN,
-	output  [4:0] FB_FORMAT,
-	output [11:0] FB_WIDTH,
-	output [11:0] FB_HEIGHT,
-	output [31:0] FB_BASE,
-	output [13:0] FB_STRIDE,
-	input         FB_VBL,
-	input         FB_LL,
-	output        FB_FORCE_BLANK,
+   // Use framebuffer in DDRAM
+   // FB_FORMAT:
+   //    [2:0] : 011=8bpp(palette) 100=16bpp 101=24bpp 110=32bpp
+   //    [3]   : 0=16bits 565 1=16bits 1555
+   //    [4]   : 0=RGB  1=BGR (for 16/24/32 modes)
+   //
+   // FB_STRIDE either 0 (rounded to 256 bytes) or multiple of pixel size (in bytes)
+   output        FB_EN,
+   output  [4:0] FB_FORMAT,
+   output [11:0] FB_WIDTH,
+   output [11:0] FB_HEIGHT,
+   output [31:0] FB_BASE,
+   output [13:0] FB_STRIDE,
+   input         FB_VBL,
+   input         FB_LL,
+   output        FB_FORCE_BLANK,
 
 `ifdef MISTER_FB_PALETTE
    // Palette control for 8bit modes.
@@ -194,7 +194,16 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXX  XXXXXX XXXXXXXXX XXXXXXXXXXXXXX    XXXXXXXXX
+
+//                                      1         1         1
+// 6     7         8         9          0         1         2
+// 45678901234567890123456789012345 67890123456789012345678901234567
+//                 XXXXXXXXXX
+
+// bits  0.. 63 keep in sync with C64 core
+// bits 64.. 79 reserved in case C64 core starts using them
+// bits 80..127 C128 core options
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -206,7 +215,6 @@ localparam CONF_STR = {
    "-,to function.  See the MiSTer;",
    "-,    forum for details.;",
    "-;",
-   //"oUV,Boot Mode,Z80,C128,C64;", // for testing
    "H7S0,D64G64D71G71D81T64,Mount #8                    ;",
    "H0S1,D64G64D71G71D81T64,Mount #9                    ;",
    "-;",
@@ -235,19 +243,19 @@ localparam CONF_STR = {
    "P1o89,DigiMax,Disabled,DE00,DF00;",
    "P1OIJ,Stereo Mix,None,25%,50%,100%;",
    "P1-;",
-   "P1oEF,VDC version,2 (8568 DCR),1 (8563 R9),0 (8563 R7a);",
-   "d6P1oG,VDC memory,16k,64k;",
+   "P1O[81:80],VDC version,2 (8568 DCR),1 (8563 R9),0 (8563 R7a);",
+   "d6P1O[88],VDC memory,16k,64k;",
 
    "P2,Hardware;",
    "P2oPQ,Enable Drive #8,If Mounted,Always,Never;",
    "P2oNO,Enable Drive #9,If Mounted,Always,Never;",
-   "D7P2oRS,Drive #8 5.25\" model,1571,1541,1570;",
-   "D0P2oTU,Drive #9 5.25\" model,1571,1541,1570;",
+   "D7P2O[84:83],Drive #8 5.25\" model,1571,1541,1570;",
+   "D0P2O[86:85],Drive #9 5.25\" model,1571,1541,1570;",
    "P2oC,Parallel port,Enabled,Disabled;",
    "P2OP,External IEC,Disabled,Enabled;",
    "P2R6,Reset Disk Drives;",
    "P2-;",
-   "P2oH,Internal memory,128K,256K;",
+   "P2O[87],Internal memory,128K,256K;",
    "P2oK,GeoRAM,Disabled,4MB;",
    "P2oLM,REU,Disabled,512KB,2MB (512KB wrap),16MB;",
    "P2-;",
@@ -273,8 +281,8 @@ localparam CONF_STR = {
    "P2-;",
    "P2FC5,CRT,Boot Cartridge              ;",
    "P2-;",
-   "P2OE,ROM set,128DCR,Standard;",
-   "P2OF,Char switch,C64 mode,Caps Lk key;",
+   "P2O[89],ROM set,128DCR,Standard;",
+   "P2O[82],Char switch,C64 mode,Caps Lk key;",
    "-;",
    "O3,Swap Joysticks,No,Yes;",
    "-;",
@@ -408,36 +416,36 @@ always @(posedge clk_sys) begin
    end
 end
 
-wire [15:0] joyA,joyB,joyC,joyD;
-wire [15:0] joy = joyA | joyB | joyC | joyD;
+wire  [15:0] joyA,joyB,joyC,joyD;
+wire  [15:0] joy = joyA | joyB | joyC | joyD;
 
-wire [63:0] status;
-wire        forced_scandoubler;
+wire [127:0] status;
+wire         forced_scandoubler;
 
-wire        ioctl_wr;
-wire [24:0] ioctl_addr;
-wire  [7:0] ioctl_data;
-wire  [9:0] ioctl_index;
-wire        ioctl_download;
-wire [31:0] ioctl_file_ext;
+wire         ioctl_wr;
+wire  [24:0] ioctl_addr;
+wire   [7:0] ioctl_data;
+wire   [9:0] ioctl_index;
+wire         ioctl_download;
+wire  [31:0] ioctl_file_ext;
 
-wire [31:0] sd_lba[2];
-wire  [5:0] sd_blk_cnt[2];
-wire  [1:0] sd_rd;
-wire  [1:0] sd_wr;
-wire  [1:0] sd_ack;
-wire [15:0] sd_buff_addr;
-wire  [7:0] sd_buff_dout;
-wire  [7:0] sd_buff_din[2];
-wire        sd_buff_wr;
-wire  [1:0] img_mounted;
-wire [31:0] img_size;
-wire        img_readonly;
+wire  [31:0] sd_lba[2];
+wire   [5:0] sd_blk_cnt[2];
+wire   [1:0] sd_rd;
+wire   [1:0] sd_wr;
+wire   [1:0] sd_ack;
+wire  [15:0] sd_buff_addr;
+wire   [7:0] sd_buff_dout;
+wire   [7:0] sd_buff_din[2];
+wire         sd_buff_wr;
+wire   [1:0] img_mounted;
+wire  [31:0] img_size;
+wire         img_readonly;
 
-wire [24:0] ps2_mouse;
-wire [10:0] ps2_key;
-wire  [2:0] ps2_kbd_led_status = {2'b00, ~cpslk_sense};
-wire  [2:0] ps2_kbd_led_use = 3'b001;
+wire  [24:0] ps2_mouse;
+wire  [10:0] ps2_key;
+wire   [2:0] ps2_kbd_led_status = {2'b00, ~cpslk_sense};
+wire   [2:0] ps2_kbd_led_use = 3'b001;
 
 wire        sftlk_sense;
 wire        cpslk_sense;
@@ -467,7 +475,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .paddle_3(pd4),
 
    .status(status),
-   .status_menumask({status[58], |status[47:46], status[16], status[13], tap_loaded, 1'b0, |vcrop, status[56]}),
+   .status_menumask({status[58], |status[81:80], status[16], status[13], tap_loaded, 1'b0, |vcrop, status[56]}),
    .buttons(buttons),
    .forced_scandoubler(forced_scandoubler),
    .gamma_bus(gamma_bus),
@@ -994,15 +1002,13 @@ fpga64_sid_iec fpga64
    .reset_n(reset_n),
    .pause(freeze),
    .pause_out(c64_pause),
-   .dcr(~status[14]),
-   .cpslk_mode(status[15]),
+   .dcr(~status[89]),
+   .cpslk_mode(status[82]),
 
-   .sys256k(status[49]),
-   .vdcVersion({(~status[47])^status[46],status[46]}),
-   .vdc64k(status[48]|~(status[47]|status[46])),
+   .sys256k(status[87]),
+   .vdcVersion({(~status[81])^status[80],status[80]}),
+   .vdc64k(status[88]|~(status[81]|status[80])),
    .vdcInitRam(~status[24]),
-   //.osmode(status[63]), // for testing, "0" C128, "1" C64
-   //.cpumode(status[62]|status[63]), // for testing, "0" Z80, "1" 8502
    .osmode(0),
    .cpumode(0),
    .turbo_mode(2'b01),
@@ -1183,7 +1189,7 @@ iec_drive iec_drive
    .clk(clk_sys),
    .reset({drive_reset | ((!status[56:55]) ? ~drive_mounted[1] : status[56]),
            drive_reset | ((!status[58:57]) ? ~drive_mounted[0] : status[58])}),
-   .drv_mode('{map_drive_model(status[60:59]), map_drive_model(status[62:61])}),
+   .drv_mode('{map_drive_model(status[84:83]), map_drive_model(status[86:85])}),
 
    .ce(drive_ce),
 
@@ -1266,45 +1272,45 @@ end
 
 wire ext_iec_en = status[25];
 
-iec_io iec_io_clk 
-(
-   .clk(clk_sys),
-   .ext_en(ext_iec_en), 
-
-   .cpu_o(c64_iec_clk_o),   
-   .drive_o(drive_iec_clk_o),    
-   .ext_o(USER_IN[2]),
-
-   .cpu_i(c64_iec_clk_i),   
-   .drive_i(drive_iec_clk_i),   
-   .ext_i(USER_OUT[2])
-);
-
-iec_io iec_io_data 
-(
-   .clk(clk_sys),
-   .ext_en(ext_iec_en), 
-
-   .cpu_o(c64_iec_data_o),  
-   .drive_o(drive_iec_data_o),   
-   .ext_o(USER_IN[4]),  
-
-   .cpu_i(c64_iec_data_i),  
-   .drive_i(drive_iec_data_i),  
-   .ext_i(USER_OUT[4])
-);
-
-iec_io iec_io_srq_n 
+iec_io iec_io_clk
 (
    .clk(clk_sys),
    .ext_en(ext_iec_en),
 
-   .cpu_o(c64_iec_srq_n_o), 
-   .drive_o(drive_iec_srq_n_o), 
-   .ext_o(USER_IN[6]), 
+   .cpu_o(c64_iec_clk_o),
+   .drive_o(drive_iec_clk_o),
+   .ext_o(USER_IN[2]),
 
-   .cpu_i(c64_iec_srq_n_i), 
-   .drive_i(drive_iec_srq_n_i), 
+   .cpu_i(c64_iec_clk_i),
+   .drive_i(drive_iec_clk_i),
+   .ext_i(USER_OUT[2])
+);
+
+iec_io iec_io_data
+(
+   .clk(clk_sys),
+   .ext_en(ext_iec_en),
+
+   .cpu_o(c64_iec_data_o),
+   .drive_o(drive_iec_data_o),
+   .ext_o(USER_IN[4]),
+
+   .cpu_i(c64_iec_data_i),
+   .drive_i(drive_iec_data_i),
+   .ext_i(USER_OUT[4])
+);
+
+iec_io iec_io_srq_n
+(
+   .clk(clk_sys),
+   .ext_en(ext_iec_en),
+
+   .cpu_o(c64_iec_srq_n_o),
+   .drive_o(drive_iec_srq_n_o),
+   .ext_o(USER_IN[6]),
+
+   .cpu_i(c64_iec_srq_n_i),
+   .drive_i(drive_iec_srq_n_i),
    .ext_i(USER_OUT[6])
 );
 
@@ -1752,7 +1758,7 @@ osdinfo osdinfo
    .d4080_sense(d4080_sense),
    .noscr_sense(noscr_sense),
 
-   .cpslk_mode(status[15]),
+   .cpslk_mode(status[82]),
 
    .info_req(info_req),
    .info(info)
