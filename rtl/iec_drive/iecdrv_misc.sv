@@ -15,6 +15,29 @@ end
 
 endmodule
 
+module iecdrv_reset_filter #(parameter WIDTH = 1) 
+(
+	input              clk,
+	input  [WIDTH-1:0] reset,
+	input  [WIDTH-1:0] in,
+	output             out
+);
+
+reg [WIDTH-1:0] active;
+
+assign out = &{in | reset | ~active};
+
+generate
+	genvar i;
+	for(i=0; i<WIDTH; i=i+1) begin :reset_filter_active
+		always @(posedge clk)
+			if(reset[i] || !active[i])
+				active[i] <= in[i];
+	end
+endgenerate
+
+endmodule
+
 // -------------------------------------------------------------------------------
 
 module iecdrv_mem #(parameter DATAWIDTH, ADDRWIDTH, INITFILE=" ")
