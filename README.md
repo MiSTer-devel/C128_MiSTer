@@ -11,6 +11,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - MMU fully implemented and tested using [VICE test progs](https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/c128/)
 - C128 specific keys
 - VDC standard modes (text & bitmap) implemented
+- Selectable colour palettes for the VDC
 - Booting in C64, C128 or CP/M mode
 - Automatic detection of .CRT files: C64 cartridges boot in C64 mode, C128 cartridges boot in C128 mode. C128 .CRT files must contain a [C128 CARTRIDGE](https://vice-emu.sourceforge.io/vice_17.html#SEC392) header to be detected.
 - Loading of .PRG files to the correct memory location in C128 mode.
@@ -83,7 +84,14 @@ For example, to load a Dolphin DOS ROM for the 1541, the filename must end with 
 Video output can be selected using the keyboard. Pressing <kbd>Print screen</kbd> or <kbd>AltGr</kbd>+<kbd>F7</kbd> emulates the <kbd>40/80 display</kbd> toggle switch on the C128 keyboard.
 This will also switch which video output is shown on the VGA/HDMI output of the MiSTer.
 
-In OSD->Audio&Video the VDC version and memory size can be selected.
+In OSD->Audio&Video the VDC version, memory size and colour palette can be selected.
+
+There are four colour palettes selectable for the VDC:
+
+* **Default**: the "standard" TTL RGBI colour palette
+* **Analogue**: the palette when using resistors to convert TTL RGBI to analogue RGB
+* **Monochrome**: TTL monochrome monitor, with two levels of intensity
+* **Composite**: the black and white image on the composite pin of the DB9 TTL RGBI connector, no intensity
 
 ### Keyboard
 * <kbd>End</kbd> - <kbd>Run stop</kbd>

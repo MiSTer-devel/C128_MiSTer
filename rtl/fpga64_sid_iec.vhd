@@ -184,6 +184,7 @@ port(
    vdcVersion  : in  unsigned(1 downto 0);
    vdc64k      : in  std_logic;
    vdcInitRam  : in  std_logic;
+   vdcPalette  : in  std_logic_vector(3 downto 0);
 
    -- System memory size
    sys256k     : in  std_logic;
@@ -875,6 +876,7 @@ port map (
 
 vdcColors: entity work.rgbicolor
 port map (
+   palette => vdcPalette,
    rgbi => vdcRGBI,
    r => vdcR,
    g => vdcG,

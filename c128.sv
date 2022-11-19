@@ -199,7 +199,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-//                 XXXXXXXXXX
+//                 XXXXXXXXXXXXXX
 
 // bits  0.. 63 keep in sync with C64 core
 // bits 64.. 79 reserved in case C64 core starts using them
@@ -245,6 +245,8 @@ localparam CONF_STR = {
    "P1-;",
    "P1O[81:80],VDC version,2 (8568 DCR),1 (8563 R9),0 (8563 R7a);",
    "d6P1O[88],VDC memory,16k,64k;",
+   "P1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
+   "h2P1O[90:89],VDC colour,White,Green,Amber,Red;",
 
    "P2,Hardware;",
    "P2oPQ,Enable Drive #8,If Mounted,Always,Never;",
@@ -283,7 +285,7 @@ localparam CONF_STR = {
    "P2-;",
    "P2FC5,CRT,Boot Cartridge              ;",
    "P2-;",
-   "P2O[89],ROM set,128DCR,Standard;",
+   "P2O[93],ROM set,128DCR,Standard;",
    "P2O[82],Char switch,C64 mode,Caps Lk key;",
    "-;",
    "O3,Swap Joysticks,No,Yes;",
@@ -477,7 +479,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .paddle_3(pd4),
 
    .status(status),
-   .status_menumask({status[58], |status[81:80], status[16], status[13], tap_loaded, 1'b0, |vcrop, status[56]}),
+   .status_menumask({status[58], |status[81:80], status[16], status[13], tap_loaded, status[92], |vcrop, status[56]}),
    .buttons(buttons),
    .forced_scandoubler(forced_scandoubler),
    .gamma_bus(gamma_bus),
@@ -1004,13 +1006,14 @@ fpga64_sid_iec fpga64
    .reset_n(reset_n),
    .pause(freeze),
    .pause_out(c64_pause),
-   .dcr(~status[89]),
+   .dcr(~status[93]),
    .cpslk_mode(status[82]),
 
    .sys256k(status[87]),
    .vdcVersion({(~status[81])^status[80],status[80]}),
    .vdc64k(status[88]|~(status[81]|status[80])),
    .vdcInitRam(~status[24]),
+   .vdcPalette(status[92:89]),
    .osmode(0),
    .cpumode(0),
    .turbo_mode(2'b01),
