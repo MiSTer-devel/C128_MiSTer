@@ -80,6 +80,7 @@ port(
 
    -- VGA/SCART interface
    ntscMode    : in  std_logic;
+   vicJailbars : in  std_logic_vector(1 downto 0);
 
    vicHsync    : out std_logic;
    vicVsync    : out std_logic;
@@ -324,6 +325,10 @@ signal vicDi        : unsigned(7 downto 0);
 signal vicDiAec     : unsigned(7 downto 0);
 signal vicAddr      : unsigned(15 downto 0);
 signal vicData      : unsigned(7 downto 0);
+signal vicHS        : std_logic;
+signal vicRo        : unsigned(7 downto 0);
+signal vicGo        : unsigned(7 downto 0);
+signal vicBo        : unsigned(7 downto 0);
 signal lastVicDi    : unsigned(7 downto 0);
 signal vicAddr1514  : unsigned(1 downto 0);
 signal colorData    : unsigned(3 downto 0);
@@ -452,6 +457,22 @@ component vdc_top
       hblank        : out std_logic;
       vblank        : out std_logic;
       rgbi          : out unsigned(3 downto 0)
+   );
+end component;
+
+component video_vicIIe_jb
+   PORT (
+      clk           : in  std_logic; 
+      mode          : in  std_logic_vector(1 downto 0);
+   
+      hsync         : in  std_logic;
+      Ri            : in  unsigned(7 downto 0);
+      Gi            : in  unsigned(7 downto 0);
+      Bi            : in  unsigned(7 downto 0);
+   
+      Ro            : out unsigned(7 downto 0);
+      Go            : out unsigned(7 downto 0);
+      Bo            : out unsigned(7 downto 0)
    );
 end component;
 
@@ -777,19 +798,36 @@ port map (
    vicAddr => vicAddr(13 downto 0),
    addrValid => aec,
 
-   hSync => vicHsync,
+   hSync => vicHS,
    vSync => vicVsync,
    colorIndex => vicColorIndex,
 
    irq_n => irq_vic
 );
 
+vicHsync <= vicHS;
+
 vicColors: entity work.fpga64_rgbcolor
 port map (
    index => vicColorIndex,
-   r => vicR,
-   g => vicG,
-   b => vicB
+   r => vicRo,
+   g => vicGo,
+   b => vicBo
+);
+
+vicJailbarAdjust: video_vicIIe_jb
+port map (
+   clk => clk32,
+   mode => vicJailbars,
+
+   hsync => vicHS,
+   Ri => vicRo,
+   Gi => vicGo,
+   Bi => vicBo,
+
+   Ro => vicR,
+   Go => vicG,
+   Bo => vicB
 );
 
 process(clk32)

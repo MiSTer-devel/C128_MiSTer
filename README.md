@@ -10,6 +10,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 
 - MMU fully implemented and tested using [VICE test progs](https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/c128/)
 - C128 specific keys
+- VIC jailbars for the authentic C128 video experience
 - VDC standard modes (text & bitmap) implemented
 - Selectable colour palettes for the VDC
 - Booting in C64, C128 or CP/M mode

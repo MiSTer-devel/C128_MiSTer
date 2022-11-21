@@ -199,7 +199,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-//                 XXXXXXXXXXXXXX
+//                 XXXXXXXXXXXXXXXX
 
 // bits  0.. 63 keep in sync with C64 core
 // bits 64.. 79 reserved in case C64 core starts using them
@@ -231,6 +231,7 @@ localparam CONF_STR = {
    "P1O8A,Scandoubler Fx,None,HQ2x-320,HQ2x-160,CRT 25%,CRT 50%,CRT 75%;",
    "d1P1o0,Vertical Crop,No,Yes;",
    "P1OUV,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
+   "P1O[95:94],VIC Jailbars,Off,Low,Medium,High;",
    "P1-;",
    "P1OD,Left SID,8580,6581;",
    "d4P1o23,Left Filter,Default,Custom 1,Custom 2,Custom 3;",
@@ -1034,6 +1035,7 @@ fpga64_sid_iec fpga64
    .ramWE(ram_we),
 
    .ntscmode(ntsc),
+   .vicJailbars(status[95:94]),
 
    .vicHsync(vicHsync),
    .vicVsync(vicVsync),
@@ -1407,8 +1409,8 @@ video_freak video_freak
 (
    .*,
    .VGA_DE_IN(vga_de),
-   .ARX((!ar) ? (video_out ? (wide ? 12'd340 : 12'd400) : (wide ? 12'd680 : 12'd800)) : (ar - 1'd1)),
-   .ARY((!ar) ? video_out ? 12'd300 : 12'd600 : 12'd0),
+   .ARX((!ar) ? (wide ? 12'd680 : 12'd800) : (ar - 1'd1)),
+   .ARY((!ar) ? 12'd600 : 12'd0),
    .CROP_SIZE(vcrop_en ? vcrop : 10'd0),
    .CROP_OFF(0),
    .SCALE(status[31:30])
