@@ -57,6 +57,7 @@ module vdc_ramiface #(
 	input          newCol,
 	input          endCol,
 	input          vVisible,
+	input    [7:0] row,
 	input    [7:0] col,
 	input    [4:0] line,
 
@@ -138,7 +139,7 @@ always @(posedge clk) begin
 
 		wc     <= 0;
 		wda    <= 0;
-		cda	 <= 0;
+		cda	   <= 0;
 		reg_ua <= 0;
 		reg_wc <= 0;
 		reg_da <= 0;
@@ -293,7 +294,7 @@ always @(posedge clk) begin
 			end
 
 			if ((newLine && reg_text) || newRow) begin
-				scrnaddr = (vVisible && (~reg_text /*|| |row*/ || |line)) ? scrnaddr + reg_hd + reg_ai : reg_ds;
+				scrnaddr = (vVisible && (~reg_text || |row || |line)) ? scrnaddr + reg_hd + reg_ai : reg_ds;
 			end
 
 			if (vVisible && col < reg_hd) begin

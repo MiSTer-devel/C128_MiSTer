@@ -139,7 +139,7 @@ always @(posedge clk) begin
 					nrow <= nrow + 8'd1;
 					newRow <= 1;
 
-					if (nrow == 1)
+					if (nrow == 0)
 						vCnt <= reg_vd;
 					else if (|vCnt)
 						vCnt <= vCnt - 8'd1;

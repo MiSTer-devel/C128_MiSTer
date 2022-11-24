@@ -215,6 +215,7 @@ vdc_ramiface #(
 	.newCol(newCol),
 	.endCol(endCol),
 	.vVisible(vVisible),
+	.row(row),
 	.col(col),
 	.line(line),
 
