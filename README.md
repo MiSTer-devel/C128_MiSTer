@@ -27,7 +27,7 @@ The following features should work but have not been tested. If you have an oppo
 
 ### C128 features not (yet/fully) implemented
 
-- VDC scrolling, interlace, 40 column mode, non-standard modes
+- VDC scrolling, interlace, non-standard modes
 - Internal function ROM
 - 1571DCR drive model option for the full _128DCR experience_. This model uses a custom MFM en/decoding chip which seems to be completely undocumented.
 
