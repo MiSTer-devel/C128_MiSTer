@@ -5,36 +5,34 @@
  ********************************************************************************/
 
 module vdc_top #(
-	parameter		RAM_ADDR_BITS = 16,
-	parameter 		C_LATCH_WIDTH = 8,
-	parameter 		S_LATCH_WIDTH = 80,
-	parameter 		A_LATCH_WIDTH = 80
+	parameter RAM_ADDR_BITS = 16,
+	parameter C_LATCH_WIDTH = 8,
+	parameter S_LATCH_WIDTH = 80
 )(
 	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
-	input				initRam,   // 1=initialize RAM on reset
+	input          initRam,   // 1=initialize RAM on reset
 
 	input          clk,
-	input				enableBus,
+	input          enableBus,
 	input          reset,
 	input          init,
 
 	input          cs,        // chip select
 	input          rs,        // register select
 	input          we,        // write enable
-	input				lp_n,      // light pen
+	input          lp_n,      // light pen
 
 	input    [7:0] db_in,     // data in
 	output   [7:0] db_out,    // data out
 
-	input          enablePixel0,
-	input          enablePixel1,
+	input          enaPixel,
 
-	output			vsync,
-	output			hsync,
-	output			vblank,
-	output			hblank,
-	output	[3:0]	rgbi		  
+	output         vsync,
+	output         hsync,
+	output         vblank,
+	output         hblank,
+	output   [3:0] rgbi		  
 );
 
 // version  chip
@@ -103,7 +101,7 @@ reg         rowbuf;
 reg  [15:0] dispaddr;
 
 (* ramstyle = "no_rw_check" *) reg [7:0] scrnbuf[2][S_LATCH_WIDTH];
-(* ramstyle = "no_rw_check" *) reg [7:0] attrbuf[2][A_LATCH_WIDTH];
+(* ramstyle = "no_rw_check" *) reg [7:0] attrbuf[2][S_LATCH_WIDTH];
 (* ramstyle = "no_rw_check" *) reg [7:0] charbuf[C_LATCH_WIDTH];
 
 reg         lpStatus;       // light pen status
@@ -111,35 +109,48 @@ wire			vsync_pos;
 wire			hsync_pos;
 
 wire        busy;
-wire        enablePixel = enablePixel0 | (~reg_dbl & enablePixel1);
-wire  [1:0] visible;
+wire  		hVisible, vVisible;
+
+reg         dbl, pxlPhase;
+wire        enable0 = dbl ?  pxlPhase & enaPixel :  enaPixel;  // pixel clock
+wire        enable1 = dbl ? ~pxlPhase & enaPixel : ~enaPixel;  // 180 degree out of phase pixel clock
+
+always @(posedge clk)
+	if (reset||init) 
+		pxlPhase <= 0;
+	else if (enaPixel)
+		pxlPhase <= ~pxlPhase;
+
+always @(posedge clk)
+	if (enaPixel && newFrame)
+		dbl <= reg_dbl;
 
 vdc_clockgen clockgen (
 	.clk(clk),
 	.reset(reset),
 	.init(init),
-	.enable(enablePixel),
+	.enable(enable0),
 
-   .reg_ht(reg_ht),
-   .reg_hd(reg_hd),
-   .reg_hp(reg_hp),
-   .reg_vw(reg_vw),
-   .reg_hw(reg_hw),
-   .reg_vt(reg_vt),
-   .reg_va(reg_va),
-   .reg_vd(reg_vd),
-   .reg_vp(reg_vp),
-   .reg_im(reg_im),
-   .reg_ctv(reg_ctv),
-   .reg_cth(reg_cth),
-   .reg_cdh(reg_cdh),
-   .reg_cdv(reg_cdv),
-   .reg_vss(reg_vss),
-   .reg_hss(reg_hss),
-   .reg_fg(reg_fg),
-   .reg_bg(reg_bg),
-   .reg_deb(reg_deb),
-   .reg_dee(reg_dee),
+	.reg_ht(reg_ht),
+	.reg_hd(reg_hd),
+	.reg_hp(reg_hp),
+	.reg_vw(reg_vw),
+	.reg_hw(reg_hw),
+	.reg_vt(reg_vt),
+	.reg_va(reg_va),
+	.reg_vd(reg_vd),
+	.reg_vp(reg_vp),
+	.reg_im(reg_im),
+	.reg_ctv(reg_ctv),
+	.reg_cth(reg_cth),
+	.reg_cdh(reg_cdh),
+	.reg_cdv(reg_cdv),
+	.reg_vss(reg_vss),
+	.reg_hss(reg_hss),
+	.reg_fg(reg_fg),
+	.reg_bg(reg_bg),
+	.reg_deb(reg_deb),
+	.reg_dee(reg_dee),
 
 	.newFrame(newFrame),
 	.newLine(newLine),
@@ -150,7 +161,8 @@ vdc_clockgen clockgen (
 	.row(row),
 	.line(line),
 
-	.visible(visible),
+	.hVisible(hVisible),
+	.vVisible(vVisible),
 	.blink(blink),
 
 	.vblank(vblank),
@@ -162,7 +174,6 @@ vdc_clockgen clockgen (
 vdc_ramiface #(
 	.RAM_ADDR_BITS(RAM_ADDR_BITS),
 	.S_LATCH_WIDTH(S_LATCH_WIDTH),
-	.A_LATCH_WIDTH(A_LATCH_WIDTH),
 	.C_LATCH_WIDTH(C_LATCH_WIDTH)
 ) ram (
 	.ram64k(ram64k),
@@ -170,7 +181,8 @@ vdc_ramiface #(
 
 	.clk(clk),
 	.reset(reset),
-	.enable(enablePixel),
+	.enable0(enable0),
+	.enable1(enable1),
 
 	.regA(regSel),
 	.db_in(db_in),
@@ -179,8 +191,8 @@ vdc_ramiface #(
 	.rs(rs),
 	.we(we),
 
-   .reg_ht(reg_ht),
-   .reg_hd(reg_hd),
+	.reg_ht(reg_ht),
+	.reg_hd(reg_hd),
 	.reg_ai(reg_ai),
 	.reg_copy(reg_copy),
 	.reg_ram(reg_ram),
@@ -202,8 +214,7 @@ vdc_ramiface #(
 	.newRow(newRow),
 	.newCol(newCol),
 	.endCol(endCol),
-	.visible(visible),
-	.row(row),
+	.vVisible(vVisible),
 	.col(col),
 	.line(line),
 
@@ -218,14 +229,13 @@ vdc_ramiface #(
 
 vdc_video #(
 	.S_LATCH_WIDTH(S_LATCH_WIDTH),
-	.A_LATCH_WIDTH(A_LATCH_WIDTH),
 	.C_LATCH_WIDTH(C_LATCH_WIDTH)
 ) video (
 	.version(version),
 
 	.clk(clk),
 	.reset(reset),
-	.enable(enablePixel),
+	.enable(enable0),
 
 	.reg_cth(reg_cth),
 	.reg_cdh(reg_cdh),
@@ -234,9 +244,9 @@ vdc_video #(
 
 	.reg_ul(reg_ul),
 	.reg_cbrate(reg_cbrate),
-   .reg_text(reg_text),
-   .reg_atr(reg_atr),
-   .reg_semi(reg_semi),
+	.reg_text(reg_text),
+	.reg_atr(reg_atr),
+	.reg_semi(reg_semi),
 	.reg_rvs(reg_rvs),
 	.reg_fg(reg_fg),
 	.reg_bg(reg_bg),
@@ -244,15 +254,15 @@ vdc_video #(
 	.reg_cm(reg_cm),
 	.reg_cs(reg_cs),
 	.reg_ce(reg_ce),
-   .reg_cp(reg_cp),
+	.reg_cp(reg_cp),
 	
 	.newFrame(newFrame),
 	.newLine(newLine),
 	.newRow(newRow),
 	.newCol(newCol),
 
-	.visible(visible),
-	.blank(hblank),
+	.visible(hVisible & vVisible),
+	.blank(hblank | vblank),
 	.blink(blink),
 	.rowbuf(rowbuf),
 	.col(col),
@@ -260,7 +270,7 @@ vdc_video #(
 	.scrnbuf(scrnbuf),
 	.attrbuf(attrbuf),
 	.charbuf(charbuf),
-   .dispaddr(dispaddr),
+	.dispaddr(dispaddr),
 
 	.rgbi(rgbi)
 );
@@ -395,7 +405,7 @@ always @(posedge clk) begin
 		end
 		else begin
 			if (!rs) begin
-				db_out <= {~busy, lpStatus, ~visible[0], 3'b000, version};
+				db_out <= {~busy, lpStatus, ~vVisible, 3'b000, version};
 			end
 			else
 				case (regSel)

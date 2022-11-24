@@ -235,8 +235,8 @@ signal cpucycT65    : std_logic;
 signal cpucycT80    : std_logic;
 signal enableVic    : std_logic;
 signal enableVdc    : std_logic;
-signal enablePixel0 : std_logic;
-signal enablePixel1 : std_logic;
+signal enaPixelVic  : std_logic;
+signal enaPixelVdc  : std_logic;
 signal enableSid    : std_logic;
 signal enable8502   : std_logic;
 signal enableZ80    : std_logic;
@@ -449,8 +449,7 @@ component vdc_top
       db_in         : in  unsigned(7 downto 0);
       db_out        : out unsigned(7 downto 0);
 
-      enablePixel0  : in  std_logic;
-      enablePixel1  : in  std_logic;
+      enaPixel      : in  std_logic;
 
       hsync         : out std_logic;
       vsync         : out std_logic;
@@ -764,7 +763,7 @@ generic map (
 port map (
    clk => clk32,
    reset => reset,
-   enaPixel => enablePixel1,
+   enaPixel => enaPixelVic,
    enaData => enableVic,
    phi => phi0_cpu,
 
@@ -854,26 +853,17 @@ end process;
 process(clk32)
 begin
    if rising_edge(clk32) then
-      enablePixel0 <= '0';
-      enablePixel1 <= '0';
+      enaPixelVic <= '0';
 
       case sysCycle is
-      when CYCLE_EXT0 => enablePixel0 <= '1';
-      when CYCLE_EXT2 => enablePixel1 <= '1';
-      when CYCLE_DMA0 => enablePixel0 <= '1';
-      when CYCLE_DMA2 => enablePixel1 <= '1';
-      when CYCLE_EXT4 => enablePixel0 <= '1';
-      when CYCLE_EXT6 => enablePixel1 <= '1';
-      when CYCLE_VIC0 => enablePixel0 <= '1';
-      when CYCLE_VIC2 => enablePixel1 <= '1';
-      when CYCLE_CPU0 => enablePixel0 <= '1';
-      when CYCLE_CPU2 => enablePixel1 <= '1';
-      when CYCLE_CPU4 => enablePixel0 <= '1';
-      when CYCLE_CPU6 => enablePixel1 <= '1';
-      when CYCLE_CPU8 => enablePixel0 <= '1';
-      when CYCLE_CPUA => enablePixel1 <= '1';
-      when CYCLE_CPUC => enablePixel0 <= '1';
-      when CYCLE_CPUE => enablePixel1 <= '1';
+      when CYCLE_EXT2 => enaPixelVic <= '1';
+      when CYCLE_DMA2 => enaPixelVic <= '1';
+      when CYCLE_EXT6 => enaPixelVic <= '1';
+      when CYCLE_VIC2 => enaPixelVic <= '1';
+      when CYCLE_CPU2 => enaPixelVic <= '1';
+      when CYCLE_CPU6 => enaPixelVic <= '1';
+      when CYCLE_CPUA => enaPixelVic <= '1';
+      when CYCLE_CPUE => enaPixelVic <= '1';
       when others     => null;
       end case;
    end if;
@@ -902,8 +892,7 @@ port map (
    db_in => cpuDo,
    db_out => vdcData,
 
-   enablePixel0 => enablePixel0,
-   enablePixel1 => enablePixel1,
+   enaPixel => enaPixelVdc,
 
    hsync => vdcHsync,
    vsync => vdcVsync,
@@ -920,6 +909,34 @@ port map (
    g => vdcG,
    b => vdcB
 );
+
+-- Pixel timing
+process(clk32)
+begin
+   if rising_edge(clk32) then
+      enaPixelVdc <= '0';
+
+      case sysCycle is
+      when CYCLE_EXT0 => enaPixelVdc <= '1';
+      when CYCLE_EXT2 => enaPixelVdc <= '1';
+      when CYCLE_DMA0 => enaPixelVdc <= '1';
+      when CYCLE_DMA2 => enaPixelVdc <= '1';
+      when CYCLE_EXT4 => enaPixelVdc <= '1';
+      when CYCLE_EXT6 => enaPixelVdc <= '1';
+      when CYCLE_VIC0 => enaPixelVdc <= '1';
+      when CYCLE_VIC2 => enaPixelVdc <= '1';
+      when CYCLE_CPU0 => enaPixelVdc <= '1';
+      when CYCLE_CPU2 => enaPixelVdc <= '1';
+      when CYCLE_CPU4 => enaPixelVdc <= '1';
+      when CYCLE_CPU6 => enaPixelVdc <= '1';
+      when CYCLE_CPU8 => enaPixelVdc <= '1';
+      when CYCLE_CPUA => enaPixelVdc <= '1';
+      when CYCLE_CPUC => enaPixelVdc <= '1';
+      when CYCLE_CPUE => enaPixelVdc <= '1';
+      when others     => null;
+      end case;
+   end if;
+end process;
 
 -- -----------------------------------------------------------------------
 -- SID

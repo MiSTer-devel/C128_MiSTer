@@ -5,6 +5,7 @@ for the C128 MiSTer FPGA core, by Erik Scheffers
  * Memory interface (including copy and fill)
  * Standard text mode
  * Attributes, color
+ * Double pixel/40 columns mode
  * Cursor
  * 640x200 "standard" graphics mode
  * Lightpen trigger
@@ -13,7 +14,6 @@ for the C128 MiSTer FPGA core, by Erik Scheffers
  * Vertical scrolling
  * Horizontal scrolling
  * Interlace
- * 40 columns mode
  * Non-standard character widths
  * Non-standard modes (e.g. split modes, 8x1 etc)
 
