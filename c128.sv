@@ -193,15 +193,14 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXX  XXXXXX XXXXXXXXX XXXXXXXXXXXXXX    XXXXXXXXXXX
+// XXXXXXXXXXXXXX  XXXXXX XXXXXXXXX XX  X  XXXXXXX    XXXXXXXXXXX
 
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-//                 XXXXXXXXXXXXXXXX                                X 
+// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX                                X 
 
-// bits  0.. 63 keep in sync with C64 core
-// bits 64.. 79 reserved in case C64 core starts using them
+// bits  0.. 79 keep in sync with C64 core
 // bits 80..127 C128 core options
 
 `include "build_id.v"
@@ -245,9 +244,11 @@ localparam CONF_STR = {
    "h2P1O[90:89],VDC colour,White,Green,Amber,Red;",
    "P1-;",
    "P1OD,Left SID,8580,6581;",
-   "d4P1o23,Left Filter,Default,Custom 1,Custom 2,Custom 3;",
    "P1OG,Right SID,8580,6581;",
-   "d5P1o56,Right Filter,Default,Custom 1,Custom 2,Custom 3;",
+	"D4P1O[66:64],Left Filter,Default,Custom 1,Custom 2,Custom 3,Adjustable;",
+	"D5P1O[69:67],Right Filter,Default,Custom 1,Custom 2,Custom 3,Adjustable;",
+	"D4D8P1O[72:70],Left Fc Offset,0,1,2,3,4,5;",
+	"D5D9P1O[75:73],Right Fc Offset,0,1,2,3,4,5;",
    "P1OKL,Right SID Port,Same,D420,DE00,DF00;",
    "P1FC7,FLT,Load Custom Filters;",
    "P1-;",
@@ -488,7 +489,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .paddle_3(pd4),
 
    .status(status),
-   .status_menumask({status[58], |status[81:80], status[16], status[13], tap_loaded, status[92], |vcrop, status[56]}),
+   .status_menumask({~status[69], ~status[66], status[58], |status[81:80], ~status[16], ~status[13], tap_loaded, status[92], |vcrop, status[56]}),
    .buttons(buttons),
    .forced_scandoubler(forced_scandoubler),
    .gamma_bus(gamma_bus),
@@ -1134,7 +1135,9 @@ fpga64_sid_iec #(
    .sid_mode(status[21:20]),
    .sid_filter(2'b11),
    .sid_ver({~status[16],~status[13]}),
-   .sid_cfg({status[38:37],status[35:34]}),
+	.sid_cfg({status[68:67],status[65:64]}),
+	.sid_fc_off_l(status[66] ? (13'h600 - {status[72:70],7'd0}) : 13'd0),
+	.sid_fc_off_r(status[69] ? (13'h600 - {status[75:73],7'd0}) : 13'd0),
    .audio_l(audio_l),
    .audio_r(audio_r),
 

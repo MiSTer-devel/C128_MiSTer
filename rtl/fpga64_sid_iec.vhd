@@ -141,33 +141,35 @@ port(
    pot3        : in  std_logic_vector(7 downto 0);
    pot4        : in  std_logic_vector(7 downto 0);
 
-   --SID
-   audio_l     : out std_logic_vector(17 downto 0);
-   audio_r     : out std_logic_vector(17 downto 0);
-   sid_filter  : in  std_logic_vector(1 downto 0);
-   sid_ver     : in  std_logic_vector(1 downto 0);
-   sid_mode    : in  unsigned(1 downto 0);
-   sid_cfg     : in  std_logic_vector(3 downto 0);
-   sid_ld_clk  : in  std_logic;
-   sid_ld_addr : in  std_logic_vector(11 downto 0);
-   sid_ld_data : in  std_logic_vector(15 downto 0);
-   sid_ld_wr   : in  std_logic;
-
-   -- USER
-   pb_i        : in  unsigned(7 downto 0);
-   pb_o        : out unsigned(7 downto 0);
-   pa2_i       : in  std_logic;
-   pa2_o       : out std_logic;
-   pc2_n_o     : out std_logic;
-   flag2_n_i   : in  std_logic;
-   sp2_i       : in  std_logic;
-   sp2_o       : out std_logic;
-   sp1_i       : in  std_logic;
-   sp1_o       : out std_logic;
-   cnt2_i      : in  std_logic;
-   cnt2_o      : out std_logic;
-   cnt1_i      : in  std_logic;
-   cnt1_o      : out std_logic;
+	--SID
+	audio_l     : out std_logic_vector(17 downto 0);
+	audio_r     : out std_logic_vector(17 downto 0);
+	sid_filter  : in  std_logic_vector(1 downto 0);
+	sid_ver     : in  std_logic_vector(1 downto 0);
+	sid_mode    : in  unsigned(2 downto 0);
+	sid_cfg     : in  std_logic_vector(3 downto 0);
+	sid_fc_off_l: in  std_logic_vector(12 downto 0);
+	sid_fc_off_r: in  std_logic_vector(12 downto 0);
+	sid_ld_clk  : in  std_logic;
+	sid_ld_addr : in  std_logic_vector(11 downto 0);
+	sid_ld_data : in  std_logic_vector(15 downto 0);
+	sid_ld_wr   : in  std_logic;
+	
+	-- USER
+	pb_i        : in  unsigned(7 downto 0);
+	pb_o        : out unsigned(7 downto 0);
+	pa2_i       : in  std_logic;
+	pa2_o       : out std_logic;
+	pc2_n_o     : out std_logic;
+	flag2_n_i   : in  std_logic;
+	sp2_i       : in  std_logic;
+	sp2_o       : out std_logic;
+	sp1_i       : in  std_logic;
+	sp1_o       : out std_logic;
+	cnt2_i      : in  std_logic;
+	cnt2_o      : out std_logic;
+	cnt1_i      : in  std_logic;
+	cnt1_o      : out std_logic;
 
    -- IEC
    iec_data_o	: out std_logic;
@@ -400,6 +402,9 @@ component sid_top
 
 		ext_in_l      : in  std_logic_vector(17 downto 0);
 		ext_in_r      : in  std_logic_vector(17 downto 0);
+
+		fc_offset_l   : in  std_logic_vector(12 downto 0);
+		fc_offset_r   : in  std_logic_vector(12 downto 0);
 
 		filter_en     : in  std_logic_vector(1 downto 0);
 		mode          : in  std_logic_vector(1 downto 0);
@@ -976,6 +981,9 @@ port map (
 	filter_en => sid_filter,
 	mode    => sid_ver,
 	cfg     => sid_cfg,
+	
+	fc_offset_l => sid_fc_off_l,
+	fc_offset_r => sid_fc_off_r,
 
    ld_clk  => sid_ld_clk,
    ld_addr => sid_ld_addr,
