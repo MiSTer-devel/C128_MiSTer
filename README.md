@@ -255,8 +255,6 @@ Primary function of RS232 is emulated dial-up connection to old-fashioned BBS. *
 Supported up to 4MB of memory. GeoRAM is connected if no other cart is loaded. It's automatically disabled when cart is loaded, then enabled when cart unloaded.
 
 ### REU
-*(untested in C128_MiSTer, probably only works in C64 mode)*
-
 Supported standard 512KB, expanded 2MB with wrapping inside 512KB blocks (for compatibility) and linear 16MB size with full 16MB counter wrap.
 Support for REU files.
 
