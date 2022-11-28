@@ -10,7 +10,7 @@ module vdc_clockgen (
 	input         clk,
 	input         reset,
 	input         init,
-	input         enable,
+	input         enable0,
  
 	input   [7:0] reg_ht,         // R0      7E/7F 126/127 Horizontal total (minus 1) [126 for original ROM, 127 for PAL on DCR]
 	input   [7:0] reg_hd,         // R1         50 80      Horizontal displayed
@@ -33,7 +33,7 @@ module vdc_clockgen (
 	input   [3:0] reg_bg,         // R26[3:0]    0 black   Background RGBI
 	input   [7:0] reg_deb,        // R34        7D 125     Display enable begin
 	input   [7:0] reg_dee,        // R35        64 100     Display enable end
- 
+
 	output  [1:0] newFrame,       // pulses at the start of a new frame, 11=single frame, 01=odd frame, 10=even frame
 	output        newRow,         // pulses at the start of a new visible row
 	output        newLine,        // pulses at the start of a new scan line
@@ -104,7 +104,7 @@ always @(posedge clk) begin
 		scanline <= 0;
 		hdisen <= 0;
 	end
-	else if (enable) begin
+	else if (enable0) begin
 		newFrame <= 0;
 		newRow <= 0;
 		newLine <= 0;
@@ -193,7 +193,7 @@ always @(posedge clk) begin
 
 	if (reset||init)
 		{blink[0], counter} <= 0;
-	else if (enable && |newFrame)
+	else if (enable0 && |newFrame)
 		{blink[0], counter} <= 4'({blink[0], counter} + 1);
 end
 
@@ -203,7 +203,7 @@ always @(posedge clk) begin
 
 	if (reset||init)
 		{blink[1], counter} <= 0;
-	else if (enable && |newFrame) begin
+	else if (enable0 && |newFrame) begin
 		counter = counter + 1'd1;
 		if (counter == 14) begin
 			blink[1] <= ~blink[1];

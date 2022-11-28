@@ -26,8 +26,6 @@ module vdc_top #(
 	input    [7:0] db_in,     // data in
 	output   [7:0] db_out,    // data out
 
-	input          enaPixel,
-
 	output         vsync,
 	output         hsync,
 	output         vblank,
@@ -39,6 +37,17 @@ module vdc_top #(
 //   0      8563 R7A    initial version, 16k or 64k RAM
 //   1      8563 R9     changes to R25, 16k or 64k RAM
 //   2      8568        adds R37, 64k RAM
+
+// Pixel clock
+
+wire enable0 = reg_dbl ?  clkcnt[1] & clkcnt[0] :  clkcnt[0];
+wire enable1 = reg_dbl ? ~clkcnt[1] & clkcnt[0] : ~clkcnt[0];
+
+reg [1:0] clkcnt;
+always @(posedge clk)
+	clkcnt <= clkcnt + 1'd1;
+
+// Register file
 
 									 // Reg      Init value   Description
 reg   [7:0] reg_ht;         // R0      7E/7F 126/127 Horizontal total (minus 1) [126 for original ROM, 127 for PAL on DCR]
@@ -105,31 +114,17 @@ reg  [15:0] dispaddr;
 (* ramstyle = "no_rw_check" *) reg [7:0] charbuf[C_LATCH_WIDTH];
 
 reg         lpStatus;       // light pen status
-wire			vsync_pos;
-wire			hsync_pos;
+wire		vsync_pos;
+wire		hsync_pos;
 
 wire        busy;
 wire  		hVisible, vVisible;
-
-reg         dbl, pxlPhase;
-wire        enable0 = dbl ?  pxlPhase & enaPixel :  enaPixel;  // pixel clock
-wire        enable1 = dbl ? ~pxlPhase & enaPixel : ~enaPixel;  // 180 degree out of phase pixel clock
-
-always @(posedge clk)
-	if (reset||init) 
-		pxlPhase <= 0;
-	else if (enaPixel)
-		pxlPhase <= ~pxlPhase;
-
-always @(posedge clk)
-	if (enaPixel && newFrame)
-		dbl <= reg_dbl;
 
 vdc_clockgen clockgen (
 	.clk(clk),
 	.reset(reset),
 	.init(init),
-	.enable(enable0),
+	.enable0(enable0),
 
 	.reg_ht(reg_ht),
 	.reg_hd(reg_hd),
