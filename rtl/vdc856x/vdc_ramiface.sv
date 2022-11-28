@@ -87,7 +87,7 @@ begin
 	if (RAM_ADDR_BITS > 14)
 		shuffleAddr = RAM_ADDR_BITS'(
 			ena64k ? {has64k & addr[15], addr[14:9], has64k & addr[8], addr[7:0]} 
-					 : {has64k & addr[15], addr[13:8], has64k & addr[8], addr[7:0]}
+				   : {has64k & addr[15], addr[13:8], has64k & addr[8], addr[7:0]}
 		);
 	else
 		shuffleAddr = RAM_ADDR_BITS'(ena64k ? {addr[14:9], addr[7:0]} : addr[13:0]);
@@ -105,8 +105,7 @@ vdcram #(8, RAM_ADDR_BITS) ram
 );
 
 wire en_rfsh = (col >= reg_hd && col < reg_hd+reg_drr);
-wire en_scac = ~en_rfsh && col >= 2 && col < reg_ht-2;
-wire en_cpu  = ~en_rfsh;
+wire en_scac = col >= 2 && col < reg_ht-2;
 
 always @(posedge clk) begin
 	cAction_t cpuAction;
@@ -114,6 +113,7 @@ always @(posedge clk) begin
 
 	reg [15:0] scrnaddr;    // screen data row address
 	reg [15:0] attraddr;    // attributes row address
+	reg  [7:0] rfshaddr;    // refresh row address
 	reg  [7:0] wda, cda;    // write/copy data
 	reg  [7:0] wc;          // block word count
 	reg        start_erase;
@@ -312,6 +312,13 @@ always @(posedge clk) begin
 
 				ram_rd    <= 1;
 			end
+			else if (en_rfsh) begin
+				// ram refresh causes glitches in the last column when scrolling horizontally
+				ramAction     <= RA_CHAR;
+				ram_addr[7:0] <= rfshaddr;
+				rfshaddr      <= rfshaddr + 1'd1;
+				ram_rd        <= 1;
+			end
 			else if (en_scac && si < reg_hd) begin
 				// fetch screen data
 				ramAction <= RA_SCRN;
@@ -324,7 +331,7 @@ always @(posedge clk) begin
 				ram_addr  <= attraddr + ai;
 				ram_rd    <= 1;
 			end
-			else if (en_cpu && cpuAction != CA_NONE) begin
+			else if (cpuAction != CA_NONE) begin
 				// perform CPU action
 				ramAction <= RA_CPU;
 
