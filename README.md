@@ -92,7 +92,7 @@ There are four colour palettes selectable for the VDC:
 * **Default**: the "standard" TTL RGBI colour palette
 * **Analogue**: the palette when using resistors to convert TTL RGBI to analogue RGB
 * **Monochrome**: TTL monochrome monitor, with two levels of intensity
-* **Composite**: the black and white image on the composite pin of the DB9 TTL RGBI connector, no intensity
+* **Composite**: the black and white image on the composite pin of the DB9 TTL RGBI connector
 
 ### Keyboard
 * <kbd>End</kbd> - <kbd>Run stop</kbd>

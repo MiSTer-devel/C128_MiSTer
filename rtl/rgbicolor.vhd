@@ -59,11 +59,18 @@ begin
 			when B"10" => r <= X"C4"; g <= X"9C"; b <= X"00";
 			when B"11" => r <= X"C4"; g <= X"00"; b <= X"00";
 			end case;
+		elsif rgbi(0) = '0' then 
+			case palette(1 downto 0) is
+			when B"00" => r <= X"F8"; g <= X"F8"; b <= X"F8";
+			when B"01" => r <= X"00"; g <= X"F8"; b <= X"00";
+			when B"10" => r <= X"F8"; g <= X"C5"; b <= X"00";
+			when B"11" => r <= X"F8"; g <= X"00"; b <= X"00";
+			end case;
 		else
 			case palette(1 downto 0) is
 			when B"00" => r <= X"FF"; g <= X"FF"; b <= X"FF";
 			when B"01" => r <= X"00"; g <= X"FF"; b <= X"00";
-			when B"10" => r <= X"FF"; g <= X"CC"; b <= X"00";
+			when B"10" => r <= X"FF"; g <= X"CA"; b <= X"00";
 			when B"11" => r <= X"FF"; g <= X"00"; b <= X"00";
 			end case;
 		end if;
