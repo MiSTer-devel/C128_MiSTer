@@ -45,6 +45,10 @@ use IEEE.numeric_std.all;
 -- -----------------------------------------------------------------------
 
 entity fpga64_sid_iec is
+generic (
+   EXCLUDE_STD_ROMS : integer := 0;
+   VDC_ADDR_BITS    : integer := 16
+);
 port(
    clk32       : in  std_logic;
    reset_n     : in  std_logic;
@@ -186,6 +190,7 @@ port(
    vdc64k      : in  std_logic;
    vdcInitRam  : in  std_logic;
    vdcPalette  : in  std_logic_vector(3 downto 0);
+   vdcDebug    : in  std_logic;
 
    -- System memory size
    sys256k     : in  std_logic;
@@ -433,10 +438,14 @@ component mos6526_8520
 end component;
 
 component vdc_top
+   generic (
+      RAM_ADDR_BITS : integer
+   );
    port (
       version       : in  unsigned(1 downto 0);
       ram64k        : in  std_logic;
       initRam       : in  std_logic;
+      debug         : in  std_logic;
 
       clk           : in  std_logic;
       reset         : in  std_logic;
@@ -639,6 +648,9 @@ mmu_we <= pulseWr when cs_mmuH = '1' else pulseWr_io;
 -- PLA and bus-switches
 -- -----------------------------------------------------------------------
 buslogic: entity work.fpga64_buslogic
+generic map (
+   EXCLUDE_STD_ROMS => EXCLUDE_STD_ROMS
+)
 port map (
    clk => clk32,
    reset => reset,
@@ -874,10 +886,14 @@ end process;
 -- -----------------------------------------------------------------------
 
 vdc: vdc_top
+generic map (
+   RAM_ADDR_BITS => VDC_ADDR_BITS
+)
 port map (
    version => vdcVersion,
    ram64k => vdc64k,
    initRam => vdcInitRam,
+   debug => vdcDebug,
 
    clk => clk32,
    reset => reset,

@@ -11,6 +11,7 @@ module vdc_video #(
 	parameter 		C_LATCH_WIDTH
 )(
 	input    [1:0] version,                    // 0=8563R7A, 1=8563R9, 2=8568
+	input          debug,
 
 	input          clk,
 	input          reset,
@@ -35,13 +36,14 @@ module vdc_video #(
 	input    [4:0] reg_ce,                     // cursor line end
 	input   [15:0] reg_cp,                     // cursor position
 				 
-	input    [1:0] newFrame,                   // start of new frame
+	input          newFrame,                   // start of new frame
 	input          newLine,                    // start of new line
 	input          newRow,                     // start of new visible row
 	input          newCol,                     // start of new column
 	input          endCol,                     // end of column
 			   
-	input          visible,                    // in visible part of display
+	input          hVisible,                   // in visible part of display
+	input          vVisible,                   // in visible part of display
 	input          blank,                      // blanking
 	input          blink[2],                   // blink rates
 	input          rowbuf,                     // buffer # containing current screen info
@@ -65,43 +67,94 @@ wire [2:0] ca = ~reg_text && reg_atr ? attr[6:4] : 3'b000;
 always @(posedge clk) begin
 	reg [7:0] bitmap;
 	reg       crs, rvs;
+	reg       stretch;
 
 	if (reset) begin
 		bitmap = 0;
 		crs = 0;
 	end
 	else if (enable) begin
-		if (visible) begin
-			if (newCol) begin
-			// apply cursor
-			crs = (
-				~reg_text
-				&& (dispaddr+vcol == reg_cp)
-				&& (reg_cm == 2'b00 || reg_cm[1] && blink[reg_cm[0]]) 
-				&& reg_cs <= line && line <= reg_ce
-			);
+		if (!debug) begin
+			if (vVisible && hVisible) begin
+				if (newCol) begin
+					// apply cursor
+					crs = (
+						~reg_text
+						&& (dispaddr+vcol == reg_cp)
+						&& (reg_cm == 2'b00 || reg_cm[1] && blink[reg_cm[0]]) 
+						&& reg_cs <= line && line <= reg_ce
+					);
 
-			// get bitmap
-			if (ca[0] && blink[reg_cbrate])
-				bitmap = 8'h00;
-			else if (ca[1] && line == reg_ul)
-				bitmap = 8'hff;
+					// get bitmap
+					if (ca[0] && blink[reg_cbrate])
+						bitmap = 8'h00;
+					else if (ca[1] && line == reg_ul)
+						bitmap = 8'hff;
+					else
+						bitmap = charbuf[vcol % C_LATCH_WIDTH];
+
+					// reversed
+					rvs = reg_rvs ^ ca[2] ^ crs;
+					if (rvs) bitmap = ~bitmap;
+				end
+				else if (!(ca[1] && line == reg_ul))
+					bitmap = {bitmap[6:0], reg_semi ? bitmap[0] : rvs};
+
+				rgbi <= bitmap[7] ? fg : bg;
+			end
+			else if (blank) 
+				rgbi <= 0;
 			else
-				bitmap = charbuf[vcol % C_LATCH_WIDTH];
+				rgbi <= reg_bg;
+		end
+		else begin
+			if (newCol) begin
+				// apply cursor
+				crs = (
+					~reg_text
+					&& (dispaddr+vcol == reg_cp)
+					&& (reg_cm == 2'b00 || reg_cm[1] && blink[reg_cm[0]]) 
+					&& reg_cs <= line && line <= reg_ce
+				);
 
-			// reversed
-			rvs = reg_rvs ^ ca[2] ^ crs;
-			if (rvs) bitmap = ~bitmap;
+				// get bitmap
+				if (!(vVisible || hVisible))
+					bitmap = charbuf[vcol % C_LATCH_WIDTH];
+				else begin
+					if (ca[0] && blink[reg_cbrate])
+						bitmap = 8'h00;
+					else if (ca[1] && line == reg_ul)
+						bitmap = 8'hff;
+					else
+						bitmap = charbuf[vcol % C_LATCH_WIDTH];
+
+					// reversed
+					rvs = reg_rvs ^ ca[2] ^ crs;
+					if (rvs) bitmap = ~bitmap;
+				end
 			end
 			else if (!(ca[1] && line == reg_ul))
-			bitmap = {bitmap[6:0], reg_semi ? bitmap[0] : rvs};
+				bitmap = {bitmap[6:0], reg_semi ? bitmap[0] : rvs};
 
-			rgbi = bitmap[7] ? fg : bg;
+			if (vVisible && hVisible) 
+				rgbi <= bitmap[7] ? fg : bg;
+			else if (blank) 
+				rgbi <= 0;
+			else if (stretch) 
+				rgbi <= rgbi;
+			else if (newFrame)
+				rgbi <= 4'b1111;
+			else if (newRow) 
+				rgbi <= 4'b0011;
+			else if (newLine)
+				rgbi <= 4'b0010;
+			else if (bitmap[7])
+				rgbi <= 0;
+			else
+				rgbi <= reg_bg ^ {~hVisible, ~vVisible, 2'b00};
+
+			stretch <= newFrame | newCol | newLine;
 		end
-		else if (blank)
-			rgbi = 0;
-		else 
-			rgbi = reg_bg;
 	end
 end
 

@@ -12,6 +12,7 @@ module vdc_top #(
 	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
 	input          initRam,   // 1=initialize RAM on reset
+	input          debug,     // 1=enable debug video output
 
 	input          clk,
 	input          enableBus,
@@ -99,7 +100,7 @@ reg         reg_vspol = 0;  // R37[6]                [v2 only], VSYnc polarity
 
 reg   [5:0] regSel;         // selected internal register (write to $D600)
 
-reg   [1:0] newFrame;
+wire        newFrame;
 wire        newLine, newRow;
 wire        newCol, endCol;
 reg   [7:0] col, row;
@@ -173,6 +174,7 @@ vdc_ramiface #(
 ) ram (
 	.ram64k(ram64k),
 	.initRam(reset),
+	.debug(debug),
 
 	.clk(clk),
 	.reset(reset),
@@ -209,7 +211,6 @@ vdc_ramiface #(
 	.newRow(newRow),
 	.newCol(newCol),
 	.endCol(endCol),
-	.vVisible(vVisible),
 	.row(row),
 	.col(col),
 	.line(line),
@@ -219,7 +220,7 @@ vdc_ramiface #(
 	.scrnbuf(scrnbuf),
 	.attrbuf(attrbuf),
 	.charbuf(charbuf),
-   .dispaddr(dispaddr)
+	.dispaddr(dispaddr)
 
 );
 
@@ -228,6 +229,7 @@ vdc_video #(
 	.C_LATCH_WIDTH(C_LATCH_WIDTH)
 ) video (
 	.version(version),
+	.debug(debug),
 
 	.clk(clk),
 	.reset(reset),
@@ -257,7 +259,8 @@ vdc_video #(
 	.newRow(newRow),
 	.newCol(newCol),
 
-	.visible(hVisible & vVisible),
+	.hVisible(hVisible),
+	.vVisible(vVisible),
 	.blank(hblank | vblank),
 	.blink(blink),
 	.rowbuf(rowbuf),

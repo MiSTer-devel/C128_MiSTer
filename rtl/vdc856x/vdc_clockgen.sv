@@ -34,9 +34,9 @@ module vdc_clockgen (
 	input   [7:0] reg_deb,        // R34        7D 125     Display enable begin
 	input   [7:0] reg_dee,        // R35        64 100     Display enable end
 
-	output  [1:0] newFrame,       // pulses at the start of a new frame, 11=single frame, 01=odd frame, 10=even frame
+	output        newFrame,       // pulses at the start of a new frame
 	output        newRow,         // pulses at the start of a new visible row
-	output        newLine,        // pulses at the start of a new scan line
+	output        newLine,        // pulses at the start of a new visible line
 	output        newCol,         // pulses on first pixel of a column
 	output        endCol,         // pulses on the last pixel of a column
 
@@ -62,9 +62,9 @@ wire  [4:0] vswidth = 5'(|reg_vw ? reg_vw : 16);                                
 wire [12:0] vbstart = 13'((vbfront > vsstart ? vsstart + vtotal : vsstart) - vbfront);    // vblank start scanline
 wire  [5:0] vbwidth = 6'(vswidth + (vtotal < 246 ? 0 : ((vtotal-13'd246)*17'd7)/17'd12)); // # of vblank scanlines
 
-reg   [7:0] hCnt, vCnt;
+reg   [7:0] hCnt, rCnt;
 assign hVisible = |hCnt;
-assign vVisible = |vCnt;
+assign vVisible = |rCnt;
 
 reg  [3:0] hsCount;     // horizontal sync counter
 reg  [4:0] vsCount;     // vertical sync counter
@@ -89,13 +89,13 @@ always @(posedge clk) begin
 		nrow <= reg_vp;
 		line <= 0;
 		newFrame <= 0;
-		newRow <= 1;
-		newLine <= 1;
+		newRow <= 0;
+		newLine <= 0;
 		newCol <= 0;
 		endCol <= 0;
 		col <= 0;
 		hCnt <= 0;
-		vCnt <= 0;
+		rCnt <= 0;
 		pCnt <= reg_ctv;
 		lCnt <= reg_cth;
 		hsCount <= 0;
@@ -128,39 +128,40 @@ always @(posedge clk) begin
 			if (col == 7) row <= nrow;
 			if (col == reg_ht) begin
 				// new line
-				newLine <= 1;
+				scanline <= scanline + 13'd1;
 				col <= 0;
 				hCnt <= 0;
 
-				if (lCnt == 0) begin
+				if (scanline == vtotal) begin
+					// new frame
+					scanline <= 1;
+
+					lCnt <= reg_cth;
+					line <= 0;
+
+					nrow <= 0;
+					rCnt <= reg_vd + 8'd1;
+				end
+				else if (!lCnt) begin
 					// new row
 					lCnt <= reg_cth;
 					line <= 0;
-					nrow <= nrow + 8'd1;
-					newRow <= 1;
 
-					if (nrow == 0)
-						vCnt <= reg_vd;
-					else if (|vCnt)
-						vCnt <= vCnt - 8'd1;
+					nrow <= nrow + 1'd1;
+					if (rCnt == 1) begin
+						newFrame <= 1;
+						rCnt <= 0;
+					end
+					else if (rCnt) begin
+						newRow <= 1;
+						newLine <= 1;
+						rCnt <= rCnt - 8'd1;
+					end
 				end
 				else begin
 					lCnt <= lCnt - 5'd1;
 					line <= line + 5'd1;
-				end
-
-				scanline <= scanline + 13'd1;
-
-				// new frame
-				if (scanline == vtotal) begin
-					newFrame <= 2'b11;
-					newRow <= 8'd1;
-					line <= 0;
-
-					nrow <= 0;
-					vCnt <= 0;
-					scanline <= 1;
-					lCnt <= reg_cth;
+					newLine <= |rCnt;
 				end
 
 				// vertical sync start
@@ -172,7 +173,7 @@ always @(posedge clk) begin
 				else if (|vbCount) vbCount <= vbCount - 5'd1;
 			end
 
-			if (|vCnt) begin
+			if (|rCnt) begin
 				if (col == 7) hCnt <= reg_hd;
 				else if (|hCnt) hCnt <= hCnt - 8'd1;
 			end
@@ -186,6 +187,8 @@ always @(posedge clk) begin
 			pCnt <= pCnt - 5'd1;
 	end
 end
+
+// todo: hw bug: if vtotal == vsync, blink is not updated
 
 // 16 frames blink rate
 always @(posedge clk) begin

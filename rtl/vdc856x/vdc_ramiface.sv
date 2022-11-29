@@ -10,16 +10,17 @@
  ********************************************************************************/
 
 module vdc_ramiface #(
-	parameter		RAM_ADDR_BITS,
+	parameter RAM_ADDR_BITS,
 
-	parameter		C_LATCH_WIDTH,
-	parameter 		S_LATCH_WIDTH,
+	parameter C_LATCH_WIDTH,
+	parameter S_LATCH_WIDTH,
 
-	parameter      C_LATCH_BITS = $clog2(C_LATCH_WIDTH),
-	parameter      S_LATCH_BITS = $clog2(S_LATCH_WIDTH)
+	parameter C_LATCH_BITS = $clog2(C_LATCH_WIDTH),
+	parameter S_LATCH_BITS = $clog2(S_LATCH_WIDTH)
 )(
 	input          ram64k,   // 0 = 16kB, 1 = 64kB -- visible RAM
 	input          initRam,  // 1 = initialize RAM on reset
+	input          debug,
 
 	input          clk,
 	input          reset,
@@ -51,12 +52,11 @@ module vdc_ramiface #(
 	output   [7:0] reg_da,    // data
 	output  [15:0] reg_ba,    // block start address
 
-	input    [1:0] newFrame,  // 11: new full frame, 01: new odd frame, 10: new even frame
+	input          newFrame,
 	input          newLine,
 	input          newRow,    
 	input          newCol,
 	input          endCol,
-	input          vVisible,
 	input    [7:0] row,
 	input    [7:0] col,
 	input    [4:0] line,
@@ -116,8 +116,8 @@ always @(posedge clk) begin
 	reg  [7:0] rfshaddr;    // refresh row address
 	reg  [7:0] wda, cda;    // write/copy data
 	reg  [7:0] wc;          // block word count
+	reg        en_char;     // enable char fetch
 	reg        start_erase;
-	reg        lastrowvisible;
 	reg        erasing;
 
 	reg [C_LATCH_BITS-1:0] ci; // character index
@@ -144,7 +144,6 @@ always @(posedge clk) begin
 		reg_wc <= 0;
 		reg_da <= 0;
 		reg_ba <= 0;
-		lastrowvisible <= 1;
 
 		cpuAction <= CA_NONE;
 		ramAction <= RA_NONE;
@@ -209,7 +208,7 @@ always @(posedge clk) begin
 		if (start_erase) begin
 			start_erase <= 0;
 			erasing     <= 1;
-			ram_di      <= 0;
+			ram_di      <= 8'hFF;
 			ram_addr    <= 0;
 			ram_we      <= 1;
 		end
@@ -219,14 +218,19 @@ always @(posedge clk) begin
 				ram_we   <= 0;
 			end
 			else begin
-				ram_di   <= (ram_addr + 16'd1) & 16'h0001 ? 8'h00 : 8'hFF;
+				ram_di   <= ram_addr[0] ? 8'h00 : 8'hFF;
 				ram_addr <= ram_addr + 16'd1;
 				ram_we   <= 1;
 			end
 		end 
 		else if (enable1 && endCol) begin
+			if (debug) begin
+				charbuf[ci] <= ramAction == RA_NONE ? 8'h00 : ram_do;
+				ci = C_LATCH_BITS'((ci + 1) % C_LATCH_WIDTH);
+			end
+
 			case (ramAction)
-				RA_CHAR: begin
+				RA_CHAR: if (!debug) begin
 					charbuf[ci] <= ram_do;
 					ci = C_LATCH_BITS'((ci + 1) % C_LATCH_WIDTH);
 				end
@@ -274,30 +278,33 @@ always @(posedge clk) begin
 
 			if (newLine) begin
 				ci = 0;
-			end;
+				en_char = 1;
+			end
+			else if (col == reg_hd)
+				en_char = 0;
 
-			if (newRow) begin
-				lastrowvisible <= vVisible;
-				if (vVisible || (!vVisible && lastrowvisible)) begin
-					rowbuf = ~rowbuf;
+			if (newRow || newFrame) begin
+				rowbuf = ~rowbuf;
 
-					if (~reg_text) begin
-						si = 0;
-						dispaddr <= scrnaddr;
-					end
-					else
-						dispaddr <= 0;
-
-					if (reg_atr) ai = 0;
+				if (~reg_text) begin
+					si = 0;
+					dispaddr <= scrnaddr;
 				end
-				attraddr = vVisible ? attraddr + reg_hd + reg_ai : reg_aa;
+				else
+					dispaddr <= 0;
+
+				if (reg_atr) begin
+					ai = 0;
+					attraddr = newFrame ? reg_aa : attraddr + reg_hd + reg_ai;
+				end
 			end
 
-			if ((newLine && reg_text) || newRow) begin
-				scrnaddr = (vVisible && (~reg_text || |row || |line)) ? scrnaddr + reg_hd + reg_ai : reg_ds;
-			end
+			if (newFrame)
+				scrnaddr = reg_ds;
+			else if (newRow || (reg_text && newLine))
+				scrnaddr = scrnaddr + reg_hd + reg_ai;
 
-			if (vVisible && col < reg_hd) begin
+			if (en_char) begin
 				// fetch character data
 				ramAction <= RA_CHAR;
 
@@ -315,7 +322,7 @@ always @(posedge clk) begin
 			else if (en_rfsh) begin
 				// ram refresh causes glitches in the last column when scrolling horizontally
 				ramAction     <= RA_CHAR;
-				ram_addr[7:0] <= rfshaddr;
+				ram_addr      <= reg_ram ? {rfshaddr, rfshaddr} : {2'b00, rfshaddr[5:0], rfshaddr};
 				rfshaddr      <= rfshaddr + 1'd1;
 				ram_rd        <= 1;
 			end
