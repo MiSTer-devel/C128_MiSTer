@@ -5,8 +5,6 @@
  *
  * - timing based on the excellent analysis by @remark on the C128 forum
  *   https://c-128.freeforums.net/post/5516/thread
- *
- * - timings not yet verified
  ********************************************************************************/
 
 module vdc_ramiface #(
@@ -52,12 +50,11 @@ module vdc_ramiface #(
 	output   [7:0] reg_da,    // data
 	output  [15:0] reg_ba,    // block start address
 
-	input          newFrame,
-	input          newLine,
-	input          newRow,    
+	input          fetchFrame,
+	input          fetchLine,
+	input          fetchRow,    
 	input          newCol,
 	input          endCol,
-	input    [7:0] row,
 	input    [7:0] col,
 	input    [4:0] line,
 
@@ -104,8 +101,8 @@ vdcram #(8, RAM_ADDR_BITS) ram
 	.dao(ram_do)
 );
 
-wire en_rfsh = (col >= reg_hd && col < reg_hd+reg_drr);
-wire en_scac = col >= 2 && col < reg_ht-2;
+wire en_rfsh = col >= reg_hd && col < reg_hd+reg_drr;
+wire en_int = col < 2 || col >= reg_ht-8'd2;
 
 always @(posedge clk) begin
 	cAction_t cpuAction;
@@ -119,6 +116,7 @@ always @(posedge clk) begin
 	reg        en_char;     // enable char fetch
 	reg        start_erase;
 	reg        erasing;
+	reg        firstLine;
 
 	reg [C_LATCH_BITS-1:0] ci; // character index
 	reg [S_LATCH_BITS-1:0] si; // screen index
@@ -151,15 +149,15 @@ always @(posedge clk) begin
 		ram_addr <= 16'hFFFF;
 		ram_di <= 0;
 
-		for (i=0; i<S_LATCH_WIDTH; i=i+1) begin
-			scrnbuf[0][i] <= 0;
-			scrnbuf[1][i] <= 0;
-			attrbuf[0][i] <= 0;
-			attrbuf[1][i] <= 0;
-		end
-		for (i=0; i<C_LATCH_WIDTH; i=i+1) begin
-			charbuf[i] <= 0;
-		end
+		// for (i=0; i<S_LATCH_WIDTH; i=i+1) begin
+		// 	scrnbuf[0][i] <= 0;
+		// 	scrnbuf[1][i] <= 0;
+		// 	attrbuf[0][i] <= 0;
+		// 	attrbuf[1][i] <= 0;
+		// end
+		// for (i=0; i<C_LATCH_WIDTH; i=i+1) begin
+		// 	charbuf[i] <= 0;
+		// end
 
 		dispaddr <= 16'hFFFF;
 	end
@@ -274,17 +272,16 @@ always @(posedge clk) begin
 			endcase
 		end
 		else if (enable0 && newCol) begin
-			ram_addr <= 16'hFFFF;
-
-			if (newLine) begin
+			if (fetchLine) begin
 				ci = 0;
 				en_char = 1;
 			end
-			else if (col == reg_hd)
+			else if (col == reg_hd) begin
 				en_char = 0;
+			end
 
-			if (newRow || newFrame) begin
-				rowbuf = ~rowbuf;
+			if (fetchRow || fetchFrame) begin
+				rowbuf = ~rowbuf; //& ~fetchFrame;
 
 				if (~reg_text) begin
 					si = 0;
@@ -295,14 +292,18 @@ always @(posedge clk) begin
 
 				if (reg_atr) begin
 					ai = 0;
-					attraddr = newFrame ? reg_aa : attraddr + reg_hd + reg_ai;
+					attraddr = fetchFrame ? reg_aa : attraddr + reg_hd + reg_ai;
 				end
 			end
 
-			if (newFrame)
+			if (fetchFrame) begin
 				scrnaddr = reg_ds;
-			else if (newRow || (reg_text && newLine))
-				scrnaddr = scrnaddr + reg_hd + reg_ai;
+				firstLine <= 1;
+			end
+			else if (fetchRow || (reg_text && fetchLine)) begin
+				scrnaddr = (reg_text && firstLine) ? reg_ds : scrnaddr + reg_hd + reg_ai;
+				firstLine <= 0;
+			end
 
 			if (en_char) begin
 				// fetch character data
@@ -319,27 +320,28 @@ always @(posedge clk) begin
 
 				ram_rd    <= 1;
 			end
-			else if (en_rfsh) begin
+			else if (!en_int && en_rfsh) begin
 				// ram refresh causes glitches in the last column when scrolling horizontally
 				ramAction     <= RA_CHAR;
-				ram_addr      <= reg_ram ? {rfshaddr, rfshaddr} : {2'b00, rfshaddr[5:0], rfshaddr};
+				// ram_addr     <= reg_ram ? {rfshaddr, rfshaddr} : {2'b00, rfshaddr[5:0], rfshaddr};
+				ram_addr[7:0] <= rfshaddr;
 				rfshaddr      <= rfshaddr + 1'd1;
 				ram_rd        <= 1;
 			end
-			else if (en_scac && si < reg_hd) begin
+			else if (!en_int && si < reg_hd) begin
 				// fetch screen data
 				ramAction <= RA_SCRN;
 				ram_addr  <= scrnaddr + si;
 				ram_rd    <= 1;
 			end 
-			else if (en_scac && ai < reg_hd) begin
+			else if (!en_int && ai < reg_hd) begin
 				// fetch attribute data
 				ramAction <= RA_ATTR;
 				ram_addr  <= attraddr + ai;
 				ram_rd    <= 1;
 			end
 			else if (cpuAction != CA_NONE) begin
-				// perform CPU action
+				// perform CPU action -- are these allowed during `en_int`?
 				ramAction <= RA_CPU;
 
 				case (cpuAction)
@@ -368,8 +370,10 @@ always @(posedge clk) begin
 					end
 				endcase
 			end
-			else
+			else begin
+				ram_addr <= 16'hffff;
 				ramAction <= RA_NONE;
+			end
 		end
 	end
 end

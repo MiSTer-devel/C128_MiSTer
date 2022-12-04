@@ -9,13 +9,12 @@ for the C128 MiSTer FPGA core, by Erik Scheffers
  * Cursor
  * 640x200 "standard" graphics mode
  * Lightpen trigger
+ * Smooth scrolling
+ * Interlace
 
 ## TODO
- * Vertical scrolling
- * Horizontal scrolling
- * Interlace
- * Non-standard character widths
- * Non-standard modes (e.g. split modes, 8x1 etc)
+ * Non-standard high-res video modes like FLI modes (VDC Mode Mania)
+ * Double pixel mode is offset 1 pixel to the left
 
 ## Nice to have/wild ideas
 
@@ -25,3 +24,4 @@ for the C128 MiSTer FPGA core, by Erik Scheffers
  * C128 programmers reference guide
  * RAM interface timing: https://c-128.freeforums.net/post/5516/thread
  * VICE VDC tests: https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/VDC/
+ * VDC Mode Mania by tokra of Akronyme Analogiker https://csdb.dk/release/?id=161195

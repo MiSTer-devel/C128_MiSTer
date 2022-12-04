@@ -31,6 +31,8 @@ module vdc_top #(
 	output         hsync,
 	output         vblank,
 	output         hblank,
+	output		   frame,
+	output		   disableVideo,
 	output   [3:0] rgbi		  
 );
 
@@ -100,11 +102,11 @@ reg         reg_vspol = 0;  // R37[6]                [v2 only], VSYnc polarity
 
 reg   [5:0] regSel;         // selected internal register (write to $D600)
 
-wire        newFrame;
-wire        newLine, newRow;
+wire        fetchFrame;
+wire        fetchLine, fetchRow;
 wire        newCol, endCol;
 reg   [7:0] col, row;
-reg   [4:0] line;
+reg   [4:0] pixel, line;
 reg         blink[2];       // The 2 blink rates: 0=16 frames, 1=30 frames
 
 reg         rowbuf;
@@ -114,14 +116,22 @@ reg  [15:0] dispaddr;
 (* ramstyle = "no_rw_check" *) reg [7:0] attrbuf[2][S_LATCH_WIDTH];
 (* ramstyle = "no_rw_check" *) reg [7:0] charbuf[C_LATCH_WIDTH];
 
-reg         lpStatus;       // light pen status
-wire		vsync_pos;
-wire		hsync_pos;
+reg         lpStatus;
+wire		vsync_pos, vblank_pos;
+wire		hsync_pos, hblank_pos;
 
 wire        busy;
 wire  		hVisible, vVisible;
 
-vdc_clockgen clockgen (
+assign      vsync = vsync_pos ^ (~version[1] & reg_vspol);
+assign      hsync = hsync_pos ^ (~version[1] & reg_hspol);
+assign      vblank = vblank_pos | vsync_pos;
+assign      hblank = hblank_pos | hsync_pos;
+
+reg         display;
+assign      disableVideo = ~display;
+
+vdc_signals signals (
 	.clk(clk),
 	.reset(reset),
 	.init(init),
@@ -140,31 +150,33 @@ vdc_clockgen clockgen (
 	.reg_ctv(reg_ctv),
 	.reg_cth(reg_cth),
 	.reg_cdh(reg_cdh),
-	.reg_cdv(reg_cdv),
 	.reg_vss(reg_vss),
+	.reg_dbl(reg_dbl),
 	.reg_hss(reg_hss),
 	.reg_fg(reg_fg),
 	.reg_bg(reg_bg),
 	.reg_deb(reg_deb),
 	.reg_dee(reg_dee),
 
-	.newFrame(newFrame),
-	.newLine(newLine),
-	.newRow(newRow),
+	.fetchFrame(fetchFrame),
+	.fetchLine(fetchLine),
+	.fetchRow(fetchRow),
 	.newCol(newCol),
 	.endCol(endCol),
 	.col(col),
-	.row(row),
+	.pixel(pixel),
 	.line(line),
 
 	.hVisible(hVisible),
 	.vVisible(vVisible),
 	.blink(blink),
 
-	.vblank(vblank),
-	.hblank(hblank),
+	.vblank(vblank_pos),
+	.hblank(hblank_pos),
 	.vsync(vsync_pos),
-	.hsync(hsync_pos)
+	.hsync(hsync_pos),
+	.frame(frame),
+	.display(display)
 );
 
 vdc_ramiface #(
@@ -206,12 +218,11 @@ vdc_ramiface #(
 	.reg_da(reg_da),
 	.reg_ba(reg_ba),
 
-	.newFrame(newFrame),
-	.newLine(newLine),
-	.newRow(newRow),
+	.fetchFrame(fetchFrame),
+	.fetchLine(fetchLine),
+	.fetchRow(fetchRow),
 	.newCol(newCol),
 	.endCol(endCol),
-	.row(row),
 	.col(col),
 	.line(line),
 
@@ -233,10 +244,14 @@ vdc_video #(
 
 	.clk(clk),
 	.reset(reset),
-	.enable(enable0),
+	.init(init),
+	.enable0(enable0),
+	.enable1(enable1),
 
+	.reg_hd(reg_hd),
 	.reg_cth(reg_cth),
 	.reg_cdh(reg_cdh),
+	.reg_cdv(reg_cdv),
 	.reg_vss(reg_vss),
 	.reg_hss(reg_hss),
 
@@ -254,17 +269,19 @@ vdc_video #(
 	.reg_ce(reg_ce),
 	.reg_cp(reg_cp),
 	
-	.newFrame(newFrame),
-	.newLine(newLine),
-	.newRow(newRow),
+	.fetchFrame(fetchFrame),
+	.fetchLine(fetchLine),
+	.fetchRow(fetchRow),
 	.newCol(newCol),
 
 	.hVisible(hVisible),
 	.vVisible(vVisible),
 	.blank(hblank | vblank),
+	.display(display),
 	.blink(blink),
 	.rowbuf(rowbuf),
 	.col(col),
+	.pixel(pixel),
 	.line(line),
 	.scrnbuf(scrnbuf),
 	.attrbuf(attrbuf),
@@ -273,9 +290,6 @@ vdc_video #(
 
 	.rgbi(rgbi)
 );
-
-assign vsync = vsync_pos ^ (~version[1] & reg_vspol);
-assign hsync = hsync_pos ^ (~version[1] & reg_hspol);
 
 // Internal registers
 always @(posedge clk) begin

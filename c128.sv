@@ -186,7 +186,6 @@ assign LED_DISK   = 0;
 assign LED_POWER  = 0;
 assign LED_USER   = |drive_led | ioctl_download | tape_led;
 assign BUTTONS    = 0;
-assign VGA_DISABLE = 0;
 assign VGA_SCALER = 0;
 
 // Status Bit Map:
@@ -1000,6 +999,7 @@ wire  [7:0] vicR, vicG, vicB;
 
 wire        vdcHsync, vdcVsync;
 wire        vdcHblank, vdcVblank;
+wire        vdcF1, vdcDisable;
 wire  [7:0] vdcR, vdcG, vdcB;
 
 wire        c64_iec_atn;
@@ -1077,6 +1077,8 @@ fpga64_sid_iec #(
    .vdcVsync(vdcVsync),
    .vdcHblank(vdcHblank),
    .vdcVblank(vdcVblank),
+   .vdcF1(vdcF1),
+   .vdcDisable(vdcDisable),
    .vdcR(vdcR),
    .vdcG(vdcG),
    .vdcB(vdcB),
@@ -1372,12 +1374,15 @@ video_sync vicSync
    .vblank(vicVblank)
 );
 
-wire		  video_out = d4080_sense;  // 1=40 col, 0=80 col
+wire		  video_out   = d4080_sense;  // 1=40 col, 0=80 col
 
-wire       hsync_out = video_out ? vicHsync_out : vdcHsync;
-wire       vsync_out = video_out ? vicVsync_out : vdcVsync;
-wire       hblank    = video_out ? vicHblank : vdcHblank;
-wire       vblank    = video_out ? vicVblank : vdcVblank;
+wire       hsync_out   = video_out ? vicHsync_out : vdcHsync;
+wire       vsync_out   = video_out ? vicVsync_out : vdcVsync;
+wire       hblank      = video_out ? vicHblank : vdcHblank;
+wire       vblank      = video_out ? vicVblank : vdcVblank;
+assign     VGA_F1      = video_out ? 0 : vdcF1;
+assign     VGA_DISABLE = video_out ? 0 : vdcDisable;
+
 wire [7:0] r         = video_out ? vicR : vdcR;
 wire [7:0] g         = video_out ? vicG : vdcG;
 wire [7:0] b         = video_out ? vicB : vdcB;
@@ -1408,7 +1413,6 @@ wire scandoubler = status[10:8] || forced_scandoubler;
 
 assign CLK_VIDEO = clk64;
 assign VGA_SL    = (status[10:8] > 2) ? status[9:8] - 2'd2 : 2'd0;
-assign VGA_F1    = 0;
 
 reg [9:0] vcrop;
 reg wide;

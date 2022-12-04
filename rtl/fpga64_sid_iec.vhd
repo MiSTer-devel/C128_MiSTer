@@ -96,6 +96,8 @@ port(
    vdcVsync    : out std_logic;
    vdcHblank   : out std_logic;
    vdcVblank   : out std_logic;
+   vdcF1       : out std_logic;
+   vdcDisable  : out std_logic;
    vdcR        : out unsigned(7 downto 0);
    vdcG        : out unsigned(7 downto 0);
    vdcB        : out unsigned(7 downto 0);
@@ -464,6 +466,8 @@ component vdc_top
       vsync         : out std_logic;
       hblank        : out std_logic;
       vblank        : out std_logic;
+      frame         : out std_logic;
+      disableVideo  : out std_logic;
       rgbi          : out unsigned(3 downto 0)
    );
 end component;
@@ -912,6 +916,8 @@ port map (
    vsync => vdcVsync,
    hblank => vdcHblank,
    vblank => vdcVblank,
+   frame => vdcF1,
+   disableVideo => vdcDisable,
    rgbi => vdcRGBI
 );
 
