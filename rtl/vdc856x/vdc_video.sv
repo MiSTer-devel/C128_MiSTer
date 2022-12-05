@@ -42,8 +42,6 @@ module vdc_video #(
 	input          fetchFrame,                 // start of new frame
 	input          fetchLine,                  // start of new visible line
 	input          fetchRow,                   // start of new visible row
-	input          newCol,                     // start of new column
-	input          endCol,                     // end of column
 
 	input          hVisible,                   // in visible part of display
 	input          vVisible,                   // in visible part of display
@@ -63,9 +61,8 @@ module vdc_video #(
 );
 
 reg  [7:0] vcol;
-
 always @(posedge clk)
-	if (enable1 && (pixel == reg_hss))
+	if (enable1 && ((pixel - reg_dbl) == reg_hss))
 		vcol <= col - 8'd7;
 
 reg  [7:0] attr;
@@ -81,7 +78,7 @@ always @(posedge clk) begin
 	if (enable0) begin
 		if (line > reg_cdv)
 			bitmap <= 8'h00;
-		else if (pixel - reg_dbl == reg_hss) begin
+		else if ((pixel - reg_dbl) == reg_hss) begin
 			attr   <= (vcol < reg_hd && vcol < S_LATCH_WIDTH) ? attrbuf[rowbuf][vcol] : 8'h00;
 			cursor <= !reg_text && dispaddr+vcol == reg_cp && (!reg_cm || reg_cm[1] && blink[reg_cm[0]]) && reg_cs <= line && line <= reg_ce;
 			bitmap <= charbuf[vcol % C_LATCH_WIDTH];
@@ -89,7 +86,7 @@ always @(posedge clk) begin
 		else if (pixel == reg_cdh)
 			bitmap <= reg_semi && bitmap[7] ? 8'hff : 8'h00;
 		else
-			bitmap <= {bitmap[6:0], reg_semi & bitmap[0]};
+			bitmap <= {bitmap[6:0], 1'b0};
 
 		if (vVisible && hVisible && display)
 			rgbi <= ((~(ca[0] & blink[reg_cbrate]) & ((ca[1] && line == reg_ul) | bitmap[7])) ^ reg_rvs ^ ca[2] ^ cursor) ? fg : bg;
@@ -109,7 +106,7 @@ always @(posedge clk) begin
 			rgbi <= reg_bg ^ (debug ? {~hVisible, ~vVisible, ~display, 1'b0} : 4'h0);
 
 		if (debug)
-			stretch <= fetchFrame | newCol | fetchLine;
+			stretch <= fetchFrame | fetchRow | fetchLine;
 	end
 end
 

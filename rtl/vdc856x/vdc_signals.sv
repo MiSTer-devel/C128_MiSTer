@@ -25,7 +25,6 @@ module vdc_signals (
 	input   [3:0] reg_cdh,        // R22[3:0]    8 8       Character displayed horizontal (plus 1 in double width mode)
 	input   [4:0] reg_vss,        // R24[4:0]   00 0       Vertical smooth scroll
 	input         reg_dbl,        // R25[4]      0 off     Pixel double width
-	input   [3:0] reg_hss,        // R25[3:0]  0/7 0/7     Smooth horizontal scroll [0 for v0, 7 for v1] (decr=left, incr=right)
 	input   [3:0] reg_fg,         // R26[7:4]    F white   Foreground RGBI
 	input   [3:0] reg_bg,         // R26[3:0]    0 black   Background RGBI
 	input   [7:0] reg_deb,        // R34        7D 125     Display enable begin
@@ -38,7 +37,7 @@ module vdc_signals (
 	output        endCol,         // pulses on the last pixel of a column
 
 	output  [7:0] col,            // current column
-	output  [4:0] pixel,          // current column pixel (0=leftmost pixel in normal mode; 1=leftmost pixel in double width mode)
+	output  [4:0] pixel,          // current column pixel
 	output  [4:0] line,           // current row line 
 
 	output        hVisible,       // visible column
@@ -90,7 +89,7 @@ always @(posedge clk) begin
 
 			// hsync
 			if (col == reg_hp-1) hsCount <= reg_hw;
-			if (|hsCount) hsCount <= hsCount - 4'd1;
+			if (hsCount) hsCount <= hsCount - 4'd1;
 		end
 		else
 			pixel <= pixel + 4'd1;

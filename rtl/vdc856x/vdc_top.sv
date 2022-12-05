@@ -152,7 +152,6 @@ vdc_signals signals (
 	.reg_cdh(reg_cdh),
 	.reg_vss(reg_vss),
 	.reg_dbl(reg_dbl),
-	.reg_hss(reg_hss),
 	.reg_fg(reg_fg),
 	.reg_bg(reg_bg),
 	.reg_deb(reg_deb),
@@ -260,6 +259,7 @@ vdc_video #(
 	.reg_text(reg_text),
 	.reg_atr(reg_atr),
 	.reg_semi(reg_semi),
+	.reg_dbl(reg_dbl),
 	.reg_rvs(reg_rvs),
 	.reg_fg(reg_fg),
 	.reg_bg(reg_bg),
@@ -272,7 +272,6 @@ vdc_video #(
 	.fetchFrame(fetchFrame),
 	.fetchLine(fetchLine),
 	.fetchRow(fetchRow),
-	.newCol(newCol),
 
 	.hVisible(hVisible),
 	.vVisible(vVisible),

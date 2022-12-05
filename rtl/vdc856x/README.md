@@ -14,7 +14,6 @@ for the C128 MiSTer FPGA core, by Erik Scheffers
 
 ## TODO
  * Non-standard high-res video modes like FLI modes (VDC Mode Mania)
- * Double pixel mode is offset 1 pixel to the left
 
 ## Nice to have/wild ideas
 
@@ -25,3 +24,4 @@ for the C128 MiSTer FPGA core, by Erik Scheffers
  * RAM interface timing: https://c-128.freeforums.net/post/5516/thread
  * VICE VDC tests: https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/VDC/
  * VDC Mode Mania by tokra of Akronyme Analogiker https://csdb.dk/release/?id=161195
+ * Colour Spectrum by Crest https://csdb.dk/release/?id=205653
