@@ -228,7 +228,7 @@ always @(posedge clk) begin
 			vblank <= 1;
 
 		if (vbstart[frame_n] == 1)
-			frame <= ~frame_n;
+			frame <= ~frame_n & il_scan;
 
 		if (!lastvs[0] && vsync) begin
 			stable[frame_n] <= !vbstart[frame_n];
