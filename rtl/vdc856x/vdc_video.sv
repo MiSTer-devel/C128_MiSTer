@@ -18,10 +18,8 @@ module vdc_video #(
 	input          enable1,
 
 	input    [7:0] reg_hd,                     // horizontal displayed
-	input    [3:0] reg_cth,                    // character total horizontal
 	input    [3:0] reg_cdh,                    // character displayed horizontal
 	input    [4:0] reg_cdv,                    // character displayed vertical
-	input    [4:0] reg_vss,                    // vertical smooth scroll
 	input    [3:0] reg_hss,                    // horizontal smooth scroll
 
 	input    [4:0] reg_ul,                     // underline position
@@ -52,6 +50,7 @@ module vdc_video #(
 	input    [7:0] col,                        // current column
 	input    [4:0] pixel,                      // current pixel
 	input    [4:0] line,                       // current line
+
 	input    [7:0] scrnbuf[2][S_LATCH_WIDTH],  // screen codes for current and next row
 	input    [7:0] attrbuf[2][S_LATCH_WIDTH],  // latch for attributes for current and next row
 	input    [7:0] charbuf[C_LATCH_WIDTH],     // character data for current line
@@ -73,7 +72,17 @@ wire [2:0] ca = !reg_text && reg_atr ? attr[6:4] : 3'b000;
 always @(posedge clk) begin
 	reg [7:0] bitmap;
 	reg       cursor;
-	reg       stretch;
+`ifdef VDC_XRAY
+	reg [1:0] showFetch; 
+	reg [7:0] lcol;
+
+	lcol <= col;
+
+	if (showFetch)
+		showFetch <= showFetch - 2'd1;
+	else if (debug && !col && lcol)
+		showFetch <= 2'd3;
+`endif 
 
 	if (enable0) begin
 		if (line > reg_cdv)
@@ -92,21 +101,20 @@ always @(posedge clk) begin
 			rgbi <= ((~(ca[0] & blink[reg_cbrate]) & ((ca[1] && line == reg_ul) | bitmap[7])) ^ reg_rvs ^ ca[2] ^ cursor) ? fg : bg;
 		else if (blank || !(debug || display))
 			rgbi <= 0;
-		else if (debug && stretch)
+`ifdef VDC_XRAY
+		else if (showFetch && ~&showFetch)
 			rgbi <= rgbi;
-		else if (debug && fetchFrame)
+		else if (showFetch && fetchFrame)
 			rgbi <= 4'b1111;
-		else if (debug && fetchRow)
+		else if (showFetch && fetchRow)
 			rgbi <= 4'b0011;
-		else if (debug && fetchLine)
+		else if (showFetch && fetchLine)
 			rgbi <= 4'b0010;
 		else if (debug && bitmap[7])
 			rgbi <= 0;
+`endif 
 		else
 			rgbi <= reg_bg ^ (debug ? {~hVisible, ~vVisible, ~display, 1'b0} : 4'h0);
-
-		if (debug)
-			stretch <= fetchFrame | fetchRow | fetchLine;
 	end
 end
 

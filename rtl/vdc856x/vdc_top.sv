@@ -42,7 +42,6 @@ module vdc_top #(
 //   2      8568        adds R37, 64k RAM
 
 // Pixel clock
-
 wire enable0 = reg_dbl ?  clkcnt[1] & clkcnt[0] :  clkcnt[0];
 wire enable1 = reg_dbl ? ~clkcnt[1] & clkcnt[0] : ~clkcnt[0];
 
@@ -163,6 +162,7 @@ vdc_signals signals (
 	.newCol(newCol),
 	.endCol(endCol),
 	.col(col),
+	.row(row),
 	.pixel(pixel),
 	.line(line),
 
@@ -248,10 +248,8 @@ vdc_video #(
 	.enable1(enable1),
 
 	.reg_hd(reg_hd),
-	.reg_cth(reg_cth),
 	.reg_cdh(reg_cdh),
 	.reg_cdv(reg_cdv),
-	.reg_vss(reg_vss),
 	.reg_hss(reg_hss),
 
 	.reg_ul(reg_ul),

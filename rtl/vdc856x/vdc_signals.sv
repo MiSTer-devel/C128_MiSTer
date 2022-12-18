@@ -4,7 +4,10 @@
  * for the C128 MiSTer FPGA core, by Erik Scheffers
  ********************************************************************************/
 
-module vdc_signals (
+module vdc_signals #(
+	parameter VB_FRONT_PORCH = 2, // vertical blanking front porch (lines)
+	parameter VB_BACK_PORCH  = 2  // vertical blanking back porch (lines)
+)(
 	input         clk,
 	input         reset,
 	input         init,
@@ -19,7 +22,7 @@ module vdc_signals (
 	input   [4:0] reg_va,         // R5         00 0       Vertical total adjust
 	input   [7:0] reg_vd,         // R6         19 25      Vertical displayed
 	input   [7:0] reg_vp,         // R7      1D/20 29/32   Vertical sync position (plus 1) [29 for NTSC, 32 for PAL]
-	input   [1:0] reg_im,         // R8          0 off     Interlace mode **TODO**
+	input   [1:0] reg_im,         // R8          0 off     Interlace mode
 	input   [4:0] reg_ctv,        // R9         07 7       Character Total Vertical (minus 1)
 	input   [3:0] reg_cth,        // R22[7:4]    7 7       Character total horizontal (minus 1)
 	input   [3:0] reg_cdh,        // R22[3:0]    8 8       Character displayed horizontal (plus 1 in double width mode)
@@ -37,6 +40,7 @@ module vdc_signals (
 	output        endCol,         // pulses on the last pixel of a column
 
 	output  [7:0] col,            // current column
+	output  [7:0] row,            // current row
 	output  [4:0] pixel,          // current column pixel
 	output  [4:0] line,           // current row line 
 
@@ -53,10 +57,14 @@ module vdc_signals (
 );
 
 // horizontal timing
-wire lastCol = col == reg_ht;
-
 reg  [3:0] hsCount;     // horizontal sync counter
 assign hsync = |hsCount;
+
+wire lineStart    = newCol && col==0;
+wire displayStart = endCol && col==7;
+wire half1End     = endCol && col==(reg_ht/2)-1;
+// wire half2Start   = newCol && col==reg_ht/2;
+wire lineEnd      = endCol && col==reg_ht;
 
 always @(posedge clk) begin
 	if (reset || init) begin
@@ -70,176 +78,206 @@ always @(posedge clk) begin
 	end
 	else if (enable0) begin
 		newCol <= endCol;
-		endCol <= pixel == (reg_cth - 1'd1);
+		endCol <= pixel==(reg_cth-1'd1);
 
 		if (endCol) begin
 			pixel <= reg_dbl;
-			if (lastCol)
+			if (col==reg_ht)
 				col <= 0;
 			else
-				col <= col + 8'd1;
+				col <= col+8'd1;
 
 			// hVisible
-			if (col == 7) hVisible <= 1;
-			if (col == reg_hd + 8'd7) hVisible <= 0;
+			if (col==7) hVisible <= 1;
+			if (col==reg_hd+8'd7) hVisible <= 0;
 
 			// hblank
-			if (col == reg_deb || reg_deb > reg_ht) hblank <= 0;
-			if (col == reg_dee) hblank <= 1;
+			if (col==reg_deb || reg_deb>reg_ht) hblank <= 0;
+			if (col==reg_dee) hblank <= 1;
 
 			// hsync
-			if (col == reg_hp-1) hsCount <= reg_hw;
-			if (hsCount) hsCount <= hsCount - 4'd1;
+			if (col==reg_hp-1) hsCount <= reg_hw;
+			if (hsCount) hsCount <= hsCount-4'd1;
 		end
 		else
-			pixel <= pixel + 4'd1;
+			pixel <= pixel+4'd1;
 	end
 end
 
 // vertical timing
 
-wire [4:0] vswidth = 5'(|reg_vw ? reg_vw : 16);   // vsync width
-wire [1:0] li = 2'(il_video ? 2 : 1);              // line increment
-wire [7:0] last_row =  reg_vd + (reg_vss ? 1'd1 : 1'd0);
-wire [4:0] line_wrap = reg_ctv - (il_video ? 5'd1 : 5'd0);
-wire       start_line = reg_ctv && frame && il_video;
+reg  [4:0] cline;
+reg        updateBlink;
+reg        vsstart;
 
-reg  [4:0] vsCount;     // vertical sync counter
-reg  [7:0] row;         // current row
-reg  [4:0] sline;       // scanline (modulo reg_ctv+1)
-reg        il_scan;     // interlace scanlines (bit 0 0f reg_im set)
-reg        il_video;    // interlace video (bit 0 and 1 of reg_im set)
-
-assign     vsync = |vsCount;
+function [4:0] correct_line(
+	input ilmode, 
+	input cframe, 
+	input [4:0] vss,
+	input [4:0] line
+);
+begin
+	// correct line number for current frame and vertical scroll state
+	return {line[4:1], ilmode ? cframe^vss[0] : line[0]};
+end
+endfunction
 
 always @(posedge clk) begin
-	if (reset) begin
-		il_scan <= 0;
-		il_video <= 0;
-	end
+	reg       ilmode;
+	reg       cframe;
+
+	reg [4:0] ncline;
+	reg [4:0] nsline;
+	reg [7:0] nrow;
 
 	if (reset || init) begin
 		row <= 0;
-		sline <= 0;
+		nrow <= 0;
+
 		line <= reg_vss;
+		ncline <= reg_vss;
+		ilmode <= &reg_im;
+		cframe <= 0;
 
-		// vbCount <= 0;
-		vsCount <= 0;
+		nsline <= 0;
 
 		fetchLine <= 0;
 		fetchRow <= 0;
 		fetchFrame <= 0;
-		// frame <= 0;
+		updateBlink <= 0;
 	end
-	else if (enable0) begin
-		fetchLine <= 0;
-		fetchRow <= 0;
-		fetchFrame <= 0;
+  	else if (enable0) begin
+		if (lineStart) begin
+			vsstart <= 0;
+			fetchRow <= 0;
+			fetchFrame <= 0;
+			updateBlink <= 0;
 
-		if (endCol && lastCol) begin
-			// last pixel of last column
+			if (reg_va 
+				? (nrow==reg_vt+1 && nsline==correct_line(ilmode, cframe, 0, reg_va)) 
+				: (nrow==reg_vt && nsline==correct_line(ilmode, cframe, 0, reg_ctv))
+			) begin
+				ilmode <= &reg_im;
+				cframe <= &reg_im & frame;
+				
+				nsline <= (&reg_im & frame) ? 5'd1 : 5'd0;
+				ncline <= (&reg_im & frame) ? (reg_vss==reg_ctv ? 5'd0 : reg_vss+5'd1) : reg_vss;
 
-			if (row <= last_row) begin
-				if (!reg_ctv || line >= line_wrap) begin
-					line <= reg_ctv ? line - line_wrap : 0;
+				nrow <= 0;
+				if (reg_vp==0)
+					vsstart <= 1;
 
-					if (row != last_row)
-						fetchRow <= 1;
-				end
-				else
-					line <= line + li;
-			end
-
-			if (!reg_ctv || sline >= (row > reg_vt ? reg_va : line_wrap)) begin
-				if ((row == reg_vt && !reg_va) || row > reg_vt) begin
-					// end of frame
-					row <= 0;
-					line <= reg_vss + start_line > reg_ctv ? 0 : reg_vss + start_line;
-					sline <= start_line;
-				end
-				else begin
-					// end of row
-					row <= row + 1'd1;
-					sline <= reg_ctv ? sline - line_wrap : 0;
-				end
-
-				if (row < reg_vd) begin
-					vVisible <= 1;
-					fetchLine <= 1;
-				end
-				else if (row == reg_vd) begin
-					vVisible <= 0;
+				if (reg_vd==nrow) begin	
 					fetchFrame <= 1;
+					fetchLine <= 0;
 				end
 			end
 			else begin
-				fetchLine <= vVisible;
-				sline <= sline + li;
+				// update row/line
+				if (ncline==correct_line(ilmode, cframe, reg_vss, reg_ctv)) begin
+					ncline <= correct_line(ilmode, cframe, reg_vss, 0);
+					if (nrow<reg_vd)
+						fetchRow <= 1;
+				end
+				else 
+					ncline <= ncline+(ilmode ? 5'd2 : 5'd1);
+
+				if (nsline==correct_line(ilmode, cframe, 0, reg_ctv)) begin
+					nsline <= cframe ? 5'd1 : 5'd0;
+				
+					nrow <= nrow+8'd1;
+					if (nrow==0) 
+						fetchLine <= 1;
+
+					if (reg_vp && (reg_vp-1==nrow))
+						vsstart <= 1;
+
+					if (reg_vp==nrow)
+						updateBlink <= 1;
+
+					if (reg_vd==nrow) begin	
+						fetchFrame <= 1;
+						fetchLine <= 0;
+					end
+				end
+				else
+					nsline <= nsline+(ilmode ? 5'd2 : 5'd1);
 			end
 		end
 
-		// vsync
-		if (endCol && col == reg_ht>>frame) begin
-			if (!vsCount && row == reg_vp-8'd1 && sline >= line_wrap) begin
-				vsCount <= vswidth;
+		if (displayStart) begin
+			row <= nrow;
+			cline <= ncline;
+		end
 
-				il_scan <= reg_im[0];
-				il_video <= &reg_im;
-			end
-			else if (vsCount > li) 
-				vsCount <= vsCount - li;
-			else
-				vsCount <= 0;
+		if (lineEnd) begin
+			line <= cline;
+			vVisible <= nrow && nrow<=reg_vd;
 		end
 	end
 end
 
-// vblank & display enable
-reg    [1:0] stable;
-assign       display = stable[0] & (~il_scan | stable[1]);
+// vsync
+wire [4:0] vswidth = 5'(|reg_vw ? reg_vw : 16);   // vsync width
+reg  [4:0] vsCount;                               // vertical sync counter
+
+assign vsync = |vsCount;
+
+always @(posedge clk) begin
+	if (reset || init) begin
+		vsCount <= 0;
+	end 
+	else if (enable0) begin
+		if (vsCount && (lineEnd || (reg_im[0] && half1End)))
+			vsCount <= vsCount-5'd1;
+		else if (vsstart && (frame ? half1End : lineEnd))
+			vsCount <= vswidth;
+	end
+end
+
+// vblank, frame & display enable
+reg    [5:0] vbCount;      // vertical blanking counter
+assign       display = 1;
 
 always @(posedge clk) begin
 	reg [9:0] vscnt, vbstart[2];
-	reg [1:0] lastvs;
 	reg       frame_n;
 
-	if (reset) begin
-		lastvs <= 0;
+	if (reset || init) begin
 		vscnt <= '1;
 		vbstart <= '{'1, '1};
-		vblank <= 1;
 		frame <= 0;
-		frame_n <= 0;
-		stable <= 0;
+		vblank <= 0;
 	end
-	else if (enable0 && newCol && col == 0) begin
-		lastvs <= {lastvs[0], vsync};
+	else if (enable0) begin
+		if (lineStart) begin
+			if (&vscnt) begin
+				vbstart <= '{'1, '1};
+			end
+			else begin
+				vscnt <= vscnt+1'd1;
+				vbstart[frame_n] <= vbstart[frame_n]-1'd1;
+			end
 
-		if (&vscnt) begin
-			stable <= 0;
-			vbstart <= '{'1, '1};
-		end
-		else begin
-			vscnt <= vscnt + 1'd1;
-			vbstart[frame_n] <= vbstart[frame_n] - 1'd1;
-		end
+			if (vbCount)
+				vbCount <= vbCount-6'd1;
 
-		if (vbstart[frame_n] == 2)
-			vblank <= 1;
+			if (vbstart[frame_n]==VB_FRONT_PORCH+1)
+				vbCount <= '1;
 
-		if (vbstart[frame_n] == 1)
-			frame <= ~frame_n & il_scan;
-
-		if (!lastvs[0] && vsync) begin
-			stable[frame_n] <= !vbstart[frame_n];
-			vbstart[frame_n] <= vscnt;
-			vscnt <= 0;
-			vblank <= 1;
-			frame_n <= ~frame_n & il_scan;
+			if (vsstart) begin
+				vbstart[frame_n] <= vscnt;
+				vscnt <= 0;
+				frame_n <= ~frame_n & reg_im[0];
+				vbCount <= 6'(VB_BACK_PORCH+vswidth-1);
+			end
 		end
 
-		if (lastvs[1] && !lastvs[0]) 
-			vblank <= 0;
+		if (lineEnd) begin
+			vblank <= |vbCount;
+			if (vbstart[frame_n]==VB_FRONT_PORCH)
+				frame <= frame_n;
+		end
 	end
 end
 
@@ -248,17 +286,16 @@ always @(posedge clk) begin
 	reg [2:0] bcnt16;
 	reg [3:0] bcnt30;
 
-	if (reset) begin
-		blink[0] <= 0;
-		blink[1] <= 0;
+	if (reset || init) begin
+		blink <= '{0, 0};
 		bcnt16 <= 0;
 		bcnt30 <= 0;
 	end 
-	else if (enable0 && endCol && lastCol && row == reg_vp && sline >= line_wrap) begin
-		{blink[0], bcnt16} <= 4'({blink[0], bcnt16} + 1);
+	else if (enable0 && updateBlink && lineEnd) begin
+		{blink[0], bcnt16} <= 4'({blink[0], bcnt16}+1);
 
-		bcnt30 <= bcnt30 + 1'd1;
-		if (bcnt30 == 14) begin
+		bcnt30 <= bcnt30+1'd1;
+		if (bcnt30==14) begin
 			blink[1] <= ~blink[1];
 			bcnt30 <= 4'd0;
 		end

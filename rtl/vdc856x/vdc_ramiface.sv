@@ -272,37 +272,40 @@ always @(posedge clk) begin
 			endcase
 		end
 		else if (enable0 && newCol) begin
-			if (fetchLine) begin
-				ci = 0;
-				en_char = 1;
+			if (col == 0) begin
+				if (fetchLine) begin
+					ci = 0;
+					en_char = 1;
+				end
+
+				if (fetchRow || fetchFrame) begin
+					rowbuf = ~rowbuf; //& ~fetchFrame;
+
+					if (~reg_text) begin
+						si = 0;
+						dispaddr <= scrnaddr;
+					end
+					else
+						dispaddr <= 16'hffff;
+
+					if (reg_atr) begin
+						ai = 0;
+						attraddr = fetchFrame ? reg_aa : attraddr + reg_hd + reg_ai;
+					end
+				end
+
+				if (fetchFrame) begin
+					scrnaddr = reg_ds;
+					firstLine <= 1;
+				end
+				else if (fetchRow || (reg_text && fetchLine)) begin
+					scrnaddr = (reg_text && firstLine) ? reg_ds : scrnaddr + reg_hd + reg_ai;
+					firstLine <= 0;
+				end
 			end
-			else if (col == reg_hd) begin
+
+			if (col == reg_hd) begin
 				en_char = 0;
-			end
-
-			if (fetchRow || fetchFrame) begin
-				rowbuf = ~rowbuf; //& ~fetchFrame;
-
-				if (~reg_text) begin
-					si = 0;
-					dispaddr <= scrnaddr;
-				end
-				else
-					dispaddr <= 0;
-
-				if (reg_atr) begin
-					ai = 0;
-					attraddr = fetchFrame ? reg_aa : attraddr + reg_hd + reg_ai;
-				end
-			end
-
-			if (fetchFrame) begin
-				scrnaddr = reg_ds;
-				firstLine <= 1;
-			end
-			else if (fetchRow || (reg_text && fetchLine)) begin
-				scrnaddr = (reg_text && firstLine) ? reg_ds : scrnaddr + reg_hd + reg_ai;
-				firstLine <= 0;
 			end
 
 			if (en_char) begin
