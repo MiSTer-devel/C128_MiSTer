@@ -59,12 +59,16 @@ module vdc_signals #(
 // horizontal timing
 reg  [3:0] hsCount;     // horizontal sync counter
 assign hsync = |hsCount;
+assign hblank = |hsCount;
 
 wire lineStart    = newCol && col==0;
 wire displayStart = endCol && col==7;
 wire half1End     = endCol && col==(reg_ht/2)-1;
 // wire half2Start   = newCol && col==reg_ht/2;
 wire lineEnd      = endCol && col==reg_ht;
+
+reg hviscol, hdispen; 
+assign hVisible = hviscol & hdispen;
 
 always @(posedge clk) begin
 	if (reset || init) begin
@@ -75,6 +79,9 @@ always @(posedge clk) begin
 
 		newCol <= 0;
 		endCol <= 0;
+
+		hviscol <= 0;
+		hdispen <= 0;
 	end
 	else if (enable0) begin
 		newCol <= endCol;
@@ -87,13 +94,13 @@ always @(posedge clk) begin
 			else
 				col <= col+8'd1;
 
-			// hVisible
-			if (col==7) hVisible <= 1;
-			if (col==reg_hd+8'd7) hVisible <= 0;
+			// visible columns
+			if (col==7) hviscol <= 1;
+			if (col==reg_hd+8'd7) hviscol <= 0;
 
-			// hblank
-			if (col==reg_deb || reg_deb>reg_ht) hblank <= 0;
-			if (col==reg_dee) hblank <= 1;
+			// hdisplay enable
+			if (col==reg_deb || reg_deb>reg_ht) hdispen <= 1;
+			if (col==reg_dee) hdispen <= 0;
 
 			// hsync
 			if (col==reg_hp-1) hsCount <= reg_hw;
