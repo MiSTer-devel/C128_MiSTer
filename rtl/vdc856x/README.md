@@ -12,16 +12,15 @@ for the C128 MiSTer FPGA core, by Erik Scheffers
  * Smooth scrolling
  * Interlace
 
-## TODO
- * Non-standard high-res video modes like FLI modes (VDC Mode Mania)
+## TODO / Known issues
+ * Non-standard high-res video modes like FLI modes (VDC Mode Mania, Risen from Oblivion)
+ * Pixel clock runs ~2.5% too slow because it's clocked by clk_sys, which is 31.527954 MHz
+ * vdcsplit.prg shows wrong horizontal and vertical frequencies
 
-## Nice to have/wild ideas
-
- * VDC Turbo mode, where CPUs can access VDC at full clock speed instead of clock stretching to 1 MHz, and where VDC memory interface is not bound to the column width. A mode like this will definetly break compatibility with some programs, but most standard software including CP/M should be able to work with this.
-
-## Used references
+## References / Test programs
  * C128 programmers reference guide
  * RAM interface timing: https://c-128.freeforums.net/post/5516/thread
  * VICE VDC tests: https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/VDC/
- * VDC Mode Mania by tokra of Akronyme Analogiker https://csdb.dk/release/?id=161195
+ * Risen from Oblivion VDC V2, https://csdb.dk/release/?id=44983
  * Colour Spectrum by Crest https://csdb.dk/release/?id=205653
+ * VDC Mode Mania by tokra of Akronyme Analogiker https://csdb.dk/release/?id=161195
