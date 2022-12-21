@@ -11,7 +11,7 @@ module vdc_signals #(
 	input         clk,
 	input         reset,
 	input         init,
-	input         enable0,
+	input         enable,
  
 	input   [7:0] reg_ht,         // R0      7E/7F 126/127 Horizontal total (minus 1) [126 for original ROM, 127 for PAL on DCR]
 	input   [7:0] reg_hd,         // R1         50 80      Horizontal displayed
@@ -46,6 +46,7 @@ module vdc_signals #(
 
 	output        hVisible,       // visible column
 	output        vVisible,       // visible line
+	output        hdispen,        // horizontal display enable
 	output        blink[2],       // blink state. blink[0]=1/16, blink[1]=1/30
 
 	output        hsync,          // horizontal sync
@@ -67,7 +68,7 @@ wire half1End     = endCol && col==(reg_ht/2)-1;
 // wire half2Start   = newCol && col==reg_ht/2;
 wire lineEnd      = endCol && col==reg_ht;
 
-reg hviscol, hdispen; 
+reg hviscol; 
 assign hVisible = hviscol & hdispen;
 
 always @(posedge clk) begin
@@ -83,7 +84,7 @@ always @(posedge clk) begin
 		hviscol <= 0;
 		hdispen <= 0;
 	end
-	else if (enable0) begin
+	else if (enable) begin
 		newCol <= endCol;
 		endCol <= pixel==(reg_cth-1'd1);
 
@@ -95,8 +96,8 @@ always @(posedge clk) begin
 				col <= col+8'd1;
 
 			// visible columns
-			if (col==7) hviscol <= 1;
-			if (col==reg_hd+8'd7) hviscol <= 0;
+			if (col==8) hviscol <= 1;
+			if (col==reg_hd+8) hviscol <= 0;
 
 			// hdisplay enable
 			if (col==reg_deb || reg_deb>reg_ht) hdispen <= 1;
@@ -153,7 +154,7 @@ always @(posedge clk) begin
 		fetchFrame <= 0;
 		updateBlink <= 0;
 	end
-  	else if (enable0) begin
+  	else if (enable) begin
 		if (lineStart) begin
 			vsstart <= 0;
 			fetchRow <= 0;
@@ -234,7 +235,7 @@ always @(posedge clk) begin
 	if (reset || init) begin
 		vsCount <= 0;
 	end 
-	else if (enable0) begin
+	else if (enable) begin
 		if (vsCount && (lineEnd || (reg_im[0] && half1End)))
 			vsCount <= vsCount-5'd1;
 		else if (vsstart && (frame ? half1End : lineEnd))
@@ -256,7 +257,7 @@ always @(posedge clk) begin
 		frame <= 0;
 		vblank <= 0;
 	end
-	else if (enable0) begin
+	else if (enable) begin
 		if (lineStart) begin
 			if (&vscnt) begin
 				vbstart <= '{'1, '1};
@@ -298,7 +299,7 @@ always @(posedge clk) begin
 		bcnt16 <= 0;
 		bcnt30 <= 0;
 	end 
-	else if (enable0 && updateBlink && lineEnd) begin
+	else if (enable && updateBlink && lineEnd) begin
 		{blink[0], bcnt16} <= 4'({blink[0], bcnt16}+1);
 
 		bcnt30 <= bcnt30+1'd1;

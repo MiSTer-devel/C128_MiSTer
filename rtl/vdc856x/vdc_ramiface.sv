@@ -22,8 +22,7 @@ module vdc_ramiface #(
 
 	input          clk,
 	input          reset,
-	input          enable0,
-	input          enable1,
+	input          enable,
 
 	input    [5:0] regA,      // selected register
 	input    [7:0] db_in,     // cpu data in
@@ -221,7 +220,7 @@ always @(posedge clk) begin
 				ram_we   <= 1;
 			end
 		end 
-		else if (enable1 && endCol) begin
+		else if (enable && endCol) begin
 			if (debug) begin
 				charbuf[ci] <= ramAction == RA_NONE ? 8'h00 : ram_do;
 				ci = C_LATCH_BITS'((ci + 1) % C_LATCH_WIDTH);
@@ -271,7 +270,7 @@ always @(posedge clk) begin
 					endcase
 			endcase
 		end
-		else if (enable0 && newCol) begin
+		else if (enable && newCol) begin
 			if (col == 0) begin
 				if (fetchLine) begin
 					ci = 0;

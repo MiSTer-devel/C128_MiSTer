@@ -7,7 +7,8 @@
 module vdc_top #(
 	parameter RAM_ADDR_BITS = 16,
 	parameter C_LATCH_WIDTH = 8,
-	parameter S_LATCH_WIDTH = 80
+	parameter S_LATCH_WIDTH = 80,
+	parameter SYSCLK = 31527954
 )(
 	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
@@ -27,6 +28,7 @@ module vdc_top #(
 	input    [7:0] db_in,     // data in
 	output   [7:0] db_out,    // data out
 
+	output         pixelclk,
 	output         vsync,
 	output         hsync,
 	output         vblank,
@@ -41,17 +43,27 @@ module vdc_top #(
 //   1      8563 R9     changes to R25, 16k or 64k RAM
 //   2      8568        adds R37, 64k RAM
 
-// Pixel clock
-wire enable0 = reg_dbl ?  clkcnt[1] & clkcnt[0] :  clkcnt[0];
-wire enable1 = reg_dbl ? ~clkcnt[1] & clkcnt[0] : ~clkcnt[0];
+reg enable;
+always @(posedge clk) begin
+   int sum = 0;
+   reg div;
 
-reg [1:0] clkcnt;
-always @(posedge clk)
-	clkcnt <= clkcnt + 1'd1;
+   enable <= 0;
+   pixelclk <= 0;
+
+   sum = sum + 16000000;
+   if(sum >= SYSCLK) begin
+      sum = sum - SYSCLK;
+
+	  pixelclk <= 1;
+	  div <= ~div & reg_dbl;
+	  enable <= div | ~reg_dbl;
+   end
+end
 
 // Register file
 
-									 // Reg      Init value   Description
+							// Reg      Init value   Description
 reg   [7:0] reg_ht;         // R0      7E/7F 126/127 Horizontal total (minus 1) [126 for original ROM, 127 for PAL on DCR]
 reg   [7:0] reg_hd;         // R1         50 80      Horizontal displayed
 reg   [7:0] reg_hp;         // R2         66 102     Horizontal sync position
@@ -120,7 +132,7 @@ wire		vsync_pos, vblank_pos;
 wire		hsync_pos, hblank_pos;
 
 wire        busy;
-wire  		hVisible, vVisible;
+wire  		hVisible, vVisible, hdispen;
 
 assign      vsync = vsync_pos ^ (~version[1] & reg_vspol);
 assign      hsync = hsync_pos ^ (~version[1] & reg_hspol);
@@ -134,7 +146,7 @@ vdc_signals signals (
 	.clk(clk),
 	.reset(reset),
 	.init(init),
-	.enable0(enable0),
+	.enable(enable),
 
 	.reg_ht(reg_ht),
 	.reg_hd(reg_hd),
@@ -168,6 +180,7 @@ vdc_signals signals (
 
 	.hVisible(hVisible),
 	.vVisible(vVisible),
+	.hdispen(hdispen),
 	.blink(blink),
 
 	.vblank(vblank_pos),
@@ -189,8 +202,7 @@ vdc_ramiface #(
 
 	.clk(clk),
 	.reset(reset),
-	.enable0(enable0),
-	.enable1(enable1),
+	.enable(enable),
 
 	.regA(regSel),
 	.db_in(db_in),
@@ -244,8 +256,7 @@ vdc_video #(
 	.clk(clk),
 	.reset(reset),
 	.init(init),
-	.enable0(enable0),
-	.enable1(enable1),
+	.enable(enable),
 
 	.reg_hd(reg_hd),
 	.reg_cdh(reg_cdh),
@@ -273,6 +284,7 @@ vdc_video #(
 
 	.hVisible(hVisible),
 	.vVisible(vVisible),
+	.hdispen(hdispen),
 	.blank(hblank | vblank),
 	.display(display),
 	.blink(blink),

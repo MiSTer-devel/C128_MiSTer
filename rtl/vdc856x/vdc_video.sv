@@ -14,8 +14,7 @@ module vdc_video #(
 	input          clk,
 	input          reset,
 	input          init,
-	input          enable0,
-	input          enable1,
+	input          enable,
 
 	input    [7:0] reg_hd,                     // horizontal displayed
 	input    [3:0] reg_cdh,                    // character displayed horizontal
@@ -43,6 +42,7 @@ module vdc_video #(
 
 	input          hVisible,                   // in visible part of display
 	input          vVisible,                   // in visible part of display
+	input          hdispen,                    // horizontal display enable
 	input          blank,                      // blanking
 	input          display,                    // display enable
 	input          blink[2],                   // blink rates
@@ -61,7 +61,7 @@ module vdc_video #(
 
 reg  [7:0] vcol;
 always @(posedge clk)
-	if (enable1 && ((pixel - reg_dbl) == reg_hss))
+	if (enable && ((pixel - reg_dbl) == reg_hss))
 		vcol <= col - 8'd7;
 
 reg  [7:0] attr;
@@ -84,7 +84,7 @@ always @(posedge clk) begin
 		showFetch <= 2'd3;
 `endif 
 
-	if (enable0) begin
+	if (enable) begin
 		if (line > reg_cdv)
 			bitmap <= 8'h00;
 		else if ((pixel - reg_dbl) == reg_hss) begin
@@ -114,7 +114,7 @@ always @(posedge clk) begin
 			rgbi <= 0;
 `endif 
 		else
-			rgbi <= reg_bg ^ (debug ? {~hVisible, ~vVisible, ~display, 1'b0} : 4'h0);
+			rgbi <= reg_bg ^ (debug ? {~hVisible, ~vVisible, ~hdispen, 1'b0} : 4'h0);
 	end
 end
 

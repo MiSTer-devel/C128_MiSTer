@@ -96,6 +96,7 @@ port(
    vdcVsync    : out std_logic;
    vdcHblank   : out std_logic;
    vdcVblank   : out std_logic;
+   vdcPixClk   : out std_logic;
    vdcF1       : out std_logic;
    vdcDisable  : out std_logic;
    vdcR        : out unsigned(7 downto 0);
@@ -462,6 +463,7 @@ component vdc_top
       db_in         : in  unsigned(7 downto 0);
       db_out        : out unsigned(7 downto 0);
 
+      pixelclk      : out std_logic;
       hsync         : out std_logic;
       vsync         : out std_logic;
       hblank        : out std_logic;
@@ -912,6 +914,7 @@ port map (
    db_in => cpuDo,
    db_out => vdcData,
 
+   pixelclk => vdcPixClk,
    hsync => vdcHsync,
    vsync => vdcVsync,
    hblank => vdcHblank,

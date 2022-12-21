@@ -14,7 +14,6 @@ for the C128 MiSTer FPGA core, by Erik Scheffers
 
 ## TODO / Known issues
  * Non-standard high-res video modes like FLI modes (VDC Mode Mania, Risen from Oblivion)
- * Pixel clock runs ~2.5% too slow because it's clocked by clk_sys, which is 31.527954 MHz
  * vdcsplit.prg shows wrong horizontal and vertical frequencies
 
 ## References / Test programs

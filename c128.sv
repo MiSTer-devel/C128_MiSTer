@@ -997,6 +997,7 @@ wire        ntsc = status[2];
 wire        vicHsync, vicVsync;
 wire  [7:0] vicR, vicG, vicB;
 
+wire        vdcPixClk;
 wire        vdcHsync, vdcVsync;
 wire        vdcHblank, vdcVblank;
 wire        vdcF1, vdcDisable;
@@ -1073,6 +1074,7 @@ fpga64_sid_iec #(
    .vicG(vicG),
    .vicB(vicB),
 
+   .vdcPixClk(vdcPixClk),
    .vdcHsync(vdcHsync),
    .vdcVsync(vdcVsync),
    .vdcHblank(vdcHblank),
@@ -1401,18 +1403,31 @@ end
 
 reg ce_pix;
 always @(posedge CLK_VIDEO) begin
+   reg       last_video_out;
    reg [1:0] div;
    reg [1:0] lores;
 
-   div <= div + 1'b1;
-   if (&div) lores <= lores + 1'b1;
-   ce_pix <= (~|lores | ~hq2x160) && (~lores[0] | ~hq2x320) && !div;
+   last_video_out <= video_out;
+   if (last_video_out != video_out) begin
+      div <= 0;
+      lores <= 0;
+      ce_pix <= 0;
+   end
+   else if (video_out) begin
+      div <= div + 1'b1;
+      if (&div) lores <= lores + 1'b1;
+      ce_pix <= (~|lores | ~hq2x160) && (~lores[0] | ~hq2x320) && !div;
+   end
+   else begin
+      div <= vdcPixClk ? div + 1'b1 : 0;
+      ce_pix <= !div[0] && vdcPixClk;
+   end
 end
 
-wire scandoubler = status[10:8] || forced_scandoubler;
+wire scandoubler = video_out && (status[10:8] || forced_scandoubler);
 
 assign CLK_VIDEO = clk64;
-assign VGA_SL    = (status[10:8] > 2) ? status[9:8] - 2'd2 : 2'd0;
+assign VGA_SL    = status[10:8] > 2 ? status[9:8] - 2'd2 : 2'd0;
 
 reg [9:0] vcrop;
 reg wide;
@@ -1465,7 +1480,7 @@ video_mixer #(.GAMMA(1)) video_mixer
 (
    .CLK_VIDEO(CLK_VIDEO),
 
-   .hq2x(~status[10] & (status[9] ^ status[8])),
+   .hq2x(video_out & ~status[10] & (status[9] ^ status[8])),
    .scandoubler(scandoubler),
    .gamma_bus(gamma_bus),
 
