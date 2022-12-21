@@ -7,7 +7,7 @@
 module vdc_top #(
 	parameter RAM_ADDR_BITS = 16,
 	parameter C_LATCH_WIDTH = 8,
-	parameter S_LATCH_WIDTH = 80,
+	parameter S_LATCH_WIDTH = 82,
 	parameter SYSCLK = 31527954
 )(
 	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
@@ -150,6 +150,7 @@ vdc_signals signals (
 
 	.reg_ht(reg_ht),
 	.reg_hd(reg_hd),
+	.reg_ai(reg_ai),
 	.reg_hp(reg_hp),
 	.reg_vw(reg_vw),
 	.reg_hw(reg_hw),

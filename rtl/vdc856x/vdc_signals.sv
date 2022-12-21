@@ -6,7 +6,7 @@
 
 module vdc_signals #(
 	parameter VB_FRONT_PORCH = 2, // vertical blanking front porch (lines)
-	parameter VB_BACK_PORCH  = 2  // vertical blanking back porch (lines)
+	parameter VB_BACK_PORCH  = 8  // vertical blanking back porch (lines)
 )(
 	input         clk,
 	input         reset,
@@ -30,6 +30,7 @@ module vdc_signals #(
 	input         reg_dbl,        // R25[4]      0 off     Pixel double width
 	input   [3:0] reg_fg,         // R26[7:4]    F white   Foreground RGBI
 	input   [3:0] reg_bg,         // R26[3:0]    0 black   Background RGBI
+	input   [7:0] reg_ai,	      // R27        00 0       Address increment per row
 	input   [7:0] reg_deb,        // R34        7D 125     Display enable begin
 	input   [7:0] reg_dee,        // R35        64 100     Display enable end
 
@@ -97,7 +98,7 @@ always @(posedge clk) begin
 
 			// visible columns
 			if (col==8) hviscol <= 1;
-			if (col==reg_hd+8) hviscol <= 0;
+			if (col==reg_hd+(reg_ai ? 7 : 8)) hviscol <= 0;
 
 			// hdisplay enable
 			if (col==reg_deb || reg_deb>reg_ht) hdispen <= 1;
@@ -197,7 +198,7 @@ always @(posedge clk) begin
 					if (nrow==0) 
 						fetchLine <= 1;
 
-					if (reg_vp && (reg_vp-1==nrow))
+					if (reg_vp && (reg_vp-1==nrow+1))
 						vsstart <= 1;
 
 					if (reg_vp==nrow)
@@ -220,7 +221,14 @@ always @(posedge clk) begin
 
 		if (lineEnd) begin
 			line <= cline;
-			vVisible <= nrow && nrow<=reg_vd;
+
+			if (nsline==correct_line(ilmode, cframe, 0, 0)) begin
+				if (nrow==1 && reg_ctv)
+					vVisible <= 1;
+
+				if (nrow==reg_vd+1)
+					vVisible <= 0;
+			end
 		end
 	end
 end
