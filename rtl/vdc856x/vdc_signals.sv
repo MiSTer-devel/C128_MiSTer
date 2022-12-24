@@ -5,8 +5,10 @@
  ********************************************************************************/
 
 module vdc_signals #(
-	parameter VB_FRONT_PORCH = 2, // vertical blanking front porch (lines)
-	parameter VB_BACK_PORCH  = 8  // vertical blanking back porch (lines)
+	parameter VB_FRONT_PORCH = 2,  // vertical blanking front porch
+	parameter VB_WIDTH       = 34, // vertical blanking width
+	parameter HB_FRONT_PORCH = 2,  // horizontal blanking front porch
+	parameter HB_WIDTH       = 25  // horizontal blanking width
 )(
 	input         clk,
 	input         reset,
@@ -27,6 +29,7 @@ module vdc_signals #(
 	input   [3:0] reg_cth,        // R22[7:4]    7 7       Character total horizontal (minus 1)
 	input   [3:0] reg_cdh,        // R22[3:0]    8 8       Character displayed horizontal (plus 1 in double width mode)
 	input   [4:0] reg_vss,        // R24[4:0]   00 0       Vertical smooth scroll
+	input         reg_atr,        // R25[6]      1 on      Attribute enable
 	input         reg_dbl,        // R25[4]      0 off     Pixel double width
 	input   [3:0] reg_fg,         // R26[7:4]    F white   Foreground RGBI
 	input   [3:0] reg_bg,         // R26[3:0]    0 black   Background RGBI
@@ -54,23 +57,24 @@ module vdc_signals #(
 	output        vsync,          // vertical sync
 	output        hblank,         // horizontal blanking
 	output        vblank,         // vertical blanking
-	output        frame,          // 0=first half, 1=second half
-	output        display         // display enable
+	output        frame           // 0=first half, 1=second half
 );
 
 // horizontal timing
-reg  [3:0] hsCount;     // horizontal sync counter
+reg                  [3:0] hsCount; 
+reg [$clog2(HB_WIDTH)-1:0] hbCount;
+reg                        hviscol; 
+
 assign hsync = |hsCount;
-assign hblank = |hsCount;
+assign hblank = |hbCount;
+assign hVisible = hviscol & hdispen;
 
 wire lineStart    = newCol && col==0;
 wire displayStart = endCol && col==7;
 wire half1End     = endCol && col==(reg_ht/2)-1;
 // wire half2Start   = newCol && col==reg_ht/2;
+wire hSyncStart   = endCol && col==(reg_hp ? reg_hp-1 : reg_ht);
 wire lineEnd      = endCol && col==reg_ht;
-
-reg hviscol; 
-assign hVisible = hviscol & hdispen;
 
 always @(posedge clk) begin
 	if (reset || init) begin
@@ -78,6 +82,7 @@ always @(posedge clk) begin
 		pixel <= 0;
 
 		hsCount <= 0;
+		hbCount <= 0;
 
 		newCol <= 0;
 		endCol <= 0;
@@ -98,15 +103,23 @@ always @(posedge clk) begin
 
 			// visible columns
 			if (col==8) hviscol <= 1;
-			if (col==reg_hd+(reg_ai ? 7 : 8)) hviscol <= 0;
+			if (col==reg_hd+((reg_ai && !reg_atr) ? 7 : 8)) hviscol <= 0;
 
 			// hdisplay enable
-			if (col==reg_deb || reg_deb>reg_ht) hdispen <= 1;
-			if (col==reg_dee) hdispen <= 0;
+			if (col==reg_deb+1 || reg_deb>reg_ht) hdispen <= 1;
+			if (col==reg_dee+1) hdispen <= 0;
 
 			// hsync
-			if (col==reg_hp-1) hsCount <= reg_hw;
-			if (hsCount) hsCount <= hsCount-4'd1;
+			if (hSyncStart) 
+				hsCount <= reg_hw;
+			else if (hsCount) 
+				hsCount <= hsCount-1'd1;
+
+			// hblank
+			if (col==(reg_hp>HB_FRONT_PORCH ? reg_hp-HB_FRONT_PORCH-1 : reg_ht-HB_FRONT_PORCH))
+				hbCount <= $clog2(HB_WIDTH)'(HB_WIDTH);
+			else if (hbCount) 
+				hbCount <= hbCount-1'd1;
 		end
 		else
 			pixel <= pixel+4'd1;
@@ -185,7 +198,7 @@ always @(posedge clk) begin
 				// update row/line
 				if (ncline==correct_line(ilmode, cframe, reg_vss, reg_ctv)) begin
 					ncline <= correct_line(ilmode, cframe, reg_vss, 0);
-					if (nrow<reg_vd)
+					if (nrow<=reg_vd)
 						fetchRow <= 1;
 				end
 				else 
@@ -207,6 +220,7 @@ always @(posedge clk) begin
 					if (reg_vd==nrow) begin	
 						fetchFrame <= 1;
 						fetchLine <= 0;
+						fetchRow <= 0;
 					end
 				end
 				else
@@ -252,10 +266,9 @@ always @(posedge clk) begin
 end
 
 // vblank, frame & display enable
-reg    [5:0] vbCount;      // vertical blanking counter
-assign       display = 1;
 
 always @(posedge clk) begin
+	reg [$clog2(VB_WIDTH)-1:0] vbCount;
 	reg [9:0] vscnt, vbstart[2];
 	reg       frame_n;
 
@@ -264,6 +277,7 @@ always @(posedge clk) begin
 		vbstart <= '{'1, '1};
 		frame <= 0;
 		vblank <= 0;
+		vbCount <= 0;
 	end
 	else if (enable) begin
 		if (lineStart) begin
@@ -275,21 +289,19 @@ always @(posedge clk) begin
 				vbstart[frame_n] <= vbstart[frame_n]-1'd1;
 			end
 
-			if (vbCount)
-				vbCount <= vbCount-6'd1;
-
-			if (vbstart[frame_n]==VB_FRONT_PORCH+1)
-				vbCount <= '1;
-
 			if (vsstart) begin
 				vbstart[frame_n] <= vscnt;
 				vscnt <= 0;
 				frame_n <= ~frame_n & reg_im[0];
-				vbCount <= 6'(VB_BACK_PORCH+vswidth-1);
 			end
+
+			if (vbstart[frame_n]==VB_FRONT_PORCH+1)
+				vbCount <= $clog2(VB_WIDTH)'(VB_WIDTH);
+			else if (vbCount)
+				vbCount <= vbCount-1'd1;
 		end
 
-		if (lineEnd) begin
+		if (hSyncStart) begin
 			vblank <= |vbCount;
 			if (vbstart[frame_n]==VB_FRONT_PORCH)
 				frame <= frame_n;

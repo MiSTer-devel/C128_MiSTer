@@ -192,7 +192,7 @@ port(
    vdcVersion  : in  unsigned(1 downto 0);
    vdc64k      : in  std_logic;
    vdcInitRam  : in  std_logic;
-   vdcPalette  : in  std_logic_vector(3 downto 0);
+   vdcPalette  : in  unsigned(3 downto 0);
    vdcDebug    : in  std_logic;
 
    -- System memory size

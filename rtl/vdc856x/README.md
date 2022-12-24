@@ -8,12 +8,13 @@ for the C128 MiSTer FPGA core, by Erik Scheffers
  * Double pixel/40 columns mode
  * Cursor
  * 640x200 "standard" graphics mode
+ * Most Non-standard graphics modes, e.g. FLI
  * Lightpen trigger
  * Smooth scrolling
  * Interlace
 
 ## TODO / Known issues
- * Non-standard high-res video modes like FLI modes (VDC Mode Mania, Risen from Oblivion)
+ * Interlace bitmap modes (VMM sections 1, 2, 5, 6)
  * vdcsplit.prg shows wrong horizontal and vertical frequencies
 
 ## References / Test programs

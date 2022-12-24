@@ -139,8 +139,7 @@ assign      hsync = hsync_pos ^ (~version[1] & reg_hspol);
 assign      vblank = vblank_pos | vsync_pos;
 assign      hblank = hblank_pos | hsync_pos;
 
-reg         display;
-assign      disableVideo = ~display;
+assign      disableVideo = 0;
 
 vdc_signals signals (
 	.clk(clk),
@@ -163,6 +162,7 @@ vdc_signals signals (
 	.reg_cth(reg_cth),
 	.reg_cdh(reg_cdh),
 	.reg_vss(reg_vss),
+	.reg_atr(reg_atr),
 	.reg_dbl(reg_dbl),
 	.reg_fg(reg_fg),
 	.reg_bg(reg_bg),
@@ -188,8 +188,7 @@ vdc_signals signals (
 	.hblank(hblank_pos),
 	.vsync(vsync_pos),
 	.hsync(hsync_pos),
-	.frame(frame),
-	.display(display)
+	.frame(frame)
 );
 
 vdc_ramiface #(
@@ -287,7 +286,6 @@ vdc_video #(
 	.vVisible(vVisible),
 	.hdispen(hdispen),
 	.blank(hblank | vblank),
-	.display(display),
 	.blink(blink),
 	.rowbuf(rowbuf),
 	.col(col),

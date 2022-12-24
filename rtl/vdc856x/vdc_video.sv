@@ -44,7 +44,6 @@ module vdc_video #(
 	input          vVisible,                   // in visible part of display
 	input          hdispen,                    // horizontal display enable
 	input          blank,                      // blanking
-	input          display,                    // display enable
 	input          blink[2],                   // blink rates
 	input          rowbuf,                     // buffer # containing current screen info
 	input    [7:0] col,                        // current column
@@ -59,15 +58,11 @@ module vdc_video #(
 	output   [3:0] rgbi
 );
 
-reg  [7:0] vcol;
-always @(posedge clk)
-	if (enable && ((pixel - reg_dbl) == reg_hss))
-		vcol <= col - 8'd7;
-
 reg  [7:0] attr;
 wire [3:0] fg = reg_atr ? attr[3:0] : reg_fg;
 wire [3:0] bg = reg_text && reg_atr ? attr[7:4] : reg_bg;
 wire [2:0] ca = !reg_text && reg_atr ? attr[6:4] : 3'b000;
+wire [7:0] vcol = col - 8'd8;
 
 always @(posedge clk) begin
 	reg [7:0] bitmap;
@@ -97,9 +92,9 @@ always @(posedge clk) begin
 		else
 			bitmap <= {bitmap[6:0], 1'b0};
 
-		if (vVisible && hVisible && display)
+		if (vVisible && hVisible)
 			rgbi <= ((~(ca[0] & blink[reg_cbrate]) & ((ca[1] && line == reg_ul) | bitmap[7])) ^ reg_rvs ^ ca[2] ^ cursor) ? fg : bg;
-		else if (blank || !(debug || display))
+		else if (blank || !(debug || hdispen))
 			rgbi <= 0;
 `ifdef VDC_XRAY
 		else if (showFetch && ~&showFetch)

@@ -12,7 +12,7 @@ use IEEE.numeric_std.all;
 
 entity rgbicolor is
 	port (
-		palette: in std_logic_vector(3 downto 0);
+		palette: in unsigned(3 downto 0);
 		rgbi: in unsigned(3 downto 0);
 		r: out unsigned(7 downto 0);
 		g: out unsigned(7 downto 0);

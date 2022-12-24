@@ -115,7 +115,7 @@ always @(posedge clk) begin
 	reg        en_char;     // enable char fetch
 	reg        start_erase;
 	reg        erasing;
-	reg        firstLine;
+	reg        firstLine, firstAttr;
 
 	reg [C_LATCH_BITS-1:0] ci; // character index
 	reg [S_LATCH_BITS-1:0] si; // screen index
@@ -277,10 +277,16 @@ always @(posedge clk) begin
 					en_char = 1;
 				end
 
-				if (fetchRow || fetchFrame) begin
-					rowbuf = ~rowbuf; //& ~fetchFrame;
+				if (fetchFrame) begin
+					scrnaddr = reg_ds;
+					firstLine <= |reg_ctv;
+					firstAttr <= 1;
+				end
 
-					if (~reg_text) begin
+				if (fetchRow || fetchFrame) begin
+					rowbuf = ~rowbuf;
+
+					if (!reg_text) begin
 						si = 0;
 						dispaddr <= scrnaddr;
 					end
@@ -289,15 +295,14 @@ always @(posedge clk) begin
 
 					if (reg_atr) begin
 						ai = 0;
-						attraddr = fetchFrame ? reg_aa : attraddr + reg_hd + reg_ai;
+						attraddr = fetchFrame ? reg_aa + ((reg_text && reg_ai) ? 16'd1 : 0)
+						                      : attraddr + reg_hd + reg_ai + ((firstAttr && reg_text && reg_ai) ? reg_ai-16'd2 : 0);
+						if (!fetchFrame)
+							firstAttr <= 0;
 					end
 				end
 
-				if (fetchFrame) begin
-					scrnaddr = reg_ds;
-					firstLine <= 1;
-				end
-				else if (fetchRow || (reg_text && fetchLine)) begin
+				if (fetchRow || (reg_text && fetchLine)) begin
 					scrnaddr = (reg_text && firstLine) ? reg_ds : scrnaddr + reg_hd + reg_ai;
 					firstLine <= 0;
 				end
@@ -320,7 +325,7 @@ always @(posedge clk) begin
 						ram_addr <= {reg_cb,      reg_atr & attrbuf[rowbuf][col][7], scrnbuf[rowbuf][col], line[3:0]};
 				end
 
-				ram_rd    <= 1;
+				ram_rd <= 1;
 			end
 			else if (!en_int && en_rfsh) begin
 				// ram refresh causes glitches in the last column when scrolling horizontally
