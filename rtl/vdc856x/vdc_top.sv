@@ -118,7 +118,7 @@ wire        fetchLine, fetchRow;
 wire        newCol, endCol;
 reg   [7:0] col, row;
 reg   [4:0] pixel, line;
-reg         blink[2];       // The 2 blink rates: 0=16 frames, 1=30 frames
+reg   [1:0] blink;        // The 2 blink rates: 0=16 frames, 1=30 frames
 
 reg         rowbuf;
 reg  [15:0] dispaddr;
@@ -143,13 +143,11 @@ assign      disableVideo = 0;
 
 vdc_signals signals (
 	.clk(clk),
-	.reset(reset),
-	.init(init),
+	.reset(reset || init),
 	.enable(enable),
 
 	.reg_ht(reg_ht),
 	.reg_hd(reg_hd),
-	.reg_ai(reg_ai),
 	.reg_hp(reg_hp),
 	.reg_vw(reg_vw),
 	.reg_hw(reg_hw),
@@ -160,12 +158,11 @@ vdc_signals signals (
 	.reg_im(reg_im),
 	.reg_ctv(reg_ctv),
 	.reg_cth(reg_cth),
-	.reg_cdh(reg_cdh),
 	.reg_vss(reg_vss),
+	.reg_text(reg_text),
 	.reg_atr(reg_atr),
 	.reg_dbl(reg_dbl),
-	.reg_fg(reg_fg),
-	.reg_bg(reg_bg),
+	.reg_ai(reg_ai),
 	.reg_deb(reg_deb),
 	.reg_dee(reg_dee),
 
@@ -174,6 +171,7 @@ vdc_signals signals (
 	.fetchRow(fetchRow),
 	.newCol(newCol),
 	.endCol(endCol),
+
 	.col(col),
 	.row(row),
 	.pixel(pixel),
@@ -254,8 +252,6 @@ vdc_video #(
 	.debug(debug),
 
 	.clk(clk),
-	.reset(reset),
-	.init(init),
 	.enable(enable),
 
 	.reg_hd(reg_hd),

@@ -12,8 +12,6 @@ module vdc_video #(
 	input          debug,
 
 	input          clk,
-	input          reset,
-	input          init,
 	input          enable,
 
 	input    [7:0] reg_hd,                     // horizontal displayed
@@ -44,7 +42,7 @@ module vdc_video #(
 	input          vVisible,                   // in visible part of display
 	input          hdispen,                    // horizontal display enable
 	input          blank,                      // blanking
-	input          blink[2],                   // blink rates
+	input    [1:0] blink,                      // blink rates
 	input          rowbuf,                     // buffer # containing current screen info
 	input    [7:0] col,                        // current column
 	input    [4:0] pixel,                      // current pixel
