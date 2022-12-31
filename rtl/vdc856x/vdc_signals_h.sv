@@ -39,9 +39,11 @@ module vdc_signals_h #(
 	output           hblank          // horizontal blanking
 );
 
-reg                  [3:0] hsCount; 
-reg [$clog2(HB_WIDTH)-1:0] hbCount;
-reg                        hviscol; 
+localparam HB_BITS = $clog2(HB_WIDTH+1);
+
+reg         [3:0] hsCount; 
+reg [HB_BITS-1:0] hbCount;
+reg               hviscol; 
 
 assign hsync    = |hsCount;
 assign hblank   = |hbCount;
@@ -88,7 +90,7 @@ always @(posedge clk) begin
 
 			// hblank
 			if (col==(reg_hp>HB_FRONT_PORCH ? reg_hp-HB_FRONT_PORCH-1 : reg_ht-HB_FRONT_PORCH))
-				hbCount <= $clog2(HB_WIDTH)'(HB_WIDTH);
+				hbCount <= HB_BITS'(HB_WIDTH) >> reg_dbl;
 			else if (|hbCount) 
 				hbCount <= hbCount-1'd1;
 		end

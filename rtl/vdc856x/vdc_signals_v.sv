@@ -21,18 +21,19 @@ module vdc_signals_v #(
 	input      [4:0] reg_ctv,        // R9         07 7       Character Total Vertical (minus 1)
 	input      [4:0] reg_vss,        // R24[4:0]   00 0       Vertical smooth scroll
 	input            reg_text,       // R25[7]      0 text    Mode select (text/bitmap)
-	input      [7:0] reg_ai,	     // R27        00 0       Address increment per row
-   
+	
 	input            lineStart,
 	input            displayStart,
 	input            half1End,
+	input            half2Start,
 	input            hSyncStart,
 	input            lineEnd,
 
-	output reg       fetchFrame,     // pulses at the start of a new frame
-	output reg       fetchRow,       // pulses at the start of a new visible row
-	output reg       fetchLine,      // pulses at the start of a new visible line
+	output reg       fetchFrame,     // indicates start of a new frame (only valid at lineStart)
+	output reg       fetchRow,       // indicates start of a new visible row (only valid at lineStart)
+	output reg       fetchLine,      // indicates start of a new visible line (only valid at lineStart)
 
+	output reg       field,          // 0=first half, 1=second half
 	output reg [7:0] row,            // current row
 	output reg [4:0] line,           // current row line 
 
@@ -40,44 +41,34 @@ module vdc_signals_v #(
 
 	output           vsync,          // vertical sync
 	output reg       vblank,         // vertical blanking
-	output reg       frame,          // 0=first half, 1=second half
 
 	output reg       updateBlink
 );
 
-reg  [4:0] cline;
-reg        vsstart;
+// control signals
 
-function [4:0] correct_line(
-	input ilmode, 
-	input cframe, 
-	input [4:0] vss,
-	input [4:0] line
-);
-begin
-	// correct line number for current frame, vertical scroll state and character height
-	return {line[4:1], ilmode ? cframe^vss[0] : line[0]};
-end
-endfunction
+reg  [7:0] nrow;
+reg  [4:0] ncline, nsline;
+reg  [4:0] ctv;
+reg        cfield;
+
+wire [7:0] fh = reg_vt+8'(|reg_va);
+wire [4:0] rh = nrow==reg_vt+1 ? reg_va-5'd1 : ctv;
+wire [4:0] el = nrow==reg_vt+1 ? reg_va-(~reg_va[0] && &reg_im ? 5'd0 : 5'd1) : ctv;
+wire       ncfield = reg_im[0] & ~cfield;
 
 always @(posedge clk) begin
-	reg       ilmode;
-	reg       cframe;
-
-	reg [4:0] ncline;
-	reg [4:0] nsline;
-	reg [7:0] nrow;
-
 	if (reset) begin
 		row <= 0;
 		nrow <= 0;
 
-		line <= reg_vss;
-		ncline <= reg_vss;
-		ilmode <= &reg_im;
-		cframe <= 0;
-
+		cfield <= 0;
 		nsline <= 0;
+
+		ncline <= 0;
+		line <= 0;
+
+		ctv <= 0;
 
 		fetchLine <= 0;
 		fetchRow <= 0;
@@ -85,80 +76,158 @@ always @(posedge clk) begin
 		updateBlink <= 0;
 	end
   	else if (enable) begin
-		if (lineStart) begin
-			vsstart <= 0;
+		updateBlink <= 0;
+
+		if (half1End) begin
+			fetchLine <= 0;
 			fetchRow <= 0;
 			fetchFrame <= 0;
-			updateBlink <= 0;
+		end
 
-			if (|reg_va 
-				? (nrow==reg_vt+1 && nsline==correct_line(ilmode, cframe, 0, reg_va)) 
-				: (nrow==reg_vt && nsline==correct_line(ilmode, cframe, 0, reg_ctv))
-			) begin
-				ilmode <= &reg_im;
-				cframe <= &reg_im & frame;
-				
-				nsline <= (&reg_im & frame) ? 5'd1 : 5'd0;
-				ncline <= (&reg_im & frame) ? (reg_vss==reg_ctv ? 5'd0 : reg_vss+5'd1) : reg_vss;
+		if (lineEnd || (&reg_im && half1End)) begin
+			ctv <= reg_ctv;
 
-				nrow <= 0;
-				if (reg_vp==0)
-					vsstart <= 1;
+			// $display("lineEnd=%d, nrow=%d, ncline=%d, nsline=%d, ctv=%d, fh=%d, el=%d, vVisible=%d", lineEnd, nrow, ncline, nsline, ctv, fh, el, vVisible);
+			if (nrow==fh && nsline==el) begin
+				if (lineEnd) begin
+					cfield <= ncfield;
 
-				if (reg_vd==nrow) begin	
-					fetchFrame <= 1;
-					fetchLine <= 0;
+					if (&reg_im && ncfield) begin
+						nsline <= 5'd1;
+						ncline <= reg_vss==reg_ctv ? 5'd0 : reg_vss+5'd1;
+						line   <= reg_vss==reg_ctv ? 5'd0 : reg_vss+5'd1;
+					end
+					else begin
+						nsline <= 0;
+						ncline <= reg_vss;
+						line   <= reg_vss;
+					end
+
+					nrow <= 0;
+					
+					if (reg_vd==fh) begin
+						if (cfield || ~&reg_im || !reg_text) begin
+							fetchFrame <= 1;
+							fetchRow <= 0;
+							fetchLine <= 0;
+						end
+						else
+							fetchLine <= 1;
+					end
 				end
 			end
 			else begin
 				// update row/line
-				if (ncline==correct_line(ilmode, cframe, reg_vss, reg_ctv)) begin
-					ncline <= correct_line(ilmode, cframe, reg_vss, 0);
+				if (ncline==ctv) begin
+					ncline <= 0;
+					if (lineEnd)
+						line <= 0;
+
 					if (nrow<=reg_vd)
 						fetchRow <= 1;
 				end
-				else 
-					ncline <= ncline+(ilmode ? 5'd2 : 5'd1);
-
-				if (nsline==correct_line(ilmode, cframe, 0, reg_ctv)) begin
-					nsline <= cframe ? 5'd1 : 5'd0;
-				
-					nrow <= nrow+8'd1;
-					if (nrow==0) 
-						fetchLine <= 1;
-
-					if (|reg_vp && (reg_vp-1==nrow+1))
-						vsstart <= 1;
-
-					if (reg_vp==nrow)
-						updateBlink <= 1;
-
-					if (reg_vd==nrow) begin	
-						fetchFrame <= 1;
-						fetchLine <= 0;
-						fetchRow <= 0;
-					end
+				else begin
+					ncline <= ncline+5'd1;
+					if (lineEnd)
+						line <= ncline+5'd1;
 				end
-				else
-					nsline <= nsline+(ilmode ? 5'd2 : 5'd1);
+
+				if (nsline==el) begin
+					nrow <= nrow+8'd1;
+					nsline <= 0;
+
+					if (nrow<reg_vd)
+						fetchLine <= 1;
+				
+					if (nrow==reg_vd) begin	
+						if (cfield || ~&reg_im || !reg_text) begin
+							fetchFrame <= 1;
+							fetchRow <= 0;
+							fetchLine <= 0;
+						end
+						else
+							fetchLine <= 1;
+					end
+
+				end
+				else begin
+					nsline <= nsline+5'd1;
+
+					if (|nrow && nrow<=reg_vd)
+						fetchLine <= 1;
+				end
 			end
 		end
 
-		if (displayStart) begin
+		if (displayStart && row != nrow) begin
 			row <= nrow;
-			cline <= ncline;
+
+			if (nrow==1 && |ctv)
+				vVisible <= 1;
+
+			if (nrow==reg_vd+1)
+				vVisible <= 0;
+
+			if (nrow==reg_vp)
+				updateBlink <= 1;
 		end
+	end
+end
 
-		if (lineEnd) begin
-			line <= cline;
+// calculate vsync/vblank row/line
 
-			if (nsline==correct_line(ilmode, cframe, 0, 0)) begin
-				if (nrow==1 && |reg_ctv)
-					vVisible <= 1;
+reg [7:0] vsrow, vbrow[2];
+reg [4:0] vsline, vbline[2];
 
-				if (nrow==reg_vd+1)
-					vVisible <= 0;
-			end
+function [12:0] decrl;
+	input [7:0] ri;
+	input [4:0] li;
+	if (|li) 
+		return { ri, li-5'd1 };
+	else if (|ri)
+		return { ri-8'd1, reg_ctv };
+	else if (|reg_va)
+		return { reg_vt+8'd1, reg_va-5'd1 };
+	else
+		return { reg_vt, reg_ctv };
+endfunction
+
+always @(posedge clk) begin
+	reg [7:0] last_vp, last_vt, ri;
+	reg [4:0] last_ctv, last_va, li;
+
+	if (reset) begin
+		vsrow <= 0;
+		vsline <= 0;
+		vbrow <= '{0, 0};
+		vbline <= '{0, 0};
+
+		last_vp <= '1;
+		last_vt <= '1;
+		last_va <= '1;
+		last_ctv <= '1;
+	end
+	else if (enable) begin
+		last_vp <= reg_vp;
+		last_vt <= reg_vt;
+		last_va <= reg_va;
+		last_ctv <= reg_ctv;
+
+		if (reg_vp != last_vp || reg_vt != last_vt || reg_va != last_va || reg_ctv != last_ctv) begin
+			repeat(2) {ri, li} = decrl(|reg_vp ? reg_vp-8'd1 : reg_vt, 5'd0);
+			// $display("vsync: %d, %d", ri, li);
+			vsrow <= ri; 
+			vsline <= li;
+
+			repeat(VB_FRONT_PORCH) {ri, li} = decrl(ri, li);
+			// $display("vblank[0]: %d, %d", ri, li);
+			vbrow[0] <= ri; 
+			vbline[0] <= li;
+
+			{ri, li} = decrl(ri, li);
+			// $display("vblank[1]: %d, %d", ri, li);
+			vbrow[1] <= ri; 
+			vbline[1] <= li;
 		end
 	end
 end
@@ -171,57 +240,77 @@ reg  [4:0] vsCount;                        // vertical sync counter
 assign vsync = |vsCount;
 
 always @(posedge clk) begin
+	reg [2:0] vsstart;
+
 	if (reset) begin
 		vsCount <= 0;
+		vsstart <= 0;
+		field <= 0;
 	end 
 	else if (enable) begin
-		if (|vsCount && (lineEnd || (reg_im[0] && half1End)))
-			vsCount <= vsCount-5'd1;
-		else if (vsstart && (frame ? half1End : lineEnd))
+		if (nrow==vsrow && nsline==vsline && ((reg_im[0] && half1End) || lineEnd))
+			vsstart <= {1'b0, lineEnd, half1End};
+		else if (lineEnd)
+			vsstart <= {vsstart[1:0], 1'b0};
+
+		if (vsstart[1] && ((lineStart && (!reg_im[0] || !cfield)) || (half2Start && (reg_im[0] && cfield)))) begin
 			vsCount <= vswidth;
+		end
+		else if (|vsCount && (lineStart || (half2Start && reg_im[0]))) 
+			vsCount <= vsCount-5'd1;
+
+		if (vsstart[2] && lineStart)
+			field <= ncfield;
 	end
 end
 
-// vblank & frame
+// always @(posedge clk) begin
+// 	reg vsstart;
+
+// 	if (reset) begin
+// 		vsCount <= 0;
+// 		vsstart <= 0;
+// 	end 
+// 	else if (enable) begin
+// 		if (nrow==vsrow && nsline==vsline && (half1End || lineEnd))
+// 			vsstart <= 1;
+
+// 		if (vsstart && lineStart) begin
+// 			vsCount <= vswidth;
+// 			vsstart <= 0;
+// 		end
+// 		else if (|vsCount && (lineStart || (half2Start && reg_im[0]))) 
+// 			vsCount <= vsCount-5'd1;
+// 	end
+// end
+
+// vblank
+
+localparam VB_BITS = $clog2(VB_WIDTH+1);
+localparam VSCNT_BITS = $clog2(256*32);  // maximum number of vertical lines supported
+
+reg [VB_BITS-1:0] vbCount;
+assign vblank = |vbCount;
 
 always @(posedge clk) begin
-	reg [$clog2(VB_WIDTH)-1:0] vbCount;
-	reg [9:0] vscnt, vbstart[2];
-	reg       frame_n;
+	reg [1:0] vbstart;
+	reg       nextfield;
 
 	if (reset) begin
-		vscnt <= '1;
-		vbstart <= '{'1, '1};
-		frame <= 0;
-		vblank <= 0;
 		vbCount <= 0;
+		vbstart <= 0;
 	end
 	else if (enable) begin
-		if (lineStart) begin
-			if (&vscnt) begin
-				vbstart <= '{'1, '1};
-			end
-			else begin
-				vscnt <= vscnt+1'd1;
-				vbstart[frame_n] <= vbstart[frame_n]-1'd1;
-			end
-
-			if (vsstart) begin
-				vbstart[frame_n] <= vscnt;
-				vscnt <= 0;
-				frame_n <= ~frame_n & reg_im[0];
-			end
-
-			if (vbstart[frame_n]==10'(VB_FRONT_PORCH+1))
-				vbCount <= $clog2(VB_WIDTH)'(VB_WIDTH);
-			else if (|vbCount)
-				vbCount <= vbCount-1'd1;
-		end
+		if ((lineStart || half2Start) && nrow==vbrow[ncfield] && nsline==vbline[ncfield])
+			vbstart <= 2'b01;
 
 		if (hSyncStart) begin
-			vblank <= |vbCount;
-			if (vbstart[frame_n]==10'(VB_FRONT_PORCH))
-				frame <= frame_n;
+			vbstart <= {vbstart[0], 1'b0};
+
+			if (vbstart[0])
+				vbCount <= VB_BITS'(VB_WIDTH);
+			else if (|vbCount)
+				vbCount <= vbCount-1'd1;
 		end
 	end
 end

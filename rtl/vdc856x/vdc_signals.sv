@@ -54,7 +54,7 @@ module vdc_signals #(
 	output reg       vsync,          // vertical sync
 	output reg       hblank,         // horizontal blanking
 	output reg       vblank,         // vertical blanking
-	output reg       frame           // 0=first half, 1=second half
+	output reg       field           // 0=first half, 1=second half
 );
 
 vdc_signals_h #(
@@ -94,7 +94,7 @@ vdc_signals_h #(
 wire lineStart    = newCol && col==0;
 wire displayStart = endCol && col==7;
 wire half1End     = endCol && col==(reg_ht/2)-1;
-// wire half2Start= newCol && col==reg_ht/2;
+wire half2Start   = newCol && col==reg_ht/2;
 wire hSyncStart   = endCol && col==(|reg_hp ? reg_hp-1 : reg_ht);
 wire lineEnd      = endCol && col==reg_ht;
 
@@ -117,11 +117,11 @@ vdc_signals_v #(
 	.reg_ctv(reg_ctv),
 	.reg_vss(reg_vss),
 	.reg_text(reg_text),
-	.reg_ai(reg_ai),
 
 	.lineStart(lineStart),
 	.displayStart(displayStart),
 	.half1End(half1End),
+	.half2Start(half2Start),
 	.hSyncStart(hSyncStart),
 	.lineEnd(lineEnd),
 
@@ -136,7 +136,7 @@ vdc_signals_v #(
 
 	.vsync(vsync),
 	.vblank(vblank),
-	.frame(frame),
+	.field(field),
 
 	.updateBlink(updateBlink)
 );
@@ -152,7 +152,7 @@ always @(posedge clk) begin
 		bcnt16 <= 0;
 		bcnt30 <= 0;
 	end 
-	else if (enable && updateBlink && lineEnd) begin
+	else if (enable && updateBlink) begin
 		{blink[0], bcnt16} <= {blink[0], bcnt16}+4'd1;
 
 		bcnt30 <= bcnt30+1'd1;

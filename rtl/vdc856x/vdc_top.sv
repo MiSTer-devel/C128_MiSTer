@@ -33,7 +33,7 @@ module vdc_top #(
 	output         hsync,
 	output         vblank,
 	output         hblank,
-	output		   frame,
+	output		   field,
 	output		   disableVideo,
 	output   [3:0] rgbi		  
 );
@@ -186,7 +186,7 @@ vdc_signals signals (
 	.hblank(hblank_pos),
 	.vsync(vsync_pos),
 	.hsync(hsync_pos),
-	.frame(frame)
+	.field(field)
 );
 
 vdc_ramiface #(
