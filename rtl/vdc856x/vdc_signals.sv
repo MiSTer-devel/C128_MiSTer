@@ -5,7 +5,6 @@
  ********************************************************************************/
 
 module vdc_signals #(
-	parameter VB_FRONT_PORCH = 2,  // vertical blanking front porch
 	parameter VB_WIDTH       = 34, // vertical blanking width
 	parameter HB_FRONT_PORCH = 2,  // horizontal blanking front porch
 	parameter HB_WIDTH       = 25  // horizontal blanking width
@@ -101,7 +100,6 @@ wire lineEnd      = endCol && col==reg_ht;
 reg  updateBlink;
 
 vdc_signals_v #(
-	.VB_FRONT_PORCH(VB_FRONT_PORCH),
 	.VB_WIDTH(VB_WIDTH)
 ) signals_v (
 	.clk(clk),

@@ -14,7 +14,7 @@ for the C128 MiSTer FPGA core, by Erik Scheffers
  * Interlace
 
 ## TODO / Known issues
- * Interlace bitmap modes (VMM sections 1, 2, 5, 6)
+ * Some high-res interlace bitmap modes (VMM sections 1, 2)
  * vdcsplit.prg shows wrong horizontal and vertical frequencies
 
 ## References / Test programs
