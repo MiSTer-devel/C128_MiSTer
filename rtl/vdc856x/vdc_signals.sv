@@ -5,9 +5,7 @@
  ********************************************************************************/
 
 module vdc_signals #(
-	parameter VB_WIDTH       = 34, // vertical blanking width
-	parameter HB_FRONT_PORCH = 2,  // horizontal blanking front porch
-	parameter HB_WIDTH       = 25  // horizontal blanking width
+	parameter VB_WIDTH = 20  // vertical blanking width
 )(
 	input            clk,
 	input            reset,
@@ -56,10 +54,7 @@ module vdc_signals #(
 	output reg       field           // 0=first half, 1=second half
 );
 
-vdc_signals_h #(
-	.HB_FRONT_PORCH(HB_FRONT_PORCH),
-	.HB_WIDTH(HB_WIDTH)
-) signals_h (
+vdc_signals_h signals_h (
 	.clk(clk),
 	.reset(reset),
 	.enable(enable),
@@ -146,7 +141,7 @@ always @(posedge clk) begin
 	reg [3:0] bcnt30;
 
 	if (reset) begin
-		blink <= '{0, 0};
+		blink <= '0;
 		bcnt16 <= 0;
 		bcnt30 <= 0;
 	end 

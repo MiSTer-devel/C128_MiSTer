@@ -104,8 +104,8 @@ always @(posedge clk) begin
 					nrow <= 0;
 					
 					if (reg_vd==fh) begin
-						fetchRow <= 0;
-						fetchLine <= 0;
+						// fetchRow <= 0;
+						// fetchLine <= 0;
 						if (cfield || ~&reg_im || !reg_text)
 							fetchFrame <= 1;
 					end
@@ -135,10 +135,11 @@ always @(posedge clk) begin
 						fetchLine <= 1;
 				
 					if (nrow==reg_vd) begin	
-						fetchRow <= 0;
-						fetchLine <= 0;
-						if (cfield || ~&reg_im || !reg_text)
+						// fetchLine <= 0;
+						if (cfield || ~&reg_im || !reg_text) begin
 							fetchFrame <= 1;
+							fetchRow <= 0;
+						end
 					end
 
 				end
@@ -151,18 +152,22 @@ always @(posedge clk) begin
 			end
 		end
 
-		if (displayStart && row != nrow) begin
-			row <= nrow;
+		if (row != nrow) begin
+			if (lineStart) begin
+				if (nrow==1 && |ctv)
+					vVisible <= 1;
 
-			if (nrow==1 && |ctv)
-				vVisible <= 1;
+				if (nrow==reg_vd+1)
+					vVisible <= 0;
 
-			if (nrow==reg_vd+1)
-				vVisible <= 0;
+				if (nrow==reg_vp+1)
+					updateBlink <= 1;
+			end
 
-			if (nrow==reg_vp)
-				updateBlink <= 1;
+			if (displayStart)
+				row <= nrow;
 		end
+
 	end
 end
 
@@ -173,44 +178,38 @@ localparam VB_BITS = $clog2(VB_WIDTH+1);
 reg [VB_BITS-1:0] vbCount;
 assign vblank = |vbCount;
 
-wire [4:0] vsWidth = {~|reg_vw, reg_vw};
-reg  [4:0] vsCount;
-assign vsync = |vsCount;
-wire   swap = ~reg_ctv[0] & reg_vp[0];
+reg [1:0] vsCount;
+assign vsync = vsCount==2'd1;
 
 always @(posedge clk) begin
-	reg       vbDelay; 
-	reg [5:0] vbFront;
+	reg vsDetect; 
+	reg vbStart;
+	reg vsStart;
 
 	if (reset) begin
 		vsCount <= 0;
 		vbCount <= 0;
-		vbFront <= 0;
-		vbDelay <= 0;
+		vsStart <= 0;
+		vsDetect <= 0;
+		field <= 0;
 	end 
 	else if (enable) begin
-		if (
-			(half1End || hSyncStart) && (vbDelay || (
-				nrow == (reg_vp>1 ? reg_vp-8'd2 : reg_vt+8'(|reg_va)-8'd1) 
-				&& nsline == (|reg_vp || ~|reg_va ? reg_ctv : reg_va-5'd1)
-			))
-		) begin
-			vbDelay <= half1End;
+		if ((half1End || hSyncStart) && (vsDetect || (nrow == reg_vp && nsline == 0))) begin
+			vsDetect <= half1End;
 			if (hSyncStart) begin
-				vbFront <= reg_ctv > 2 ? (6'(reg_ctv)>>reg_im[0])+6'd1 : 6'd2;
-				vbCount <= VB_BITS'(VB_WIDTH);
+				vbStart <= 1;
 				field <= ncfield;
 			end
 		end
 
-		if (|vbCount && hSyncStart) 
-			vbCount <= vbCount-1'd1;
-
-		if (|vbFront && hSyncStart) begin
-			vbFront <= vbFront-1'd1;
-			if (vbFront == 1) 
-				vsCount <= vsWidth>>reg_im[0];
+		if (vbStart && lineStart) begin
+			vbStart <= 0;
+			vbCount <= VB_BITS'(VB_WIDTH);
+			vsCount <= 2'd3;
 		end
+
+		if (|vbCount && lineStart) 
+			vbCount <= vbCount-1'd1;
 
 		if (|vsCount && hSyncStart) 
 			vsCount <= vsCount-1'd1;

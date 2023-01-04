@@ -66,8 +66,8 @@ module vdc_ramiface #(
 );
 
 
-typedef enum bit[2:0] {CA_NONE, CA_READ, CA_WRITE, CA_FILL, CA_COPY[2]} cAction_t;
-typedef enum bit[2:0] {RA_NONE, RA_CHAR, RA_SCRN, RA_ATTR, RA_CPU} rAction_t;
+typedef enum bit[2:0] {CA_IDLE, CA_READ, CA_WRITE, CA_FILL, CA_COPY[2]} cAction_t;
+typedef enum bit[2:0] {RA_IDLE, RA_CHAR, RA_SCRN, RA_ATTR, RA_CPU, RA_RFSH} rAction_t;
 
 reg	       ram_rd;
 reg        ram_we;
@@ -123,7 +123,7 @@ always @(posedge clk) begin
 
 	integer    i;
 
-	busy = erasing || start_erase || reset || cpuAction != CA_NONE;
+	busy = erasing || start_erase || reset || cpuAction != CA_IDLE;
 	
 	ram_rd <= 0;
 	ram_we <= 0;
@@ -142,8 +142,8 @@ always @(posedge clk) begin
 		reg_da <= 0;
 		reg_ba <= 0;
 
-		cpuAction <= CA_NONE;
-		ramAction <= RA_NONE;
+		cpuAction <= CA_IDLE;
+		ramAction <= RA_IDLE;
 		start_erase <= initRam;
 		ram_addr <= 16'hFFFF;
 		ram_di <= 0;
@@ -221,17 +221,10 @@ always @(posedge clk) begin
 			end
 		end 
 		else if (enable && endCol) begin
-			if (debug) begin
-				charbuf[ci] <= ramAction == RA_NONE ? 8'h00 : ram_do;
-				ci = C_LATCH_BITS'((ci + 1) % C_LATCH_WIDTH);
-			end
+			charbuf[ci] <= ramAction == RA_IDLE && debug ? 8'h00 : ram_do;
+			ci = C_LATCH_BITS'((ci + 1) % C_LATCH_WIDTH);
 
 			case (ramAction)
-				RA_CHAR: if (!debug) begin
-					charbuf[ci] <= ram_do;
-					ci = C_LATCH_BITS'((ci + 1) % C_LATCH_WIDTH);
-				end
-
 				RA_SCRN: begin
 					scrnbuf[~rowbuf][si] <= ram_do;
 					si = S_LATCH_BITS'(si + 1);
@@ -246,7 +239,7 @@ always @(posedge clk) begin
 					case (cpuAction)
 						CA_READ: begin
 							reg_da    <= ram_do;
-							cpuAction <= CA_NONE;
+							cpuAction <= CA_IDLE;
 						end
 						CA_WRITE: begin
 							reg_ua    <= reg_ua + 16'd1;
@@ -255,7 +248,7 @@ always @(posedge clk) begin
 						CA_FILL: begin
 							reg_ua    <= reg_ua + 16'd1;
 							wc        <= wc - 8'd1;
-							cpuAction <= wc==1 ? CA_NONE : CA_FILL;
+							cpuAction <= wc==1 ? CA_IDLE : CA_FILL;
 						end
 						CA_COPY0: begin
 							cda       <= ram_do;
@@ -265,7 +258,7 @@ always @(posedge clk) begin
 						CA_COPY1:  begin
 							reg_ua    <= reg_ua + 16'd1;
 							wc        <= wc - 8'd1;
-							cpuAction <= wc==1 ? CA_NONE : CA_COPY0;
+							cpuAction <= wc==1 ? CA_IDLE : CA_COPY0;
 						end
 					endcase
 			endcase
@@ -312,6 +305,8 @@ always @(posedge clk) begin
 				en_char = 0;
 			end
 
+			ram_di <= 8'hXX;
+
 			if (en_char) begin
 				// fetch character data
 				ramAction <= RA_CHAR;
@@ -329,8 +324,7 @@ always @(posedge clk) begin
 			end
 			else if (!en_int && en_rfsh) begin
 				// ram refresh causes glitches in the last column when scrolling horizontally
-				ramAction     <= RA_CHAR;
-				// ram_addr     <= reg_ram ? {rfshaddr, rfshaddr} : {2'b00, rfshaddr[5:0], rfshaddr};
+				ramAction     <= RA_RFSH;
 				ram_addr[7:0] <= rfshaddr;
 				rfshaddr      <= rfshaddr + 1'd1;
 				ram_rd        <= 1;
@@ -347,7 +341,7 @@ always @(posedge clk) begin
 				ram_addr  <= attraddr + ai;
 				ram_rd    <= 1;
 			end
-			else if (cpuAction != CA_NONE) begin
+			else if (cpuAction != CA_IDLE) begin
 				// perform CPU action -- are these allowed during `en_int`?
 				ramAction <= RA_CPU;
 
@@ -378,8 +372,9 @@ always @(posedge clk) begin
 				endcase
 			end
 			else begin
-				ram_addr <= 16'hffff;
-				ramAction <= RA_NONE;
+				ram_addr  <= 16'hffff;
+				ram_rd    <= 1;
+				ramAction <= RA_IDLE;
 			end
 		end
 	end

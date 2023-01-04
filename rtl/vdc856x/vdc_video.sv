@@ -15,6 +15,7 @@ module vdc_video #(
 	input          enable,
 
 	input    [7:0] reg_hd,                     // horizontal displayed
+	input    [3:0] reg_cth,                    // character total horizontal (minus 1)
 	input    [3:0] reg_cdh,                    // character displayed horizontal
 	input    [4:0] reg_cdv,                    // character displayed vertical
 	input    [3:0] reg_hss,                    // horizontal smooth scroll
@@ -61,10 +62,11 @@ wire [3:0] fg = reg_atr ? attr[3:0] : reg_fg;
 wire [3:0] bg = reg_text && reg_atr ? attr[7:4] : reg_bg;
 wire [2:0] ca = !reg_text && reg_atr ? attr[6:4] : 3'b000;
 wire [7:0] vcol = col - 8'd8;
+wire [4:0] hss = reg_hss + (reg_dbl ? 5'd1 : 5'd0);
+reg        crscol, crsline;
 
 always @(posedge clk) begin
 	reg [7:0] bitmap;
-	reg       cursor;
 `ifdef VDC_XRAY
 	reg [1:0] showFetch; 
 	reg [7:0] lcol;
@@ -78,11 +80,16 @@ always @(posedge clk) begin
 `endif 
 
 	if (enable) begin
+		if (line==reg_cs)
+			crsline <= 1;
+		else if (line==reg_ce)
+			crsline <= 0;
+
 		if (line > reg_cdv)
 			bitmap <= 8'h00;
-		else if ((pixel - reg_dbl) == reg_hss) begin
+		else if (pixel == hss) begin
 			attr   <= (vcol < reg_hd && vcol < S_LATCH_WIDTH) ? attrbuf[rowbuf][vcol] : 8'h00;
-			cursor <= !reg_text && dispaddr+vcol == reg_cp && (!reg_cm || reg_cm[1] && blink[reg_cm[0]]) && reg_cs <= line && line <= reg_ce;
+			crscol <= !reg_text && dispaddr+vcol == reg_cp && (!reg_cm || reg_cm[1] && blink[reg_cm[0]]);
 			bitmap <= charbuf[vcol % C_LATCH_WIDTH];
 		end
 		else if (pixel == reg_cdh)
@@ -91,9 +98,11 @@ always @(posedge clk) begin
 			bitmap <= {bitmap[6:0], 1'b0};
 
 		if (vVisible && hVisible)
-			rgbi <= ((~(ca[0] & blink[reg_cbrate]) & ((ca[1] && line == reg_ul) | bitmap[7])) ^ reg_rvs ^ ca[2] ^ cursor) ? fg : bg;
-		else if (blank || !(debug || hdispen))
-			rgbi <= 0;
+			rgbi <= (
+				hss <= reg_cth 
+					? (((~(ca[0] & blink[reg_cbrate]) & ((ca[1] && line == reg_ul) | bitmap[7])) ^ reg_rvs ^ ca[2] ^ (crscol&crsline)) ? fg : bg) 
+					: 0
+			);
 `ifdef VDC_XRAY
 		else if (showFetch && ~&showFetch)
 			rgbi <= rgbi;
@@ -106,6 +115,8 @@ always @(posedge clk) begin
 		else if (debug && bitmap[7])
 			rgbi <= 0;
 `endif 
+		else if (blank || !(debug || hdispen))
+			rgbi <= 0;
 		else
 			rgbi <= reg_bg ^ (debug ? {~hVisible, ~vVisible, ~hdispen, 1'b0} : 4'h0);
 	end

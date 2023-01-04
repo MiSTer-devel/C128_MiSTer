@@ -5,10 +5,7 @@
  ********************************************************************************/
 
 
-module vdc_signals_h #(
-	parameter HB_FRONT_PORCH,  // horizontal blanking front porch
-	parameter HB_WIDTH         // horizontal blanking width
-)(
+module vdc_signals_h (
 	input            clk,
 	input            reset,
 	input            enable,
@@ -35,17 +32,13 @@ module vdc_signals_h #(
 	output           hVisible,       // visible column
 	output reg       hdispen,        // horizontal display enable
 
-	output           hsync,          // horizontal sync
+	output reg       hsync,          // horizontal sync
 	output           hblank          // horizontal blanking
 );
 
-localparam HB_BITS = $clog2(HB_WIDTH+1);
+reg [3:0] hbCount; 
+reg       hviscol; 
 
-reg         [3:0] hsCount; 
-reg [HB_BITS-1:0] hbCount;
-reg               hviscol; 
-
-assign hsync    = |hsCount;
 assign hblank   = |hbCount;
 assign hVisible = hviscol & hdispen;
 
@@ -54,7 +47,7 @@ always @(posedge clk) begin
 		col <= 0;
 		pixel <= 0;
 
-		hsCount <= 0;
+		hsync <= 0;
 		hbCount <= 0;
 
 		newCol <= 0;
@@ -74,28 +67,31 @@ always @(posedge clk) begin
 			else
 				col <= col+8'd1;
 
-			// visible columns
+			// visible column start
 			if (col==8) hviscol <= 1;
-			if (col==reg_hd+((|reg_ai && !reg_atr) ? 7 : 8)) hviscol <= 0;
 
 			// hdisplay enable
-			if (col==reg_deb+1 || reg_deb>reg_ht) hdispen <= 1;
-			if (col==reg_dee+1) hdispen <= 0;
+			if (col==(reg_deb==reg_ht ? 0 : reg_deb+1)) hdispen <= 1;
+			if (col==(reg_dee==reg_ht ? 0 : reg_dee+1)) hdispen <= 0;
 
 			// hsync
-			if (hSyncStart) 
-				hsCount <= reg_hw;
-			else if (|hsCount) 
-				hsCount <= hsCount-1'd1;
+			hsync <= hSyncStart;
 
 			// hblank
-			if (col==(reg_hp>HB_FRONT_PORCH ? reg_hp-HB_FRONT_PORCH-1 : reg_ht-HB_FRONT_PORCH))
-				hbCount <= HB_BITS'(HB_WIDTH) >> reg_dbl;
-			else if (|hbCount) 
+			if (hSyncStart) 
+				hbCount <= reg_hw >> reg_dbl;
+			else if (hblank) 
 				hbCount <= hbCount-1'd1;
 		end
 		else
 			pixel <= pixel+4'd1;
+
+		// visible column end
+		if (
+			(reg_dbl && newCol && col==reg_hd+9) 
+			|| (!reg_dbl && endCol && col==reg_hd+((|reg_ai && !reg_atr) ? 7 : 8))
+		)
+			hviscol <= 0;
 	end
 end
 

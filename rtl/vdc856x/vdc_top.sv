@@ -195,7 +195,7 @@ vdc_ramiface #(
 	.C_LATCH_WIDTH(C_LATCH_WIDTH)
 ) ram (
 	.ram64k(ram64k),
-	.initRam(reset),
+	.initRam(initRam),
 	.debug(debug),
 
 	.clk(clk),
@@ -255,6 +255,7 @@ vdc_video #(
 	.enable(enable),
 
 	.reg_hd(reg_hd),
+	.reg_cth(reg_cth),
 	.reg_cdh(reg_cdh),
 	.reg_cdv(reg_cdv),
 	.reg_hss(reg_hss),
