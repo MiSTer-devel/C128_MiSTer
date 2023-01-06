@@ -51,7 +51,8 @@ module vdc_ramiface #(
 
 	input          fetchFrame,
 	input          fetchLine,
-	input          fetchRow,    
+	input          fetchRow,
+	input          newRow,
 	input          newCol,
 	input          endCol,
 	input    [7:0] col,
@@ -132,7 +133,6 @@ always @(posedge clk) begin
 		ci     = 0;
 		si     = 0;
 		ai     = 0;
-		rowbuf = 0;
 
 		wc     <= 0;
 		wda    <= 0;
@@ -265,6 +265,9 @@ always @(posedge clk) begin
 		end
 		else if (enable && newCol) begin
 			if (col == 0) begin
+				if (newRow)
+					rowbuf = ~rowbuf;
+
 				if (fetchLine) begin
 					ci = 0;
 					en_char = 1;
@@ -277,8 +280,6 @@ always @(posedge clk) begin
 				end
 
 				if (fetchRow || fetchFrame) begin
-					rowbuf = ~rowbuf;
-
 					if (!reg_text) begin
 						si = 0;
 						dispaddr <= scrnaddr;
@@ -288,8 +289,8 @@ always @(posedge clk) begin
 
 					if (reg_atr) begin
 						ai = 0;
-						attraddr = fetchFrame ? reg_aa + ((reg_text && reg_ai) ? 16'd1 : 0)
-						                      : attraddr + reg_hd + reg_ai + ((firstAttr && reg_text && reg_ai) ? reg_ai-16'd2 : 0);
+						attraddr = fetchFrame ? reg_aa + ((reg_text && reg_ai) ? 16'd1 : 16'd0)
+						                      : attraddr + reg_hd + reg_ai + ((firstAttr && reg_text && reg_ai) ? reg_ai-16'd2 : 16'd0);
 						if (!fetchFrame)
 							firstAttr <= 0;
 					end

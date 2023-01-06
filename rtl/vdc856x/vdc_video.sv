@@ -31,13 +31,12 @@ module vdc_video #(
 	input    [3:0] reg_bg,                     // background color
 
 	input    [1:0] reg_cm,                     // cursor mode
-	input    [4:0] reg_cs,                     // cursor line start
-	input    [4:0] reg_ce,                     // cursor line end
 	input   [15:0] reg_cp,                     // cursor position
 
 	input          fetchFrame,                 // start of new frame
 	input          fetchLine,                  // start of new visible line
 	input          fetchRow,                   // start of new visible row
+	input          cursorV,                    // show cursor in these lines
 
 	input          hVisible,                   // in visible part of display
 	input          vVisible,                   // in visible part of display
@@ -63,7 +62,9 @@ wire [3:0] bg = reg_text && reg_atr ? attr[7:4] : reg_bg;
 wire [2:0] ca = !reg_text && reg_atr ? attr[6:4] : 3'b000;
 wire [7:0] vcol = col - 8'd8;
 wire [4:0] hss = reg_hss + (reg_dbl ? 5'd1 : 5'd0);
-reg        crscol, crsline;
+reg        cursorH;
+
+wire cursor = cursorV && cursorH;
 
 always @(posedge clk) begin
 	reg [7:0] bitmap;
@@ -80,16 +81,11 @@ always @(posedge clk) begin
 `endif 
 
 	if (enable) begin
-		if (line==reg_cs)
-			crsline <= 1;
-		else if (line==reg_ce)
-			crsline <= 0;
-
 		if (line > reg_cdv)
 			bitmap <= 8'h00;
 		else if (pixel == hss) begin
 			attr   <= (vcol < reg_hd && vcol < S_LATCH_WIDTH) ? attrbuf[rowbuf][vcol] : 8'h00;
-			crscol <= !reg_text && dispaddr+vcol == reg_cp && (!reg_cm || reg_cm[1] && blink[reg_cm[0]]);
+			cursorH <= !reg_text && dispaddr+vcol == reg_cp && (!reg_cm || reg_cm[1] && blink[reg_cm[0]]);
 			bitmap <= charbuf[vcol % C_LATCH_WIDTH];
 		end
 		else if (pixel == reg_cdh)
@@ -100,8 +96,8 @@ always @(posedge clk) begin
 		if (vVisible && hVisible)
 			rgbi <= (
 				hss <= reg_cth 
-					? (((~(ca[0] & blink[reg_cbrate]) & ((ca[1] && line == reg_ul) | bitmap[7])) ^ reg_rvs ^ ca[2] ^ (crscol&crsline)) ? fg : bg) 
-					: 0
+					? (((~(ca[0] & blink[reg_cbrate]) & ((ca[1] && line == reg_ul) | bitmap[7])) ^ reg_rvs ^ ca[2] ^ cursor) ? fg : bg) 
+					: 4'd0
 			);
 `ifdef VDC_XRAY
 		else if (showFetch && ~&showFetch)

@@ -18,6 +18,8 @@ module vdc_signals_v #(
 	input      [7:0] reg_vp,         // R7      1D/20 29/32   Vertical sync position (plus 1) [29 for NTSC, 32 for PAL]
 	input      [1:0] reg_im,         // R8          0 off     Interlace mode
 	input      [4:0] reg_ctv,        // R9         07 7       Character Total Vertical (minus 1)
+	input      [4:0] reg_cs,         // R10[4:0]    0 0       Cursor scanline start
+	input      [4:0] reg_ce,         // R11        07 7       Cursor scanline end (plus 1?)
 	input      [4:0] reg_vss,        // R24[4:0]   00 0       Vertical smooth scroll
 	input            reg_text,       // R25[7]      0 text    Mode select (text/bitmap)
 	
@@ -31,8 +33,10 @@ module vdc_signals_v #(
 	output reg       fetchFrame,     // indicates start of a new frame (only valid at lineStart)
 	output reg       fetchRow,       // indicates start of a new visible row (only valid at lineStart)
 	output reg       fetchLine,      // indicates start of a new visible line (only valid at lineStart)
+	output reg       cursor,         // show cursor vertically
 
 	output reg       field,          // 0=first half, 1=second half
+	output reg       newRow,
 	output reg [7:0] row,            // current row
 	output reg [4:0] line,           // current row line 
 
@@ -51,10 +55,11 @@ reg  [4:0] ncline, nsline;
 reg  [4:0] ctv;
 reg        cfield;
 
-wire [7:0] fh = reg_vt+8'(|reg_va);
-wire [4:0] rh = nrow==reg_vt+1 ? reg_va-5'd1 : ctv;
-wire [4:0] el = nrow==reg_vt+1 ? reg_va-(~reg_va[0] && &reg_im ? 5'd0 : 5'd1) : ctv;
 wire       ncfield = reg_im[0] & ~cfield;
+wire [5:0] va = reg_va+(ncfield ? 6'd1 : 6'd0);
+wire [7:0] fh = reg_vt+(|va ? 8'd1 : 8'd0);
+wire [4:0] rh = nrow==reg_vt+1 ? 5'(va-6'd1) : ctv;
+wire [4:0] el = rh; //nrow==reg_vt+1 ? 5'(va-(~va[0] && &reg_im ? 6'd0 : 6'd1)) : ctv;
 
 always @(posedge clk) begin
 	if (reset) begin
@@ -72,6 +77,8 @@ always @(posedge clk) begin
 		fetchLine <= 0;
 		fetchRow <= 0;
 		fetchFrame <= 0;
+		newRow <= 0;
+
 		updateBlink <= 0;
 	end
   	else if (enable) begin
@@ -81,6 +88,7 @@ always @(posedge clk) begin
 			fetchLine <= 0;
 			fetchRow <= 0;
 			fetchFrame <= 0;
+			newRow <= 0;
 		end
 
 		if (lineEnd || (&reg_im && half1End)) begin
@@ -103,12 +111,8 @@ always @(posedge clk) begin
 
 					nrow <= 0;
 					
-					if (reg_vd==fh) begin
-						// fetchRow <= 0;
-						// fetchLine <= 0;
-						if (cfield || ~&reg_im || !reg_text)
-							fetchFrame <= 1;
-					end
+					if (nrow==reg_vd && (cfield || ~&reg_im || !reg_text))
+						fetchFrame <= 1;
 				end
 			end
 			else begin
@@ -118,8 +122,11 @@ always @(posedge clk) begin
 					if (lineEnd)
 						line <= 0;
 
-					if (nrow<=reg_vd)
+					if (nrow < reg_vd-(|reg_vss ? 0 : 1))
 						fetchRow <= 1;
+
+					if (nrow <= reg_vd-(|reg_vss ? 0 : 1))
+						newRow <= 1;
 				end
 				else begin
 					ncline <= ncline+5'd1;
@@ -133,15 +140,9 @@ always @(posedge clk) begin
 
 					if (nrow<reg_vd)
 						fetchLine <= 1;
-				
-					if (nrow==reg_vd) begin	
-						// fetchLine <= 0;
-						if (cfield || ~&reg_im || !reg_text) begin
-							fetchFrame <= 1;
-							fetchRow <= 0;
-						end
-					end
 
+					if (nrow==reg_vd && (cfield || ~&reg_im || !reg_text))
+						fetchFrame <= 1;
 				end
 				else begin
 					nsline <= nsline+5'd1;
@@ -150,6 +151,7 @@ always @(posedge clk) begin
 						fetchLine <= 1;
 				end
 			end
+
 		end
 
 		if (row != nrow) begin
@@ -167,13 +169,12 @@ always @(posedge clk) begin
 			if (displayStart)
 				row <= nrow;
 		end
-
 	end
 end
 
 // vsync/vblank
 
-localparam VB_BITS = $clog2(VB_WIDTH+1);
+localparam VB_BITS = $clog2(VB_WIDTH+2);
 
 reg [VB_BITS-1:0] vbCount;
 assign vblank = |vbCount;
@@ -184,12 +185,10 @@ assign vsync = vsCount==2'd1;
 always @(posedge clk) begin
 	reg vsDetect; 
 	reg vbStart;
-	reg vsStart;
 
 	if (reset) begin
 		vsCount <= 0;
 		vbCount <= 0;
-		vsStart <= 0;
 		vsDetect <= 0;
 		field <= 0;
 	end 
@@ -204,7 +203,7 @@ always @(posedge clk) begin
 
 		if (vbStart && lineStart) begin
 			vbStart <= 0;
-			vbCount <= VB_BITS'(VB_WIDTH);
+			vbCount <= VB_BITS'(VB_WIDTH) - (field ? 1'd1 : 1'd0);
 			vsCount <= 2'd3;
 		end
 
@@ -213,6 +212,22 @@ always @(posedge clk) begin
 
 		if (|vsCount && hSyncStart) 
 			vsCount <= vsCount-1'd1;
+	end
+end
+
+// cursor
+
+always @(posedge clk) begin
+	if (reset) begin
+		cursor <= 0;
+	end
+	else if (enable) begin
+		if ((lineStart || (&reg_im && half2Start)) && ncline==reg_cs) begin
+			cursor <= 1;
+		end
+		if ((lineEnd || (&reg_im && half1End)) && ncline==reg_ce) begin
+			cursor <= 0;
+		end
 	end
 end
 

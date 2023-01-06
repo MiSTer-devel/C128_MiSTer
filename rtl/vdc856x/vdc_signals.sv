@@ -22,6 +22,8 @@ module vdc_signals #(
 	input      [7:0] reg_vp,         // R7      1D/20 29/32   Vertical sync position (plus 1) [29 for NTSC, 32 for PAL]
 	input      [1:0] reg_im,         // R8          0 off     Interlace mode
 	input      [4:0] reg_ctv,        // R9         07 7       Character Total Vertical (minus 1)
+	input      [4:0] reg_cs,         // R10[4:0]    0 0       Cursor scanline start
+	input      [4:0] reg_ce,         // R11        07 7       Cursor scanline end (plus 1?)
 	input      [3:0] reg_cth,        // R22[7:4]    7 7       Character total horizontal (minus 1)
 	input      [4:0] reg_vss,        // R24[4:0]   00 0       Vertical smooth scroll
 	input            reg_text,       // R25[7]      0 text    Mode select (text/bitmap)
@@ -34,6 +36,9 @@ module vdc_signals #(
 	output reg       fetchFrame,     // pulses at the start of a new frame
 	output reg       fetchRow,       // pulses at the start of a new visible row
 	output reg       fetchLine,      // pulses at the start of a new visible line
+	output reg       cursorV,
+
+	output           newRow,
 	output reg       newCol,         // pulses on first pixel of a column
 	output reg       endCol,         // pulses on the last pixel of a column
 
@@ -108,6 +113,8 @@ vdc_signals_v #(
 	.reg_vp(reg_vp),
 	.reg_im(reg_im),
 	.reg_ctv(reg_ctv),
+	.reg_cs(reg_cs),
+	.reg_ce(reg_ce),
 	.reg_vss(reg_vss),
 	.reg_text(reg_text),
 
@@ -121,6 +128,8 @@ vdc_signals_v #(
 	.fetchFrame(fetchFrame),
 	.fetchLine(fetchLine),
 	.fetchRow(fetchRow),
+	.cursor(cursorV),
+	.newRow(newRow),
 
 	.row(row),
 	.line(line),

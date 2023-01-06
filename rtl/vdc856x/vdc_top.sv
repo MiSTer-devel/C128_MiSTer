@@ -33,6 +33,7 @@ module vdc_top #(
 	output         hsync,
 	output         vblank,
 	output         hblank,
+	output         ilace,
 	output		   field,
 	output		   disableVideo,
 	output   [3:0] rgbi		  
@@ -114,13 +115,15 @@ reg         reg_vspol = 0;  // R37[6]                [v2 only], VSYnc polarity
 reg   [5:0] regSel;         // selected internal register (write to $D600)
 
 wire        fetchFrame;
-wire        fetchLine, fetchRow;
+wire        fetchLine;
+wire        fetchRow, newRow;
+wire        cursorV;
 wire        newCol, endCol;
+wire        rowbuf;
 reg   [7:0] col, row;
 reg   [4:0] pixel, line;
 reg   [1:0] blink;        // The 2 blink rates: 0=16 frames, 1=30 frames
 
-reg         rowbuf;
 reg  [15:0] dispaddr;
 
 (* ramstyle = "no_rw_check" *) reg [7:0] scrnbuf[2][S_LATCH_WIDTH];
@@ -138,6 +141,7 @@ assign      vsync = vsync_pos ^ (~version[1] & reg_vspol);
 assign      hsync = hsync_pos ^ (~version[1] & reg_hspol);
 assign      vblank = vblank_pos | vsync_pos;
 assign      hblank = hblank_pos | hsync_pos;
+assign      ilace = reg_im[0];
 
 assign      disableVideo = 0;
 
@@ -157,6 +161,8 @@ vdc_signals signals (
 	.reg_vp(reg_vp),
 	.reg_im(reg_im),
 	.reg_ctv(reg_ctv),
+	.reg_cs(reg_cs),
+	.reg_ce(reg_ce),
 	.reg_cth(reg_cth),
 	.reg_vss(reg_vss),
 	.reg_text(reg_text),
@@ -169,6 +175,8 @@ vdc_signals signals (
 	.fetchFrame(fetchFrame),
 	.fetchLine(fetchLine),
 	.fetchRow(fetchRow),
+	.cursorV(cursorV),
+	.newRow(newRow),
 	.newCol(newCol),
 	.endCol(endCol),
 
@@ -230,6 +238,7 @@ vdc_ramiface #(
 	.fetchFrame(fetchFrame),
 	.fetchLine(fetchLine),
 	.fetchRow(fetchRow),
+	.newRow(newRow),
 	.newCol(newCol),
 	.endCol(endCol),
 	.col(col),
@@ -271,13 +280,12 @@ vdc_video #(
 	.reg_bg(reg_bg),
 
 	.reg_cm(reg_cm),
-	.reg_cs(reg_cs),
-	.reg_ce(reg_ce),
 	.reg_cp(reg_cp),
 	
 	.fetchFrame(fetchFrame),
 	.fetchLine(fetchLine),
 	.fetchRow(fetchRow),
+	.cursorV(cursorV),
 
 	.hVisible(hVisible),
 	.vVisible(vVisible),

@@ -98,6 +98,7 @@ port(
    vdcVblank   : out std_logic;
    vdcPixClk   : out std_logic;
    vdcF1       : out std_logic;
+   vdcIlace    : out std_logic;
    vdcDisable  : out std_logic;
    vdcR        : out unsigned(7 downto 0);
    vdcG        : out unsigned(7 downto 0);
@@ -468,6 +469,7 @@ component vdc_top
       vsync         : out std_logic;
       hblank        : out std_logic;
       vblank        : out std_logic;
+      ilace         : out std_logic;
       field         : out std_logic;
       disableVideo  : out std_logic;
       rgbi          : out unsigned(3 downto 0)
@@ -919,6 +921,7 @@ port map (
    vsync => vdcVsync,
    hblank => vdcHblank,
    vblank => vdcVblank,
+   ilace => vdcIlace,
    field => vdcF1,
    disableVideo => vdcDisable,
    rgbi => vdcRGBI
