@@ -52,7 +52,7 @@ module vdc_ramiface #(
 	input          fetchFrame,
 	input          fetchLine,
 	input          fetchRow,
-	input          newRow,
+	input          lastRow,
 	input          newCol,
 	input          endCol,
 	input    [7:0] col,
@@ -60,15 +60,18 @@ module vdc_ramiface #(
 
 	output    wire busy,
 	output         rowbuf,                     // buffer containing current screen info
-	output   [7:0] scrnbuf[2][S_LATCH_WIDTH],  // screen codes for current and next row
 	output   [7:0] attrbuf[2][S_LATCH_WIDTH],  // latch for attributes for current and next row
 	output   [7:0] charbuf[C_LATCH_WIDTH],     // character data for current col
 	output  [15:0] dispaddr
 );
 
+reg [7:0] scrnbuf[2][S_LATCH_WIDTH];  // screen codes for current and next row
 
 typedef enum bit[2:0] {CA_IDLE, CA_READ, CA_WRITE, CA_FILL, CA_COPY[2]} cAction_t;
 typedef enum bit[2:0] {RA_IDLE, RA_CHAR, RA_SCRN, RA_ATTR, RA_CPU, RA_RFSH} rAction_t;
+
+cAction_t  cpuAction;
+rAction_t  ramAction;
 
 reg	       ram_rd;
 reg        ram_we;
@@ -96,7 +99,7 @@ vdcram #(8, RAM_ADDR_BITS) ram
 	.clk(clk),
 	.rd(ram_rd),
 	.we(ram_we),
-	.addr(shuffleAddr(ram_addr, ram64k, reg_ram)),
+	.addr(shuffleAddr(ram_addr, ram64k, reg_ram || (ramAction==RA_IDLE || ramAction==RA_RFSH))),
 	.dai(ram_di),
 	.dao(ram_do)
 );
@@ -104,13 +107,13 @@ vdcram #(8, RAM_ADDR_BITS) ram
 wire en_rfsh = col >= reg_hd && col < reg_hd+reg_drr;
 wire en_int = col < 2 || col >= reg_ht-8'd2;
 
-always @(posedge clk) begin
-	cAction_t cpuAction;
-	rAction_t ramAction;
+wire [7:0] attrlen = lastRow ? 8'd2 : reg_hd;
+wire [7:0] scrnlen = reg_hd;
 
+always @(posedge clk) begin
 	reg [15:0] scrnaddr;    // screen data row address
 	reg [15:0] attraddr;    // attributes row address
-	reg  [7:0] rfshaddr;    // refresh row address
+	reg  [7:0] rfshaddr;    // refresh address
 	reg  [7:0] wda, cda;    // write/copy data
 	reg  [7:0] wc;          // block word count
 	reg        en_char;     // enable char fetch
@@ -147,16 +150,8 @@ always @(posedge clk) begin
 		start_erase <= initRam;
 		ram_addr <= 16'hFFFF;
 		ram_di <= 0;
-
-		// for (i=0; i<S_LATCH_WIDTH; i=i+1) begin
-		// 	scrnbuf[0][i] <= 0;
-		// 	scrnbuf[1][i] <= 0;
-		// 	attrbuf[0][i] <= 0;
-		// 	attrbuf[1][i] <= 0;
-		// end
-		// for (i=0; i<C_LATCH_WIDTH; i=i+1) begin
-		// 	charbuf[i] <= 0;
-		// end
+		ram_rd <= 1;
+		ram_we <= 0;
 
 		dispaddr <= 16'hFFFF;
 	end
@@ -182,7 +177,7 @@ always @(posedge clk) begin
 					end
 
 					// Updating WC starts a COPY (from BA to UA) or FILL (to UA) for WC items
-					// Does *not* change WC or DA (verified on real v1 VDC)
+					// Does *not* change WC or DA
 					30: begin 
 						reg_wc    <= db_in;
 						wc        <= db_in;
@@ -265,7 +260,7 @@ always @(posedge clk) begin
 		end
 		else if (enable && newCol) begin
 			if (col == 0) begin
-				if (newRow)
+				if (fetchRow)
 					rowbuf = ~rowbuf;
 
 				if (fetchLine) begin
@@ -330,13 +325,13 @@ always @(posedge clk) begin
 				rfshaddr      <= rfshaddr + 1'd1;
 				ram_rd        <= 1;
 			end
-			else if (!en_int && si < reg_hd) begin
+			else if (!en_int && si < scrnlen) begin
 				// fetch screen data
 				ramAction <= RA_SCRN;
 				ram_addr  <= scrnaddr + si;
 				ram_rd    <= 1;
 			end 
-			else if (!en_int && ai < reg_hd) begin
+			else if (!en_int && ai < attrlen) begin
 				// fetch attribute data
 				ramAction <= RA_ATTR;
 				ram_addr  <= attraddr + ai;

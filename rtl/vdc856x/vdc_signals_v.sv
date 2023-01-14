@@ -36,7 +36,7 @@ module vdc_signals_v #(
 	output reg       cursor,         // show cursor vertically
 
 	output reg       field,          // 0=first half, 1=second half
-	output reg       newRow,
+	output reg       lastRow,
 	output reg [7:0] row,            // current row
 	output reg [4:0] line,           // current row line 
 
@@ -77,7 +77,7 @@ always @(posedge clk) begin
 		fetchLine <= 0;
 		fetchRow <= 0;
 		fetchFrame <= 0;
-		newRow <= 0;
+		lastRow <= 0;
 
 		updateBlink <= 0;
 	end
@@ -88,7 +88,7 @@ always @(posedge clk) begin
 			fetchLine <= 0;
 			fetchRow <= 0;
 			fetchFrame <= 0;
-			newRow <= 0;
+			lastRow <= 0;
 		end
 
 		if (lineEnd || (&reg_im && half1End)) begin
@@ -122,11 +122,11 @@ always @(posedge clk) begin
 					if (lineEnd)
 						line <= 0;
 
-					if (nrow < reg_vd-(|reg_vss ? 0 : 1))
+					if (nrow <= reg_vd-(|reg_vss ? 0 : 1))
 						fetchRow <= 1;
 
-					if (nrow <= reg_vd-(|reg_vss ? 0 : 1))
-						newRow <= 1;
+					if (nrow == reg_vd-(|reg_vss ? 0 : 1))
+						lastRow <= 1;
 				end
 				else begin
 					ncline <= ncline+5'd1;
@@ -151,19 +151,18 @@ always @(posedge clk) begin
 						fetchLine <= 1;
 				end
 			end
-
 		end
 
 		if (row != nrow) begin
 			if (lineStart) begin
-				if (nrow==1 && |ctv)
-					vVisible <= 1;
+			if (nrow==1 && |ctv)
+				vVisible <= 1;
 
-				if (nrow==reg_vd+1)
-					vVisible <= 0;
+			if (nrow==reg_vd+1)
+				vVisible <= 0;
 
-				if (nrow==reg_vp+1)
-					updateBlink <= 1;
+			if (nrow==reg_vp+1)
+				updateBlink <= 1;
 			end
 
 			if (displayStart)
@@ -203,7 +202,7 @@ always @(posedge clk) begin
 
 		if (vbStart && lineStart) begin
 			vbStart <= 0;
-			vbCount <= VB_BITS'(VB_WIDTH) - (field ? 1'd1 : 1'd0);
+			vbCount <= VB_BITS'(VB_WIDTH) - VB_BITS'(field ? 1 : 0);
 			vsCount <= 2'd3;
 		end
 
@@ -218,16 +217,14 @@ end
 // cursor
 
 always @(posedge clk) begin
-	if (reset) begin
+	if (reset)
 		cursor <= 0;
-	end
-	else if (enable) begin
-		if ((lineStart || (&reg_im && half2Start)) && ncline==reg_cs) begin
+	else if (enable && (lineStart || (&reg_im && half2Start))) begin
+		if (ncline==reg_cs)
 			cursor <= 1;
-		end
-		if ((lineEnd || (&reg_im && half1End)) && ncline==reg_ce) begin
+
+		if (ncline==reg_ce)  // todo off by one when cs>ce?
 			cursor <= 0;
-		end
 	end
 end
 

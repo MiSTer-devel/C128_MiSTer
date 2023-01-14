@@ -116,12 +116,13 @@ reg   [5:0] regSel;         // selected internal register (write to $D600)
 
 wire        fetchFrame;
 wire        fetchLine;
-wire        fetchRow, newRow;
+wire        fetchRow, lastRow;
 wire        cursorV;
 wire        newCol, endCol;
 wire        rowbuf;
 reg   [7:0] col, row;
-reg   [4:0] pixel, line;
+reg   [3:0] pixel;
+reg   [4:0] line;
 reg   [1:0] blink;        // The 2 blink rates: 0=16 frames, 1=30 frames
 
 reg  [15:0] dispaddr;
@@ -149,6 +150,8 @@ vdc_signals signals (
 	.clk(clk),
 	.reset(reset || init),
 	.enable(enable),
+	
+	.db_in(db_in),
 
 	.reg_ht(reg_ht),
 	.reg_hd(reg_hd),
@@ -176,7 +179,7 @@ vdc_signals signals (
 	.fetchLine(fetchLine),
 	.fetchRow(fetchRow),
 	.cursorV(cursorV),
-	.newRow(newRow),
+	.lastRow(lastRow),
 	.newCol(newCol),
 	.endCol(endCol),
 
@@ -238,7 +241,7 @@ vdc_ramiface #(
 	.fetchFrame(fetchFrame),
 	.fetchLine(fetchLine),
 	.fetchRow(fetchRow),
-	.newRow(newRow),
+	.lastRow(lastRow),
 	.newCol(newCol),
 	.endCol(endCol),
 	.col(col),
@@ -246,7 +249,6 @@ vdc_ramiface #(
 
 	.busy(busy),
 	.rowbuf(rowbuf),
-	.scrnbuf(scrnbuf),
 	.attrbuf(attrbuf),
 	.charbuf(charbuf),
 	.dispaddr(dispaddr)
@@ -257,10 +259,10 @@ vdc_video #(
 	.S_LATCH_WIDTH(S_LATCH_WIDTH),
 	.C_LATCH_WIDTH(C_LATCH_WIDTH)
 ) video (
-	.version(version),
 	.debug(debug),
 
 	.clk(clk),
+	.reset(reset),
 	.enable(enable),
 
 	.reg_hd(reg_hd),
@@ -296,7 +298,6 @@ vdc_video #(
 	.col(col),
 	.pixel(pixel),
 	.line(line),
-	.scrnbuf(scrnbuf),
 	.attrbuf(attrbuf),
 	.charbuf(charbuf),
 	.dispaddr(dispaddr),
@@ -457,7 +458,7 @@ always @(posedge clk) begin
 					19: db_out <= reg_ua[7:0];
 					20: db_out <= reg_aa[15:8];
 					21: db_out <= reg_aa[7:0];
-					22: db_out <= reg_cth & reg_cdh;
+					22: db_out <= {reg_cth, reg_cdh};
 					23: db_out <= {3'b111, reg_cdv};
 					24: db_out <= {reg_copy, reg_rvs, reg_cbrate, reg_vss};
 					25: db_out <= {reg_text, reg_atr, reg_semi, reg_dbl, reg_hss};

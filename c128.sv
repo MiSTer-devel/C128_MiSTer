@@ -1000,7 +1000,7 @@ wire  [7:0] vicR, vicG, vicB;
 wire        vdcPixClk;
 wire        vdcHsync, vdcVsync;
 wire        vdcHblank, vdcVblank;
-wire        vdcF1, vdcDisable;
+wire        vdcIlace, vdcF1, vdcDisable;
 wire  [7:0] vdcR, vdcG, vdcB;
 
 wire        c64_iec_atn;
@@ -1079,6 +1079,7 @@ fpga64_sid_iec #(
    .vdcVsync(vdcVsync),
    .vdcHblank(vdcHblank),
    .vdcVblank(vdcVblank),
+   .vdcIlace(vdcIlace),
    .vdcF1(vdcF1),
    .vdcDisable(vdcDisable),
    .vdcR(vdcR),
@@ -1382,8 +1383,9 @@ wire       hsync_out   = video_out ? vicHsync_out : vdcHsync;
 wire       vsync_out   = video_out ? vicVsync_out : vdcVsync;
 wire       hblank      = video_out ? vicHblank : vdcHblank;
 wire       vblank      = video_out ? vicVblank : vdcVblank;
-assign     VGA_F1      = video_out ? 0 : vdcF1;
-assign     VGA_DISABLE = video_out ? 0 : vdcDisable;
+wire       ilace       = ~video_out & vdcIlace;
+assign     VGA_F1      = ~video_out & vdcF1;
+assign     VGA_DISABLE = ~video_out & vdcDisable;
 
 wire [7:0] r         = video_out ? vicR : vdcR;
 wire [7:0] g         = video_out ? vicG : vdcG;
@@ -1460,7 +1462,7 @@ video_freak video_freak
    .VGA_DE_IN(vga_de),
    .ARX((!ar) ? (wide ? 12'd680 : 12'd800) : (ar - 1'd1)),
    .ARY((!ar) ? 12'd600 : 12'd0),
-   .CROP_SIZE(vcrop_en ? vcrop : 10'd0),
+   .CROP_SIZE(vcrop_en ? (vcrop<<ilace) : 10'd0),
    .CROP_OFF(0),
    .SCALE(status[31:30])
 );

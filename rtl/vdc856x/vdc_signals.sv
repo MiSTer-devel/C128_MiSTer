@@ -10,6 +10,8 @@ module vdc_signals #(
 	input            clk,
 	input            reset,
 	input            enable,
+
+	input      [7:0] db_in,
  
 	input      [7:0] reg_ht,         // R0      7E/7F 126/127 Horizontal total (minus 1) [126 for original ROM, 127 for PAL on DCR]
 	input      [7:0] reg_hd,         // R1         50 80      Horizontal displayed
@@ -38,13 +40,13 @@ module vdc_signals #(
 	output reg       fetchLine,      // pulses at the start of a new visible line
 	output reg       cursorV,
 
-	output           newRow,
+	output           lastRow,
 	output reg       newCol,         // pulses on first pixel of a column
 	output reg       endCol,         // pulses on the last pixel of a column
 
 	output reg [7:0] col,            // current column
 	output reg [7:0] row,            // current row
-	output reg [4:0] pixel,          // current column pixel
+	output reg [3:0] pixel,          // current column pixel
 	output reg [4:0] line,           // current row line 
 
 	output reg       hVisible,       // visible column
@@ -63,10 +65,10 @@ vdc_signals_h signals_h (
 	.clk(clk),
 	.reset(reset),
 	.enable(enable),
+	.db_in(db_in),
 
 	.reg_ht(reg_ht),
 	.reg_hd(reg_hd),
-	.reg_hp(reg_hp),
 	.reg_hw(reg_hw),
 	.reg_cth(reg_cth),
 	.reg_atr(reg_atr),
@@ -129,7 +131,7 @@ vdc_signals_v #(
 	.fetchLine(fetchLine),
 	.fetchRow(fetchRow),
 	.cursor(cursorV),
-	.newRow(newRow),
+	.lastRow(lastRow),
 
 	.row(row),
 	.line(line),
