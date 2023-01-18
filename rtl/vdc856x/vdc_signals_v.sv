@@ -50,21 +50,27 @@ module vdc_signals_v #(
 
 // control signals
 
-reg  [7:0] nrow;
+reg  [7:0] crow, srow;
 reg  [4:0] ncline, nsline;
 reg  [4:0] ctv;
 reg        cfield;
+reg        newsrow;
 
 wire       ncfield = reg_im[0] & ~cfield;
 wire [5:0] va = reg_va+(ncfield ? 6'd1 : 6'd0);
 wire [7:0] fh = reg_vt+(|va ? 8'd1 : 8'd0);
-wire [4:0] rh = nrow==reg_vt+1 ? 5'(va-6'd1) : ctv;
-wire [4:0] el = rh; //nrow==reg_vt+1 ? 5'(va-(~va[0] && &reg_im ? 6'd0 : 6'd1)) : ctv;
+wire [4:0] rh = srow==reg_vt+1 ? 5'(va-6'd1) : ctv;
+wire [4:0] el = rh; //srow==reg_vt+1 ? 5'(va-(~va[0] && &reg_im ? 6'd0 : 6'd1)) : ctv;
+wire [7:0] frr = reg_vd-(|reg_vss ? 8'd0 : 8'd1);
+// wire [7:0] ffr = reg_vd+1;
 
 always @(posedge clk) begin
+	reg frameFetched;
+
 	if (reset) begin
 		row <= 0;
-		nrow <= 0;
+		crow <= 0;
+		srow <= 0;
 
 		cfield <= 0;
 		nsline <= 0;
@@ -79,6 +85,8 @@ always @(posedge clk) begin
 		fetchFrame <= 0;
 		lastRow <= 0;
 
+		frameFetched <= 0;
+
 		updateBlink <= 0;
 	end
   	else if (enable) begin
@@ -89,12 +97,13 @@ always @(posedge clk) begin
 			fetchRow <= 0;
 			fetchFrame <= 0;
 			lastRow <= 0;
+			newsrow <= 0;
 		end
 
 		if (lineEnd || (&reg_im && half1End)) begin
 			ctv <= reg_ctv;
 
-			if (nrow==fh && nsline==el) begin
+			if (srow==fh && nsline==el) begin
 				if (lineEnd) begin
 					cfield <= ncfield;
 
@@ -109,24 +118,37 @@ always @(posedge clk) begin
 						line   <= reg_vss;
 					end
 
-					nrow <= 0;
-					
-					if (nrow==reg_vd && (cfield || ~&reg_im || !reg_text))
-						fetchFrame <= 1;
+					crow <= 0;
+					srow <= 0;
+					newsrow <= 1;
+					frameFetched <= 0;
+					fetchFrame <= ~frameFetched;
+
+					// if (crow==ffr && /*ncline==ctv &&*/ reg_vss==0 && (cfield || ~&reg_im || !reg_text))
+					// 	fetchFrame <= 1;
 				end
 			end
 			else begin
 				// update row/line
 				if (ncline==ctv) begin
+					crow <= crow+8'd1;
 					ncline <= 0;
+
 					if (lineEnd)
 						line <= 0;
 
-					if (nrow <= reg_vd-(|reg_vss ? 0 : 1))
+					if (crow<=frr)
 						fetchRow <= 1;
+					else if (!frameFetched) begin
+						fetchFrame <= 1;
+						frameFetched <= 1;
+					end
 
-					if (nrow == reg_vd-(|reg_vss ? 0 : 1))
+					if (crow==frr)
 						lastRow <= 1;
+
+					// if (crow==ffr && (cfield || ~&reg_im || !reg_text))
+					// 	fetchFrame <= 1;
 				end
 				else begin
 					ncline <= ncline+5'd1;
@@ -135,38 +157,34 @@ always @(posedge clk) begin
 				end
 
 				if (nsline==el) begin
-					nrow <= nrow+8'd1;
+					newsrow <= 1;
+					srow <= srow+8'd1;
 					nsline <= 0;
 
-					if (nrow<reg_vd)
+					if (srow<reg_vd)
 						fetchLine <= 1;
-
-					if (nrow==reg_vd && (cfield || ~&reg_im || !reg_text))
-						fetchFrame <= 1;
 				end
 				else begin
 					nsline <= nsline+5'd1;
 
-					if (|nrow && nrow<=reg_vd)
+					if (|srow && srow<=reg_vd)
 						fetchLine <= 1;
 				end
 			end
 		end
 
-		if (row != nrow) begin
-			if (lineStart) begin
-			if (nrow==1 && |ctv)
+		if (row != crow && displayStart)
+			row <= crow;
+
+		if (newsrow && lineStart) begin
+			if (srow==1 && |ctv)
 				vVisible <= 1;
 
-			if (nrow==reg_vd+1)
+			if (srow==reg_vd+1)
 				vVisible <= 0;
 
-			if (nrow==reg_vp+1)
+			if (srow==reg_vp+1)
 				updateBlink <= 1;
-			end
-
-			if (displayStart)
-				row <= nrow;
 		end
 	end
 end
@@ -192,7 +210,7 @@ always @(posedge clk) begin
 		field <= 0;
 	end 
 	else if (enable) begin
-		if ((half1End || hSyncStart) && (vsDetect || (nrow == reg_vp && nsline == 0))) begin
+		if ((half1End || hSyncStart) && (vsDetect || (srow == reg_vp && nsline == 0))) begin
 			vsDetect <= half1End;
 			if (hSyncStart) begin
 				vbStart <= 1;
@@ -200,7 +218,7 @@ always @(posedge clk) begin
 			end
 		end
 
-		if (vbStart && lineStart) begin
+		if (vbStart && half2Start) begin
 			vbStart <= 0;
 			vbCount <= VB_BITS'(VB_WIDTH) - VB_BITS'(field ? 1 : 0);
 			vsCount <= 2'd3;
@@ -220,10 +238,11 @@ always @(posedge clk) begin
 	if (reset)
 		cursor <= 0;
 	else if (enable && (lineStart || (&reg_im && half2Start))) begin
+		// todo only change `cursor` at lineStart
 		if (ncline==reg_cs)
 			cursor <= 1;
 
-		if (ncline==reg_ce)  // todo off by one when cs>ce?
+		if (ncline==reg_ce)
 			cursor <= 0;
 	end
 end

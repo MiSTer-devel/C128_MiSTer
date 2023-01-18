@@ -99,7 +99,7 @@ vdcram #(8, RAM_ADDR_BITS) ram
 	.clk(clk),
 	.rd(ram_rd),
 	.we(ram_we),
-	.addr(shuffleAddr(ram_addr, ram64k, reg_ram || (ramAction==RA_IDLE || ramAction==RA_RFSH))),
+	.addr(shuffleAddr(ram_addr, ram64k, reg_ram /*|| (ramAction==RA_IDLE || ramAction==RA_RFSH)*/)),
 	.dai(ram_di),
 	.dao(ram_do)
 );
@@ -260,9 +260,6 @@ always @(posedge clk) begin
 		end
 		else if (enable && newCol) begin
 			if (col == 0) begin
-				if (fetchRow)
-					rowbuf = ~rowbuf;
-
 				if (fetchLine) begin
 					ci = 0;
 					en_char = 1;
@@ -275,6 +272,8 @@ always @(posedge clk) begin
 				end
 
 				if (fetchRow || fetchFrame) begin
+					rowbuf = ~rowbuf;
+
 					if (!reg_text) begin
 						si = 0;
 						dispaddr <= scrnaddr;
