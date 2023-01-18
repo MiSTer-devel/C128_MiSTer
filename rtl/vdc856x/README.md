@@ -14,9 +14,12 @@ for the C128 MiSTer FPGA core, by Erik Scheffers
  * Interlace
 
 ## TODO / Known issues
- * Some high-res interlace bitmap modes (VMM sections 1, 2)
- * vdcsplit.prg shows wrong horizontal and vertical frequencies
-
+ * Some high-res interlace bitmap modes (VMM sections 1, 2, 5, 6)
+   * sections 1, 2: fetch of attribute and bitmap not aligned
+   * sections 5, 6: scaler unstable, fields not correct probably due to odd lines per row
+ * VSS exceeding CTV should result in solid line(s?) at field start (soci-05/06)
+ * Cursor start/end lines incorrect in interlace mode
+ 
 ## References / Test programs
  * C128 programmers reference guide
  * RAM interface timing: https://c-128.freeforums.net/post/5516/thread
