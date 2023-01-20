@@ -637,7 +637,7 @@ port map (
    cpubank => cpubank,
    vicbank => vicbank,
 
-   d4080 => d4080_sense_kb,
+   d4080i => d4080_sense_kb,
 
    exromi => exrom,
    exromo => mmu_exrom,

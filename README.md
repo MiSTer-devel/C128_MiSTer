@@ -34,7 +34,6 @@ The following features should work but have not been tested. If you have an oppo
 
 ### Other TODOs and known issues
 
-- DESTerm 2.00 Self-extracting files crash the core in C128 mode (same file works fine in C64 mode!) (Issue [#10](https://github.com/eriks5/C128_MiSTer/issues/10))
 - Automatic detection of C64/C128 .PRG files to boot in the appropriate mode.
 - Re-enable 3x and 4x turbo modes for 8502
 - Turbo mode for Z80

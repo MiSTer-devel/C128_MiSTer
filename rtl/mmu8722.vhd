@@ -29,10 +29,9 @@ entity mmu8722 is
 		di: in unsigned(7 downto 0);
 		do: out unsigned(7 downto 0);
 
-		-- input pin
-		d4080: in std_logic;  -- "1" key up (40 col), "0" key down (80 col)
-
 		-- 6529 style bidir pins
+		d4080i: in std_logic;
+		d4080o: out std_logic;
 		exromi: in std_logic;
 		exromo: out std_logic;
 		gamei: in std_logic;
@@ -43,8 +42,8 @@ entity mmu8722 is
 		-- system config
 		c128_n: out std_logic;       		  -- "0" C128, "1" C64
 		z80_n: out std_logic;       	 	  -- "0" Z80, "1" 8502
-		rombank: out unsigned(1 downto 0); -- "00" system rom  "01" internal rom "10" external rom "11" ram
-		iosel: out std_logic;              -- "0" select IO  "1" select rom/ram according to rombank
+		rombank: out unsigned(1 downto 0);	  -- "00" system rom  "01" internal rom "10" external rom "11" ram
+		iosel: out std_logic;             	  -- "0" select IO  "1" select rom/ram according to rombank
 
 		-- translated address bus
 		tAddr: out unsigned(15 downto 0);
@@ -61,9 +60,10 @@ architecture rtl of mmu8722 is
 	signal reg_cr : configReg;
 	signal reg_pcr : configStore;
 	signal reg_cpu : std_logic;
-	signal reg_fsdir : std_logic := '1';
-	signal reg_exrom : std_logic := '1';
-	signal reg_game : std_logic := '1';
+	signal reg_fsdir : std_logic := '0';
+	signal reg_exrom : std_logic := '0';
+	signal reg_game : std_logic := '0';
+	signal reg_d4080 : std_logic := '0';
 	signal reg_os : std_logic;
 	signal reg_vicbank : unsigned(1 downto 0);
 	signal reg_commonH : std_logic;
@@ -80,6 +80,7 @@ architecture rtl of mmu8722 is
 	signal fsdir : std_logic;
 	signal exrom : std_logic;
 	signal game : std_logic;
+	signal d4080 : std_logic;
 
 	signal systemMask: unsigned(1 downto 0);
 
@@ -102,6 +103,7 @@ begin
 				reg_fsdir <= cpumode or osmode;
 				reg_exrom <= cpumode or osmode;
 				reg_game <= cpumode or osmode;
+				reg_d4080 <= '0';
 				reg_os <= osmode;
 				reg_vicbank <= (others => '0');
 				reg_commonH <= '0';
@@ -131,19 +133,20 @@ begin
 					when X"03" => reg_pcr(2) <= di;
 					when X"04" => reg_pcr(3) <= di;
 					when X"05" => reg_cpu <= di(0);
-									  reg_fsdir <= di(3);
-									  reg_game <= di(4);
-									  reg_exrom <= di(5);
-									  reg_os <= di(6);
+								  reg_fsdir <= di(3);
+								  reg_game <= di(4);
+								  reg_exrom <= di(5);
+								  reg_os <= di(6);
+								  reg_d4080 <= di(7);
 					when X"06" => reg_commonSz <= di(1 downto 0);
-									  reg_commonL <= di(2);
-									  reg_commonH <= di(3);
-									  reg_vicbank <= di(7 downto 6);
+								  reg_commonL <= di(2);
+								  reg_commonH <= di(3);
+								  reg_vicbank <= di(7 downto 6);
 					when X"07" => reg_p0l <= di;
-									  reg_p0h <= reg_p0hb;
+								  reg_p0h <= reg_p0hb;
 					when X"08" => reg_p0hb <= di(3 downto 0);
 					when X"09" => reg_p1l <= di;
-									  reg_p1h <= reg_p1hb;
+								  reg_p1h <= reg_p1hb;
 					when X"0A" => reg_p1hb <= di(3 downto 0);
 					when others => null;
 					end case;
@@ -155,7 +158,8 @@ begin
 -- -----------------------------------------------------------------------
 -- Output
 -- -----------------------------------------------------------------------
-	-- TODO is d4080 bidirectional too?
+	d4080 <= d4080i and reg_d4080;
+	d4080o <= d4080;
 	game <= gamei and reg_game;
 	gameo <= game;
 	exrom <= exromi and reg_exrom;
@@ -252,7 +256,7 @@ begin
 		if rising_edge(clk) then
 			if we = '0' and (cs_io = '1' or cs_lr = '1') then
 				case addr(7 downto 0) is
-				when X"00" => do <= (reg_cr(7 downto 6) and systemMask) & reg_cr(5 downto 0);
+				when X"00" => do <= reg_cr;
 				when X"01" => do <= reg_pcr(0);
 				when X"02" => do <= reg_pcr(1);
 				when X"03" => do <= reg_pcr(2);
