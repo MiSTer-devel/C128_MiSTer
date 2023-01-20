@@ -5,23 +5,20 @@
  *
  * - timing based on the excellent analysis by @remark on the C128 forum
  *   https://c-128.freeforums.net/post/5516/thread
- *
- * - timings not yet verified
  ********************************************************************************/
 
 module vdc_ramiface #(
-	parameter		RAM_ADDR_BITS,
+	parameter RAM_ADDR_BITS,
 
-	parameter		C_LATCH_WIDTH,
-	parameter 		S_LATCH_WIDTH,
-	parameter 		A_LATCH_WIDTH,
+	parameter C_LATCH_WIDTH,
+	parameter S_LATCH_WIDTH,
 
-	parameter      C_LATCH_BITS = $clog2(C_LATCH_WIDTH),
-	parameter      S_LATCH_BITS = $clog2(S_LATCH_WIDTH),
-	parameter      A_LATCH_BITS = $clog2(A_LATCH_WIDTH)
+	parameter C_LATCH_BITS = $clog2(C_LATCH_WIDTH),
+	parameter S_LATCH_BITS = $clog2(S_LATCH_WIDTH)
 )(
 	input          ram64k,   // 0 = 16kB, 1 = 64kB -- visible RAM
 	input          initRam,  // 1 = initialize RAM on reset
+	input          debug,
 
 	input          clk,
 	input          reset,
@@ -29,20 +26,20 @@ module vdc_ramiface #(
 
 	input    [5:0] regA,      // selected register
 	input    [7:0] db_in,     // cpu data in
-	input				enableBus,
+	input          enableBus,
 	input          cs,
-	input				rs,
+	input          rs,
 	input          we,        // write registers
 
-	input		[7:0]	reg_ht,    // horizontal total
-	input		[7:0]	reg_hd,    // horizontal display
+	input    [7:0] reg_ht,    // horizontal total
+	input    [7:0] reg_hd,    // horizontal display
 	input    [7:0] reg_ai,	  // address increment
 	input          reg_copy,  // copy mode
 	input          reg_ram,   // configured ram, 0=16kB, 1=64kB
 	input          reg_atr,   // attribute enable
 	input          reg_text,  // text/bitmap mode
 	input    [4:0] reg_ctv,   // character Total Vertical (minus 1)
-	input	  [15:0] reg_ds,    // display start address
+	input   [15:0] reg_ds,    // display start address
 	input   [15:0] reg_aa,    // attribute start address
 	input    [2:0] reg_cb,    // character start address
 	input    [3:0] reg_drr,   // dynamic refresh count
@@ -52,29 +49,31 @@ module vdc_ramiface #(
 	output   [7:0] reg_da,    // data
 	output  [15:0] reg_ba,    // block start address
 
-	input    [1:0] newFrame,  // 11: new full frame, 01: new odd frame, 10: new even frame
-	input          newLine,
-	input          newRow,    
+	input          fetchFrame,
+	input          fetchLine,
+	input          fetchRow,
+	input          lastRow,
 	input          newCol,
 	input          endCol,
-	input    [1:0] visible,
-	input    [7:0] row,
 	input    [7:0] col,
 	input    [4:0] line,
 
 	output    wire busy,
-	output			rowbuf,                     // buffer containing current screen info
-	output   [7:0] scrnbuf[2][S_LATCH_WIDTH],  // screen codes for current and next row
-	output   [7:0] attrbuf[2][A_LATCH_WIDTH],  // latch for attributes for current and next row
+	output         rowbuf,                     // buffer containing current screen info
+	output   [7:0] attrbuf[2][S_LATCH_WIDTH],  // latch for attributes for current and next row
 	output   [7:0] charbuf[C_LATCH_WIDTH],     // character data for current col
 	output  [15:0] dispaddr
 );
 
+reg [7:0] scrnbuf[2][S_LATCH_WIDTH];  // screen codes for current and next row
 
-typedef enum bit[2:0] {CA_NONE, CA_READ, CA_WRITE, CA_FILL, CA_COPY[2]} cAction_t;
-typedef enum bit[2:0] {RA_NONE, RA_CHAR, RA_SCRN, RA_ATTR, RA_CPU} rAction_t;
+typedef enum bit[2:0] {CA_IDLE, CA_READ, CA_WRITE, CA_FILL, CA_COPY[2]} cAction_t;
+typedef enum bit[2:0] {RA_IDLE, RA_CHAR, RA_SCRN, RA_ATTR, RA_CPU, RA_RFSH} rAction_t;
 
-reg		  ram_rd;
+cAction_t  cpuAction;
+rAction_t  ramAction;
+
+reg	       ram_rd;
 reg        ram_we;
 reg [15:0] ram_addr;
 reg  [7:0] ram_di;
@@ -88,7 +87,7 @@ begin
 	if (RAM_ADDR_BITS > 14)
 		shuffleAddr = RAM_ADDR_BITS'(
 			ena64k ? {has64k & addr[15], addr[14:9], has64k & addr[8], addr[7:0]} 
-					 : {has64k & addr[15], addr[13:8], has64k & addr[8], addr[7:0]}
+				   : {has64k & addr[15], addr[13:8], has64k & addr[8], addr[7:0]}
 		);
 	else
 		shuffleAddr = RAM_ADDR_BITS'(ena64k ? {addr[14:9], addr[7:0]} : addr[13:0]);
@@ -100,34 +99,35 @@ vdcram #(8, RAM_ADDR_BITS) ram
 	.clk(clk),
 	.rd(ram_rd),
 	.we(ram_we),
-	.addr(shuffleAddr(ram_addr, ram64k, reg_ram)),
+	.addr(shuffleAddr(ram_addr, ram64k, reg_ram /*|| (ramAction==RA_IDLE || ramAction==RA_RFSH)*/)),
 	.dai(ram_di),
 	.dao(ram_do)
 );
 
-wire en_rfsh = (col >= reg_hd && col < reg_hd+reg_drr);
-wire en_scac = ~en_rfsh && col >= 2 && col < reg_ht-2;
-wire en_cpu  = ~en_rfsh;
+wire en_rfsh = col >= reg_hd && col < reg_hd+reg_drr;
+wire en_int = col < 2 || col >= reg_ht-8'd2;
+
+wire [7:0] attrlen = lastRow ? 8'd2 : reg_hd;
+wire [7:0] scrnlen = reg_hd;
 
 always @(posedge clk) begin
-	cAction_t cpuAction;
-	rAction_t ramAction;
-
 	reg [15:0] scrnaddr;    // screen data row address
 	reg [15:0] attraddr;    // attributes row address
+	reg  [7:0] rfshaddr;    // refresh address
 	reg  [7:0] wda, cda;    // write/copy data
 	reg  [7:0] wc;          // block word count
+	reg        en_char;     // enable char fetch
 	reg        start_erase;
-	reg        lastrowvisible;
 	reg        erasing;
+	reg        firstLine, firstAttr;
 
 	reg [C_LATCH_BITS-1:0] ci; // character index
 	reg [S_LATCH_BITS-1:0] si; // screen index
-	reg [A_LATCH_BITS-1:0] ai; // attribute index
+	reg [S_LATCH_BITS-1:0] ai; // attribute index
 
 	integer    i;
 
-	busy = erasing || start_erase || reset || cpuAction != CA_NONE;
+	busy = erasing || start_erase || reset || cpuAction != CA_IDLE;
 	
 	ram_rd <= 0;
 	ram_we <= 0;
@@ -136,34 +136,22 @@ always @(posedge clk) begin
 		ci     = 0;
 		si     = 0;
 		ai     = 0;
-		rowbuf = 0;
 
 		wc     <= 0;
 		wda    <= 0;
-		cda	 <= 0;
+		cda	   <= 0;
 		reg_ua <= 0;
 		reg_wc <= 0;
 		reg_da <= 0;
 		reg_ba <= 0;
-		lastrowvisible <= 1;
 
-		cpuAction <= CA_NONE;
-		ramAction <= RA_NONE;
+		cpuAction <= CA_IDLE;
+		ramAction <= RA_IDLE;
 		start_erase <= initRam;
 		ram_addr <= 16'hFFFF;
 		ram_di <= 0;
-
-		for (i=0; i<S_LATCH_WIDTH; i=i+1) begin
-			scrnbuf[0][i] <= 0;
-			scrnbuf[1][i] <= 0;
-		end
-		for (i=0; i<A_LATCH_WIDTH; i=i+1) begin
-			attrbuf[0][i] <= 0;
-			attrbuf[1][i] <= 0;
-		end
-		for (i=0; i<C_LATCH_WIDTH; i=i+1) begin
-			charbuf[i] <= 0;
-		end
+		ram_rd <= 1;
+		ram_we <= 0;
 
 		dispaddr <= 16'hFFFF;
 	end
@@ -189,7 +177,7 @@ always @(posedge clk) begin
 					end
 
 					// Updating WC starts a COPY (from BA to UA) or FILL (to UA) for WC items
-					// Does *not* change WC or DA (verified on real v1 VDC)
+					// Does *not* change WC or DA
 					30: begin 
 						reg_wc    <= db_in;
 						wc        <= db_in;
@@ -212,7 +200,7 @@ always @(posedge clk) begin
 		if (start_erase) begin
 			start_erase <= 0;
 			erasing     <= 1;
-			ram_di      <= 0;
+			ram_di      <= 8'hFF;
 			ram_addr    <= 0;
 			ram_we      <= 1;
 		end
@@ -222,35 +210,31 @@ always @(posedge clk) begin
 				ram_we   <= 0;
 			end
 			else begin
-				ram_di   <= (ram_addr + 16'd1) & 16'h0001 ? 8'h00 : 8'hFF;
+				ram_di   <= ram_addr[0] ? 8'h00 : 8'hFF;
 				ram_addr <= ram_addr + 16'd1;
 				ram_we   <= 1;
 			end
 		end 
-		else if (~enable && endCol) begin
-			case (ramAction)
-				RA_CHAR: begin
-					charbuf[ci] <= ram_do;
-					ci = C_LATCH_BITS'((ci + 1) % C_LATCH_WIDTH);
-				end
+		else if (enable && endCol) begin
+			charbuf[ci] <= ramAction == RA_IDLE && debug ? 8'h00 : ram_do;
+			ci = C_LATCH_BITS'((ci + 1) % C_LATCH_WIDTH);
 
+			case (ramAction)
 				RA_SCRN: begin
-					// TODO: unknown how hw responds to buffer overflow
 					scrnbuf[~rowbuf][si] <= ram_do;
 					si = S_LATCH_BITS'(si + 1);
 				end
 
 				RA_ATTR:  begin
-					// TODO: unknown how hw responds to buffer overflow
 					attrbuf[~rowbuf][ai] <= ram_do;
-					ai = A_LATCH_BITS'(ai + 1);
+					ai = S_LATCH_BITS'(ai + 1);
 				end
 
 				RA_CPU:
 					case (cpuAction)
 						CA_READ: begin
 							reg_da    <= ram_do;
-							cpuAction <= CA_NONE;
+							cpuAction <= CA_IDLE;
 						end
 						CA_WRITE: begin
 							reg_ua    <= reg_ua + 16'd1;
@@ -259,7 +243,7 @@ always @(posedge clk) begin
 						CA_FILL: begin
 							reg_ua    <= reg_ua + 16'd1;
 							wc        <= wc - 8'd1;
-							cpuAction <= wc==1 ? CA_NONE : CA_FILL;
+							cpuAction <= wc==1 ? CA_IDLE : CA_FILL;
 						end
 						CA_COPY0: begin
 							cda       <= ram_do;
@@ -269,67 +253,91 @@ always @(posedge clk) begin
 						CA_COPY1:  begin
 							reg_ua    <= reg_ua + 16'd1;
 							wc        <= wc - 8'd1;
-							cpuAction <= wc==1 ? CA_NONE : CA_COPY0;
+							cpuAction <= wc==1 ? CA_IDLE : CA_COPY0;
 						end
 					endcase
 			endcase
 		end
 		else if (enable && newCol) begin
-			ram_addr <= 16'hFFFF;
+			if (col == 0) begin
+				if (fetchLine) begin
+					ci = 0;
+					en_char = 1;
+				end
 
-			if (newLine) begin
-				ci = 0;
-			end;
+				if (fetchFrame) begin
+					scrnaddr = reg_ds;
+					firstLine <= |reg_ctv;
+					firstAttr <= 1;
+				end
 
-			if (newRow) begin
-				lastrowvisible <= visible[0];
-				if (visible[0] || (!visible[0] && lastrowvisible)) begin
+				if (fetchRow || fetchFrame) begin
 					rowbuf = ~rowbuf;
 
-					if (~reg_text) begin
+					if (!reg_text) begin
 						si = 0;
 						dispaddr <= scrnaddr;
 					end
 					else
-						dispaddr <= 0;
+						dispaddr <= 16'hffff;
 
-					if (reg_atr) ai = 0;
+					if (reg_atr) begin
+						ai = 0;
+						attraddr = fetchFrame ? reg_aa + ((reg_text && reg_ai) ? 16'd1 : 16'd0)
+						                      : attraddr + reg_hd + reg_ai + ((firstAttr && reg_text && reg_ai) ? reg_ai-16'd2 : 16'd0);
+						if (!fetchFrame)
+							firstAttr <= 0;
+					end
 				end
-				attraddr = visible[0] ? attraddr + reg_hd + reg_ai : reg_aa;
+
+				if (fetchRow || (reg_text && fetchLine)) begin
+					scrnaddr = (reg_text && firstLine) ? reg_ds : scrnaddr + reg_hd + reg_ai;
+					firstLine <= 0;
+				end
 			end
 
-			if ((newLine && reg_text) || newRow) begin
-				scrnaddr = (visible[0] && (~reg_text || |row || |line)) ? scrnaddr + reg_hd + reg_ai : reg_ds;
+			if (col == reg_hd) begin
+				en_char = 0;
 			end
 
-			if (visible[0] && col < reg_hd) begin
+			ram_di <= 8'hXX;
+
+			if (en_char) begin
 				// fetch character data
 				ramAction <= RA_CHAR;
 
-				// TODO: unknown how hw responds to attr/scrn buffer overflow
 				if (reg_text)
 					ram_addr <= 16'(scrnaddr + col);
-				else if (reg_ctv[4])
-					ram_addr <= {reg_cb[2:1], reg_atr & attrbuf[rowbuf][col][7], scrnbuf[rowbuf][col], line[4:0]};
-				else
-					ram_addr <= {reg_cb,      reg_atr & attrbuf[rowbuf][col][7], scrnbuf[rowbuf][col], line[3:0]};
+				else if (col < S_LATCH_WIDTH) begin
+					if (reg_ctv[4])
+						ram_addr <= {reg_cb[2:1], reg_atr & attrbuf[rowbuf][col][7], scrnbuf[rowbuf][col], line[4:0]};
+					else
+						ram_addr <= {reg_cb,      reg_atr & attrbuf[rowbuf][col][7], scrnbuf[rowbuf][col], line[3:0]};
+				end
 
-				ram_rd    <= 1;
+				ram_rd <= 1;
 			end
-			else if (en_scac && si < reg_hd) begin
+			else if (!en_int && en_rfsh) begin
+				// ram refresh causes glitches in the last column when scrolling horizontally
+				ramAction     <= RA_RFSH;
+				ram_addr[7:0] <= rfshaddr;
+				rfshaddr      <= rfshaddr + 1'd1;
+				ram_rd        <= 1;
+			end
+			else if (!en_int && si < scrnlen) begin
 				// fetch screen data
 				ramAction <= RA_SCRN;
 				ram_addr  <= scrnaddr + si;
 				ram_rd    <= 1;
 			end 
-			else if (en_scac && ai < reg_hd) begin
+			else if (!en_int && ai < attrlen) begin
 				// fetch attribute data
 				ramAction <= RA_ATTR;
 				ram_addr  <= attraddr + ai;
 				ram_rd    <= 1;
 			end
-			else if (en_cpu && cpuAction != CA_NONE) begin
-				// perform CPU action
+			else if (cpuAction != CA_IDLE) begin
+				// perform CPU action -- are these allowed during `en_int`?
 				ramAction <= RA_CPU;
 
 				case (cpuAction)
@@ -358,8 +366,11 @@ always @(posedge clk) begin
 					end
 				endcase
 			end
-			else
-				ramAction <= RA_NONE;
+			else begin
+				ram_addr  <= 16'hffff;
+				ram_rd    <= 1;
+				ramAction <= RA_IDLE;
+			end
 		end
 	end
 end

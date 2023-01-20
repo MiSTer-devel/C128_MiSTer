@@ -186,7 +186,6 @@ assign LED_DISK   = 0;
 assign LED_POWER  = 0;
 assign LED_USER   = |drive_led | ioctl_download | tape_led;
 assign BUTTONS    = 0;
-assign VGA_DISABLE = 0;
 assign VGA_SCALER = 0;
 
 // Status Bit Map:
@@ -199,7 +198,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-//                 XXXXXXXXXXXXXXXX
+//                 XXXXXXXXXXXXXXXX                                X 
 
 // bits  0.. 63 keep in sync with C64 core
 // bits 64.. 79 reserved in case C64 core starts using them
@@ -209,11 +208,15 @@ assign VGA_SCALER = 0;
 localparam CONF_STR = {
    "C128;UART9600:2400;",
    // XXXXXXXXXXXXXXXXXXXXXXXXXXXX
+`ifdef VDC_XRAY
+   "O[127],VDC XRay,Off,On;",
+`else
    "-,/!\\ This in-development core;",
    "-,needs a modified MiSTer main;",
    "-, binary for the disk drives;",
    "-,to function.  See the MiSTer;",
    "-,    forum for details.;",
+`endif   
    "-;",
    "H7S0,D64G64D71G71D81T64,Mount #8                    ;",
    "H0S1,D64G64D71G71D81T64,Mount #9                    ;",
@@ -231,7 +234,15 @@ localparam CONF_STR = {
    "P1O8A,Scandoubler Fx,None,HQ2x-320,HQ2x-160,CRT 25%,CRT 50%,CRT 75%;",
    "d1P1o0,Vertical Crop,No,Yes;",
    "P1OUV,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
+   "P1-;",
    "P1O[95:94],VIC Jailbars,Off,Low,Medium,High;",
+   "P1-;",
+   "P1O[81:80],VDC version,2 (8568/DCR),1 (8563R9),0 (8563R7a);",
+`ifndef REDUCE_VDC_RAM
+   "h6P1O[88],VDC memory,16k,64k;",
+`endif
+   "P1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
+   "h2P1O[90:89],VDC colour,White,Green,Amber,Red;",
    "P1-;",
    "P1OD,Left SID,8580,6581;",
    "d4P1o23,Left Filter,Default,Custom 1,Custom 2,Custom 3;",
@@ -243,11 +254,6 @@ localparam CONF_STR = {
    "P1OC,Sound Expander,Disabled,OPL2;",
    "P1o89,DigiMax,Disabled,DE00,DF00;",
    "P1OIJ,Stereo Mix,None,25%,50%,100%;",
-   "P1-;",
-   "P1O[81:80],VDC version,2 (8568 DCR),1 (8563 R9),0 (8563 R7a);",
-   "d6P1O[88],VDC memory,16k,64k;",
-   "P1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
-   "h2P1O[90:89],VDC colour,White,Green,Amber,Red;",
 
    "P2,Hardware;",
    "P2oPQ,Enable Drive #8,If Mounted,Always,Never;",
@@ -286,7 +292,9 @@ localparam CONF_STR = {
    "P2-;",
    "P2FC5,CRT,Boot Cartridge              ;",
    "P2-;",
+`ifndef EXCLUDE_STD_ROMS
    "P2O[93],ROM set,128DCR,Standard;",
+`endif
    "P2O[82],Char switch,C64 mode,Caps Lk key;",
    "-;",
    "O3,Swap Joysticks,No,Yes;",
@@ -989,8 +997,10 @@ wire        ntsc = status[2];
 wire        vicHsync, vicVsync;
 wire  [7:0] vicR, vicG, vicB;
 
+wire        vdcPixClk;
 wire        vdcHsync, vdcVsync;
 wire        vdcHblank, vdcVblank;
+wire        vdcIlace, vdcF1, vdcDisable;
 wire  [7:0] vdcR, vdcG, vdcB;
 
 wire        c64_iec_atn;
@@ -1001,20 +1011,41 @@ wire        c64_iec_clk_i;
 wire        c64_iec_data_i;
 wire        c64_iec_srq_n_i;
 
-fpga64_sid_iec fpga64
-(
+fpga64_sid_iec #(
+`ifdef EXCLUDE_STD_ROMS
+   .EXCLUDE_STD_ROMS(1),
+`endif
+`ifdef REDUCE_VDC_RAM
+   .VDC_ADDR_BITS(14)
+`else
+   .VDC_ADDR_BITS(16)
+`endif
+) fpga64 (
    .clk32(clk_sys),
    .reset_n(reset_n),
    .pause(freeze),
    .pause_out(c64_pause),
+`ifdef EXCLUDE_STD_ROMS
+   .dcr(1),
+`else
    .dcr(~status[93]),
+`endif
    .cpslk_mode(status[82]),
 
    .sys256k(status[87]),
    .vdcVersion({(~status[81])^status[80],status[80]}),
+`ifdef REDUCE_VDC_RAM
+   .vdc64k(0),
+`else
    .vdc64k(status[88]|~(status[81]|status[80])),
+`endif
    .vdcInitRam(~status[24]),
    .vdcPalette(status[92:89]),
+`ifdef VDC_XRAY
+   .vdcDebug(status[127]),
+`else   
+   .vdcDebug(0),
+`endif
    .osmode(0),
    .cpumode(0),
    .turbo_mode(2'b01),
@@ -1043,10 +1074,14 @@ fpga64_sid_iec fpga64
    .vicG(vicG),
    .vicB(vicB),
 
+   .vdcPixClk(vdcPixClk),
    .vdcHsync(vdcHsync),
    .vdcVsync(vdcVsync),
    .vdcHblank(vdcHblank),
    .vdcVblank(vdcVblank),
+   .vdcIlace(vdcIlace),
+   .vdcF1(vdcF1),
+   .vdcDisable(vdcDisable),
    .vdcR(vdcR),
    .vdcG(vdcG),
    .vdcB(vdcB),
@@ -1342,12 +1377,16 @@ video_sync vicSync
    .vblank(vicVblank)
 );
 
-wire		  video_out = d4080_sense;  // 1=40 col, 0=80 col
+wire		  video_out   = d4080_sense;  // 1=40 col, 0=80 col
 
-wire       hsync_out = video_out ? vicHsync_out : vdcHsync;
-wire       vsync_out = video_out ? vicVsync_out : vdcVsync;
-wire       hblank    = video_out ? vicHblank : vdcHblank;
-wire       vblank    = video_out ? vicVblank : vdcVblank;
+wire       hsync_out   = video_out ? vicHsync_out : vdcHsync;
+wire       vsync_out   = video_out ? vicVsync_out : vdcVsync;
+wire       hblank      = video_out ? vicHblank : vdcHblank;
+wire       vblank      = video_out ? vicVblank : vdcVblank;
+wire       ilace       = ~video_out & vdcIlace;
+assign     VGA_F1      = ~video_out & vdcF1;
+assign     VGA_DISABLE = ~video_out & vdcDisable;
+
 wire [7:0] r         = video_out ? vicR : vdcR;
 wire [7:0] g         = video_out ? vicG : vdcG;
 wire [7:0] b         = video_out ? vicB : vdcB;
@@ -1366,19 +1405,31 @@ end
 
 reg ce_pix;
 always @(posedge CLK_VIDEO) begin
+   reg       last_video_out;
    reg [1:0] div;
    reg [1:0] lores;
 
-   div <= div + 1'b1;
-   if (&div) lores <= lores + 1'b1;
-   ce_pix <= (~|lores | ~hq2x160) && (~lores[0] | ~hq2x320) && !div;
+   last_video_out <= video_out;
+   if (last_video_out != video_out) begin
+      div <= 0;
+      lores <= 0;
+      ce_pix <= 0;
+   end
+   else if (video_out) begin
+      div <= div + 1'b1;
+      if (&div) lores <= lores + 1'b1;
+      ce_pix <= (~|lores | ~hq2x160) && (~lores[0] | ~hq2x320) && !div;
+   end
+   else begin
+      div <= vdcPixClk ? div + 1'b1 : 0;
+      ce_pix <= !div[0] && vdcPixClk;
+   end
 end
 
-wire scandoubler = status[10:8] || forced_scandoubler;
+wire scandoubler = video_out && (status[10:8] || forced_scandoubler);
 
 assign CLK_VIDEO = clk64;
-assign VGA_SL    = (status[10:8] > 2) ? status[9:8] - 2'd2 : 2'd0;
-assign VGA_F1    = 0;
+assign VGA_SL    = status[10:8] > 2 ? status[9:8] - 2'd2 : 2'd0;
 
 reg [9:0] vcrop;
 reg wide;
@@ -1411,7 +1462,7 @@ video_freak video_freak
    .VGA_DE_IN(vga_de),
    .ARX((!ar) ? (wide ? 12'd680 : 12'd800) : (ar - 1'd1)),
    .ARY((!ar) ? 12'd600 : 12'd0),
-   .CROP_SIZE(vcrop_en ? vcrop : 10'd0),
+   .CROP_SIZE(vcrop_en ? (vcrop<<ilace) : 10'd0),
    .CROP_OFF(0),
    .SCALE(status[31:30])
 );
@@ -1431,7 +1482,7 @@ video_mixer #(.GAMMA(1)) video_mixer
 (
    .CLK_VIDEO(CLK_VIDEO),
 
-   .hq2x(~status[10] & (status[9] ^ status[8])),
+   .hq2x(video_out & ~status[10] & (status[9] ^ status[8])),
    .scandoubler(scandoubler),
    .gamma_bus(gamma_bus),
 

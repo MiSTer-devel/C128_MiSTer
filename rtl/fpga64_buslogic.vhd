@@ -27,6 +27,9 @@ USE ieee.std_logic_1164.ALL;
 USE ieee.numeric_std.ALL;
 
 entity fpga64_buslogic is
+	generic (
+    	EXCLUDE_STD_ROMS: integer := 0
+    );
 	port (
 		clk         : in std_logic;
 		reset       : in std_logic;
@@ -217,18 +220,24 @@ begin
 		q => rom23Data_dcr
 	);
 
-	rom23_std: entity work.dprom
-	generic map ("rtl/roms/std_basic_C128.mif", 15)
-	port map
-	(
-		wrclock => clk,
-		rdclock => clk,
+	rom23_std_inc: if EXCLUDE_STD_ROMS = 0 generate
+		rom23_std: entity work.dprom
+		generic map ("rtl/roms/std_basic_C128.mif", 15)
+		port map
+		(
+			wrclock => clk,
+			rdclock => clk,
+	
+			rdaddress => std_logic_vector(not cpuAddr(14) & cpuAddr(13 downto 0)),
+			q => rom23Data_std
+		);
+	
+		rom23Data <= rom23Data_dcr when dcr_ena = '1' else rom23Data_std;
+	end generate;
 
-		rdaddress => std_logic_vector(not cpuAddr(14) & cpuAddr(13 downto 0)),
-		q => rom23Data_std
-	);
-
-	rom23Data <= rom23Data_dcr when dcr_ena = '1' else rom23Data_std;
+	rom23_std_exc: if EXCLUDE_STD_ROMS = 1 generate
+		rom23Data <= rom23Data_dcr;
+	end generate;
 
 	-- ROM4: U35 16K
 	-- rom loc -> mem loc  contents
@@ -252,18 +261,24 @@ begin
 		q => rom4Data_dcr
 	);
 
-	rom4_std: entity work.dprom
-	generic map ("rtl/roms/std_kernal_C128.mif", 14)
-	port map
-	(
-		wrclock => clk,
-		rdclock => clk,
+	rom4_std_inc: if EXCLUDE_STD_ROMS = 0 generate
+		rom4_std: entity work.dprom
+		generic map ("rtl/roms/std_kernal_C128.mif", 14)
+		port map
+		(
+			wrclock => clk,
+			rdclock => clk,
 
-		rdaddress => std_logic_vector(cpuAddr(13) & tAddr(12) & cpuAddr(11 downto 0)),
-		q => rom4Data_std
-	);
+			rdaddress => std_logic_vector(cpuAddr(13) & tAddr(12) & cpuAddr(11 downto 0)),
+			q => rom4Data_std
+		);
 
-	rom4Data <= rom4Data_dcr when dcr_ena = '1' else rom4Data_std;
+		rom4Data <= rom4Data_dcr when dcr_ena = '1' else rom4Data_std;
+	end generate;
+
+	rom4_std_exc: if EXCLUDE_STD_ROMS = 1 generate
+		rom4Data <= rom4Data_dcr;
+	end generate;
 
 	-- romF1: entity work.dprom
 	-- -- generic map ("rtl/roms/function.mif", 14)

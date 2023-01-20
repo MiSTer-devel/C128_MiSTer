@@ -27,7 +27,7 @@ The following features should work but have not been tested. If you have an oppo
 
 ### C128 features not (yet/fully) implemented
 
-- VDC scrolling, interlace, 40 column mode, non-standard modes
+- VDC scrolling, interlace, non-standard modes
 - Internal function ROM
 - 1571DCR drive model option for the full _128DCR experience_. This model uses a custom MFM en/decoding chip which seems to be completely undocumented.
 
@@ -92,7 +92,7 @@ There are four colour palettes selectable for the VDC:
 * **Default**: the "standard" TTL RGBI colour palette
 * **Analogue**: the palette when using resistors to convert TTL RGBI to analogue RGB
 * **Monochrome**: TTL monochrome monitor, with two levels of intensity
-* **Composite**: the black and white image on the composite pin of the DB9 TTL RGBI connector, no intensity
+* **Composite**: the black and white image on the composite pin of the DB9 TTL RGBI connector
 
 ### Keyboard
 * <kbd>End</kbd> - <kbd>Run stop</kbd>

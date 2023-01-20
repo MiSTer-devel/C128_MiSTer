@@ -45,6 +45,10 @@ use IEEE.numeric_std.all;
 -- -----------------------------------------------------------------------
 
 entity fpga64_sid_iec is
+generic (
+   EXCLUDE_STD_ROMS : integer := 0;
+   VDC_ADDR_BITS    : integer := 16
+);
 port(
    clk32       : in  std_logic;
    reset_n     : in  std_logic;
@@ -92,6 +96,10 @@ port(
    vdcVsync    : out std_logic;
    vdcHblank   : out std_logic;
    vdcVblank   : out std_logic;
+   vdcPixClk   : out std_logic;
+   vdcF1       : out std_logic;
+   vdcIlace    : out std_logic;
+   vdcDisable  : out std_logic;
    vdcR        : out unsigned(7 downto 0);
    vdcG        : out unsigned(7 downto 0);
    vdcB        : out unsigned(7 downto 0);
@@ -185,7 +193,8 @@ port(
    vdcVersion  : in  unsigned(1 downto 0);
    vdc64k      : in  std_logic;
    vdcInitRam  : in  std_logic;
-   vdcPalette  : in  std_logic_vector(3 downto 0);
+   vdcPalette  : in  unsigned(3 downto 0);
+   vdcDebug    : in  std_logic;
 
    -- System memory size
    sys256k     : in  std_logic;
@@ -235,8 +244,7 @@ signal cpucycT65    : std_logic;
 signal cpucycT80    : std_logic;
 signal enableVic    : std_logic;
 signal enableVdc    : std_logic;
-signal enablePixel0 : std_logic;
-signal enablePixel1 : std_logic;
+signal enaPixel     : std_logic;
 signal enableSid    : std_logic;
 signal enable8502   : std_logic;
 signal enableZ80    : std_logic;
@@ -434,10 +442,14 @@ component mos6526_8520
 end component;
 
 component vdc_top
+   generic (
+      RAM_ADDR_BITS : integer
+   );
    port (
       version       : in  unsigned(1 downto 0);
       ram64k        : in  std_logic;
       initRam       : in  std_logic;
+      debug         : in  std_logic;
 
       clk           : in  std_logic;
       reset         : in  std_logic;
@@ -452,13 +464,14 @@ component vdc_top
       db_in         : in  unsigned(7 downto 0);
       db_out        : out unsigned(7 downto 0);
 
-      enablePixel0  : in  std_logic;
-      enablePixel1  : in  std_logic;
-
+      pixelclk      : out std_logic;
       hsync         : out std_logic;
       vsync         : out std_logic;
       hblank        : out std_logic;
       vblank        : out std_logic;
+      ilace         : out std_logic;
+      field         : out std_logic;
+      disableVideo  : out std_logic;
       rgbi          : out unsigned(3 downto 0)
    );
 end component;
@@ -643,6 +656,9 @@ mmu_we <= pulseWr when cs_mmuH = '1' else pulseWr_io;
 -- PLA and bus-switches
 -- -----------------------------------------------------------------------
 buslogic: entity work.fpga64_buslogic
+generic map (
+   EXCLUDE_STD_ROMS => EXCLUDE_STD_ROMS
+)
 port map (
    clk => clk32,
    reset => reset,
@@ -767,7 +783,7 @@ generic map (
 port map (
    clk => clk32,
    reset => reset,
-   enaPixel => enablePixel1,
+   enaPixel => enaPixel,
    enaData => enableVic,
    phi => phi0_cpu,
 
@@ -857,26 +873,17 @@ end process;
 process(clk32)
 begin
    if rising_edge(clk32) then
-      enablePixel0 <= '0';
-      enablePixel1 <= '0';
+      enaPixel <= '0';
 
       case sysCycle is
-      when CYCLE_EXT0 => enablePixel0 <= '1';
-      when CYCLE_EXT2 => enablePixel1 <= '1';
-      when CYCLE_DMA0 => enablePixel0 <= '1';
-      when CYCLE_DMA2 => enablePixel1 <= '1';
-      when CYCLE_EXT4 => enablePixel0 <= '1';
-      when CYCLE_EXT6 => enablePixel1 <= '1';
-      when CYCLE_VIC0 => enablePixel0 <= '1';
-      when CYCLE_VIC2 => enablePixel1 <= '1';
-      when CYCLE_CPU0 => enablePixel0 <= '1';
-      when CYCLE_CPU2 => enablePixel1 <= '1';
-      when CYCLE_CPU4 => enablePixel0 <= '1';
-      when CYCLE_CPU6 => enablePixel1 <= '1';
-      when CYCLE_CPU8 => enablePixel0 <= '1';
-      when CYCLE_CPUA => enablePixel1 <= '1';
-      when CYCLE_CPUC => enablePixel0 <= '1';
-      when CYCLE_CPUE => enablePixel1 <= '1';
+      when CYCLE_EXT2 => enaPixel <= '1';
+      when CYCLE_DMA2 => enaPixel <= '1';
+      when CYCLE_EXT6 => enaPixel <= '1';
+      when CYCLE_VIC2 => enaPixel <= '1';
+      when CYCLE_CPU2 => enaPixel <= '1';
+      when CYCLE_CPU6 => enaPixel <= '1';
+      when CYCLE_CPUA => enaPixel <= '1';
+      when CYCLE_CPUE => enaPixel <= '1';
       when others     => null;
       end case;
    end if;
@@ -887,10 +894,14 @@ end process;
 -- -----------------------------------------------------------------------
 
 vdc: vdc_top
+generic map (
+   RAM_ADDR_BITS => VDC_ADDR_BITS
+)
 port map (
    version => vdcVersion,
    ram64k => vdc64k,
    initRam => vdcInitRam,
+   debug => vdcDebug,
 
    clk => clk32,
    reset => reset,
@@ -905,13 +916,14 @@ port map (
    db_in => cpuDo,
    db_out => vdcData,
 
-   enablePixel0 => enablePixel0,
-   enablePixel1 => enablePixel1,
-
+   pixelclk => vdcPixClk,
    hsync => vdcHsync,
    vsync => vdcVsync,
    hblank => vdcHblank,
    vblank => vdcVblank,
+   ilace => vdcIlace,
+   field => vdcF1,
+   disableVideo => vdcDisable,
    rgbi => vdcRGBI
 );
 

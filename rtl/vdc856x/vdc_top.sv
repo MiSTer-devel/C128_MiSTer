@@ -5,36 +5,38 @@
  ********************************************************************************/
 
 module vdc_top #(
-	parameter		RAM_ADDR_BITS = 16,
-	parameter 		C_LATCH_WIDTH = 8,
-	parameter 		S_LATCH_WIDTH = 80,
-	parameter 		A_LATCH_WIDTH = 80
+	parameter RAM_ADDR_BITS = 16,
+	parameter C_LATCH_WIDTH = 8,
+	parameter S_LATCH_WIDTH = 82,
+	parameter SYSCLK = 31527954
 )(
 	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
-	input				initRam,   // 1=initialize RAM on reset
+	input          initRam,   // 1=initialize RAM on reset
+	input          debug,     // 1=enable debug video output
 
 	input          clk,
-	input				enableBus,
+	input          enableBus,
 	input          reset,
 	input          init,
 
 	input          cs,        // chip select
 	input          rs,        // register select
 	input          we,        // write enable
-	input				lp_n,      // light pen
+	input          lp_n,      // light pen
 
 	input    [7:0] db_in,     // data in
 	output   [7:0] db_out,    // data out
 
-	input          enablePixel0,
-	input          enablePixel1,
-
-	output			vsync,
-	output			hsync,
-	output			vblank,
-	output			hblank,
-	output	[3:0]	rgbi		  
+	output         pixelclk,
+	output         vsync,
+	output         hsync,
+	output         vblank,
+	output         hblank,
+	output         ilace,
+	output		   field,
+	output		   disableVideo,
+	output   [3:0] rgbi		  
 );
 
 // version  chip
@@ -42,7 +44,27 @@ module vdc_top #(
 //   1      8563 R9     changes to R25, 16k or 64k RAM
 //   2      8568        adds R37, 64k RAM
 
-									 // Reg      Init value   Description
+reg enable;
+always @(posedge clk) begin
+   int sum = 0;
+   reg div;
+
+   enable <= 0;
+   pixelclk <= 0;
+
+   sum = sum + 16000000;
+   if(sum >= SYSCLK) begin
+      sum = sum - SYSCLK;
+
+	  pixelclk <= 1;
+	  div <= ~div & reg_dbl;
+	  enable <= div | ~reg_dbl;
+   end
+end
+
+// Register file
+
+							// Reg      Init value   Description
 reg   [7:0] reg_ht;         // R0      7E/7F 126/127 Horizontal total (minus 1) [126 for original ROM, 127 for PAL on DCR]
 reg   [7:0] reg_hd;         // R1         50 80      Horizontal displayed
 reg   [7:0] reg_hp;         // R2         66 102     Horizontal sync position
@@ -92,85 +114,104 @@ reg         reg_vspol = 0;  // R37[6]                [v2 only], VSYnc polarity
 
 reg   [5:0] regSel;         // selected internal register (write to $D600)
 
-reg   [1:0] newFrame;
-wire        newLine, newRow;
+wire        fetchFrame;
+wire        fetchLine;
+wire        fetchRow, lastRow;
+wire        cursorV;
 wire        newCol, endCol;
+wire        rowbuf;
 reg   [7:0] col, row;
+reg   [3:0] pixel;
 reg   [4:0] line;
-reg         blink[2];       // The 2 blink rates: 0=16 frames, 1=30 frames
+reg   [1:0] blink;        // The 2 blink rates: 0=16 frames, 1=30 frames
 
-reg         rowbuf;
 reg  [15:0] dispaddr;
 
 (* ramstyle = "no_rw_check" *) reg [7:0] scrnbuf[2][S_LATCH_WIDTH];
-(* ramstyle = "no_rw_check" *) reg [7:0] attrbuf[2][A_LATCH_WIDTH];
+(* ramstyle = "no_rw_check" *) reg [7:0] attrbuf[2][S_LATCH_WIDTH];
 (* ramstyle = "no_rw_check" *) reg [7:0] charbuf[C_LATCH_WIDTH];
 
-reg         lpStatus;       // light pen status
-wire			vsync_pos;
-wire			hsync_pos;
+reg         lpStatus;
+wire		vsync_pos, vblank_pos;
+wire		hsync_pos, hblank_pos;
 
 wire        busy;
-wire        enablePixel = enablePixel0 | (~reg_dbl & enablePixel1);
-wire  [1:0] visible;
+wire  		hVisible, vVisible, hdispen;
 
-vdc_clockgen clockgen (
+assign      vsync = vsync_pos ^ (~version[1] & reg_vspol);
+assign      hsync = hsync_pos ^ (~version[1] & reg_hspol);
+assign      vblank = vblank_pos | vsync_pos;
+assign      hblank = hblank_pos | hsync_pos;
+assign      ilace = reg_im[0];
+
+assign      disableVideo = 0;
+
+vdc_signals signals (
 	.clk(clk),
-	.reset(reset),
-	.init(init),
-	.enable(enablePixel),
+	.reset(reset || init),
+	.enable(enable),
+	
+	.db_in(db_in),
 
-   .reg_ht(reg_ht),
-   .reg_hd(reg_hd),
-   .reg_hp(reg_hp),
-   .reg_vw(reg_vw),
-   .reg_hw(reg_hw),
-   .reg_vt(reg_vt),
-   .reg_va(reg_va),
-   .reg_vd(reg_vd),
-   .reg_vp(reg_vp),
-   .reg_im(reg_im),
-   .reg_ctv(reg_ctv),
-   .reg_cth(reg_cth),
-   .reg_cdh(reg_cdh),
-   .reg_cdv(reg_cdv),
-   .reg_vss(reg_vss),
-   .reg_hss(reg_hss),
-   .reg_fg(reg_fg),
-   .reg_bg(reg_bg),
-   .reg_deb(reg_deb),
-   .reg_dee(reg_dee),
+	.reg_ht(reg_ht),
+	.reg_hd(reg_hd),
+	.reg_hp(reg_hp),
+	.reg_vw(reg_vw),
+	.reg_hw(reg_hw),
+	.reg_vt(reg_vt),
+	.reg_va(reg_va),
+	.reg_vd(reg_vd),
+	.reg_vp(reg_vp),
+	.reg_im(reg_im),
+	.reg_ctv(reg_ctv),
+	.reg_cs(reg_cs),
+	.reg_ce(reg_ce),
+	.reg_cth(reg_cth),
+	.reg_vss(reg_vss),
+	.reg_text(reg_text),
+	.reg_atr(reg_atr),
+	.reg_dbl(reg_dbl),
+	.reg_ai(reg_ai),
+	.reg_deb(reg_deb),
+	.reg_dee(reg_dee),
 
-	.newFrame(newFrame),
-	.newLine(newLine),
-	.newRow(newRow),
+	.fetchFrame(fetchFrame),
+	.fetchLine(fetchLine),
+	.fetchRow(fetchRow),
+	.cursorV(cursorV),
+	.lastRow(lastRow),
 	.newCol(newCol),
 	.endCol(endCol),
+
 	.col(col),
 	.row(row),
+	.pixel(pixel),
 	.line(line),
 
-	.visible(visible),
+	.hVisible(hVisible),
+	.vVisible(vVisible),
+	.hdispen(hdispen),
 	.blink(blink),
 
-	.vblank(vblank),
-	.hblank(hblank),
+	.vblank(vblank_pos),
+	.hblank(hblank_pos),
 	.vsync(vsync_pos),
-	.hsync(hsync_pos)
+	.hsync(hsync_pos),
+	.field(field)
 );
 
 vdc_ramiface #(
 	.RAM_ADDR_BITS(RAM_ADDR_BITS),
 	.S_LATCH_WIDTH(S_LATCH_WIDTH),
-	.A_LATCH_WIDTH(A_LATCH_WIDTH),
 	.C_LATCH_WIDTH(C_LATCH_WIDTH)
 ) ram (
 	.ram64k(ram64k),
-	.initRam(reset),
+	.initRam(initRam),
+	.debug(debug),
 
 	.clk(clk),
 	.reset(reset),
-	.enable(enablePixel),
+	.enable(enable),
 
 	.regA(regSel),
 	.db_in(db_in),
@@ -179,8 +220,8 @@ vdc_ramiface #(
 	.rs(rs),
 	.we(we),
 
-   .reg_ht(reg_ht),
-   .reg_hd(reg_hd),
+	.reg_ht(reg_ht),
+	.reg_hd(reg_hd),
 	.reg_ai(reg_ai),
 	.reg_copy(reg_copy),
 	.reg_ram(reg_ram),
@@ -197,76 +238,72 @@ vdc_ramiface #(
 	.reg_da(reg_da),
 	.reg_ba(reg_ba),
 
-	.newFrame(newFrame),
-	.newLine(newLine),
-	.newRow(newRow),
+	.fetchFrame(fetchFrame),
+	.fetchLine(fetchLine),
+	.fetchRow(fetchRow),
+	.lastRow(lastRow),
 	.newCol(newCol),
 	.endCol(endCol),
-	.visible(visible),
-	.row(row),
 	.col(col),
 	.line(line),
 
 	.busy(busy),
 	.rowbuf(rowbuf),
-	.scrnbuf(scrnbuf),
 	.attrbuf(attrbuf),
 	.charbuf(charbuf),
-   .dispaddr(dispaddr)
+	.dispaddr(dispaddr)
 
 );
 
 vdc_video #(
 	.S_LATCH_WIDTH(S_LATCH_WIDTH),
-	.A_LATCH_WIDTH(A_LATCH_WIDTH),
 	.C_LATCH_WIDTH(C_LATCH_WIDTH)
 ) video (
-	.version(version),
+	.debug(debug),
 
 	.clk(clk),
 	.reset(reset),
-	.enable(enablePixel),
+	.enable(enable),
 
+	.reg_hd(reg_hd),
 	.reg_cth(reg_cth),
 	.reg_cdh(reg_cdh),
-	.reg_vss(reg_vss),
+	.reg_cdv(reg_cdv),
 	.reg_hss(reg_hss),
 
 	.reg_ul(reg_ul),
 	.reg_cbrate(reg_cbrate),
-   .reg_text(reg_text),
-   .reg_atr(reg_atr),
-   .reg_semi(reg_semi),
+	.reg_text(reg_text),
+	.reg_atr(reg_atr),
+	.reg_semi(reg_semi),
+	.reg_dbl(reg_dbl),
 	.reg_rvs(reg_rvs),
 	.reg_fg(reg_fg),
 	.reg_bg(reg_bg),
 
 	.reg_cm(reg_cm),
-	.reg_cs(reg_cs),
-	.reg_ce(reg_ce),
-   .reg_cp(reg_cp),
+	.reg_cp(reg_cp),
 	
-	.newFrame(newFrame),
-	.newLine(newLine),
-	.newRow(newRow),
-	.newCol(newCol),
+	.fetchFrame(fetchFrame),
+	.fetchLine(fetchLine),
+	.fetchRow(fetchRow),
+	.cursorV(cursorV),
 
-	.visible(visible),
-	.blank(hblank),
+	.hVisible(hVisible),
+	.vVisible(vVisible),
+	.hdispen(hdispen),
+	.blank(hblank | vblank),
 	.blink(blink),
 	.rowbuf(rowbuf),
 	.col(col),
+	.pixel(pixel),
 	.line(line),
-	.scrnbuf(scrnbuf),
 	.attrbuf(attrbuf),
 	.charbuf(charbuf),
-   .dispaddr(dispaddr),
+	.dispaddr(dispaddr),
 
 	.rgbi(rgbi)
 );
-
-assign vsync = vsync_pos ^ (~version[1] & reg_vspol);
-assign hsync = hsync_pos ^ (~version[1] & reg_hspol);
 
 // Internal registers
 always @(posedge clk) begin
@@ -395,7 +432,7 @@ always @(posedge clk) begin
 		end
 		else begin
 			if (!rs) begin
-				db_out <= {~busy, lpStatus, ~visible[0], 3'b000, version};
+				db_out <= {~busy, lpStatus, ~vVisible, 3'b000, version};
 			end
 			else
 				case (regSel)
@@ -421,7 +458,7 @@ always @(posedge clk) begin
 					19: db_out <= reg_ua[7:0];
 					20: db_out <= reg_aa[15:8];
 					21: db_out <= reg_aa[7:0];
-					22: db_out <= reg_cth & reg_cdh;
+					22: db_out <= {reg_cth, reg_cdh};
 					23: db_out <= {3'b111, reg_cdv};
 					24: db_out <= {reg_copy, reg_rvs, reg_cbrate, reg_vss};
 					25: db_out <= {reg_text, reg_atr, reg_semi, reg_dbl, reg_hss};
