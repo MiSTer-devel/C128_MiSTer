@@ -11,7 +11,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - MMU fully implemented and tested using [VICE test progs](https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/c128/)
 - C128 specific keys
 - VIC jailbars for the authentic C128 video experience
-- VDC standard modes (text & bitmap) implemented
+- VDC standard modes (text & bitmap) and some non-standard modes work
 - Selectable colour palettes for the VDC
 - Booting in C64, C128 or CP/M mode
 - Automatic detection of .CRT files: C64 cartridges boot in C64 mode, C128 cartridges boot in C128 mode. C128 .CRT files must contain a [C128 CARTRIDGE](https://vice-emu.sourceforge.io/vice_17.html#SEC392) header to be detected.
@@ -27,15 +27,18 @@ The following features should work but have not been tested. If you have an oppo
 
 ### C128 features not (yet/fully) implemented
 
-- VDC scrolling, interlace, non-standard modes
+- VIC register $D030 video manipulation tricks (eg. used by RfO part 1)
+- VDC non-standard high resolution modes (eg. VGA-like modes)
 - Internal function ROM
 - 1571DCR drive model option for the full _128DCR experience_. This model uses a custom MFM en/decoding chip which seems to be completely undocumented.
 
 ### Other TODOs and known issues
 
+- DESTerm 2.00 Self-extracting files crash the core in C128 mode (same file works fine in C64 mode!) (Issue [#10](https://github.com/eriks5/C128_MiSTer/issues/10))
 - Automatic detection of C64/C128 .PRG files to boot in the appropriate mode.
 - Re-enable 3x and 4x turbo modes for 8502
 - Turbo mode for Z80
+- Unable to format disks in D81 format (Issue [#9](https://github.com/eriks5/C128_MiSTer/issues/9) -- inherited from C64 core, should probably be fixed there)
 
 ## Usage
 
