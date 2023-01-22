@@ -18,6 +18,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - Loading of .PRG files to the correct memory location in C128 mode.
 - Fast serial (external) IEC
 - 1570/1571 drive, .d71/.g71 images, including MFM format
+- Automatic detection of C64/C128 .PRG files to reset to the appropriate mode.
 
 ### Implemented but untested
 
@@ -34,7 +35,6 @@ The following features should work but have not been tested. If you have an oppo
 
 ### Other TODOs and known issues
 
-- Automatic detection of C64/C128 .PRG files to boot in the appropriate mode.
 - Re-enable 3x and 4x turbo modes for 8502
 - Turbo mode for Z80
 - Unable to format disks in D81 format (Issue [#9](https://github.com/eriks5/C128_MiSTer/issues/9) -- inherited from C64 core, should probably be fixed there)

@@ -40,6 +40,7 @@ entity fpga64_keyboard is
 		clk         : in std_logic;
 		reset       : in std_logic;
     
+		go64        : in std_logic;
 		ps2_key     : in std_logic_vector(10 downto 0);
 		joyA        : in unsigned(6 downto 0);
 		joyB        : in unsigned(6 downto 0);
@@ -372,7 +373,7 @@ begin
 				(pbi(2) or not (key_ctrl or not joyA(6) or not joyB(6))) and
 				(pbi(3) or not (key_2 and not key_fn)) and
 				(pbi(4) or not ((key_space and not key_fn) or not joyA(5) or not joyB(5))) and
-				(pbi(5) or not key_commodore) and
+				(pbi(5) or not (key_commodore or go64)) and
 				(pbi(6) or not key_Q) and
 				(pbi(7) or not key_runstop)));
 
@@ -452,7 +453,7 @@ begin
 				(pai(4) or not key_K) and
 				(pai(5) or not key_colon) and
 				(pai(6) or not key_equal) and
-				(pai(7) or not key_commodore) and
+				(pai(7) or not (key_commodore or go64)) and
 				(ki(0) or not (key_num4 or (key_4 and key_fn))) and
 				(ki(1) or not (key_num6 or (key_6 and key_fn))) and
 				(ki(2) or not (key_left and key_fn_crsr));
@@ -512,14 +513,14 @@ begin
 					when X"1C" => key_A <= pressed;
 					when X"1D" => key_W <= pressed;
 					when X"1E" => key_2 <= pressed;
-					when X"1F" => key_commodore <= pressed; -- Windows (left)
+					when X"1F" => key_commodore <= pressed; -- Meta (left)
 					when X"21" => key_C <= pressed;
 					when X"22" => key_X <= pressed;
 					when X"23" => key_D <= pressed;
 					when X"24" => key_E <= pressed;
 					when X"25" => key_4 <= pressed;
 					when X"26" => key_3 <= pressed;
-					when X"27" => key_commodore <= pressed; -- Windows (right)
+					when X"27" => key_commodore <= pressed; -- Meta (right)
 					when X"29" => key_space <= pressed;
 					when X"2A" => key_V <= pressed;
 					when X"2B" => key_F <= pressed;

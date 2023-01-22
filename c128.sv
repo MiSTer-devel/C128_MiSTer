@@ -399,17 +399,15 @@ reg reset_n;
 reg reset_wait = 0;
 always @(posedge clk_sys) begin
    integer reset_counter;
-   reg old_download;
    reg do_erase = 1;
 
    reset_n <= !reset_counter;
-   old_download <= ioctl_download;
 
    if (RESET | status[0] | status[17] | buttons[1] | !pll_locked) begin
       if(RESET) do_erase <= 1;
       reset_counter <= 100000;
    end
-   else if(~old_download & ioctl_download & load_prg & ~status[50]) begin
+   else if(prg_reset & !do_erase) begin
       do_erase <= 1;
       reset_wait <= 1;
       reset_counter <= 255;
@@ -521,7 +519,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .ioctl_wr(ioctl_wr),
    .ioctl_addr(ioctl_addr),
    .ioctl_dout(ioctl_data),
-   .ioctl_wait(ioctl_req_wr|reset_wait),
+   .ioctl_wait(ioctl_req_wr|reset_wait|prg_reset),
 
    .info_req(info_req),
    .info(info)
@@ -685,7 +683,9 @@ reg  [3:0] cart_hdr_cnt;
 reg        cart_hdr_wr;
 reg [31:0] cart_blk_len;
 
+reg        go64;
 reg        force_erase;
+reg        prg_reset;
 reg        erasing;
 
 reg        inj_meminit = 0;
@@ -708,6 +708,7 @@ always @(posedge clk_sys) begin
    reg        old_meminit;
    reg [15:0] inj_end;
    reg  [7:0] inj_meminit_data;
+   reg        prg_reseting;
 
    old_download <= ioctl_download;
    io_cycleD <= io_cycle;
@@ -734,10 +735,21 @@ always @(posedge clk_sys) begin
       if (load_prg) begin
          // PRG header
          // Load address low-byte
-         if      (ioctl_addr == 0) begin ioctl_load_addr[24:0] <= ioctl_data; inj_end[7:0]  <= ioctl_data; end
+         if (ioctl_addr == 0) 
+            inj_end[7:0] <= ioctl_data;
          // Load address high-byte
-         else if (ioctl_addr == 1) begin ioctl_load_addr[15:8] <= ioctl_data; inj_end[15:8] <= ioctl_data; end
-         else begin ioctl_req_wr <= 1; inj_end <= inj_end + 1'b1; end
+         else if (ioctl_addr == 1) begin
+            inj_end[15:8] <= ioctl_data;
+            if (~status[50]) begin
+               go64 <= ~ioctl_data[4];
+               prg_reset <= 1;
+            end
+         end
+         else begin 
+            if (ioctl_addr == 2) ioctl_load_addr <= inj_end;
+            ioctl_req_wr <= 1; 
+            inj_end <= inj_end + 1'b1; 
+         end
       end
 
       if (load_crt) begin
@@ -801,6 +813,16 @@ always @(posedge clk_sys) begin
       erase_cram <= 1;
    end
 
+   // Wait for PRG reset to finish
+   if (prg_reset && reset_wait) begin
+      prg_reset <= 0;
+      prg_reseting <= 1;
+   end 
+   if (prg_reseting && !reset_wait) begin
+      go64 <= 0;
+      prg_reseting <= 0;
+   end
+
    // meminit for RAM injection
    if (old_download != ioctl_download && load_prg && !inj_meminit) begin
       inj_meminit <= 1;
@@ -817,28 +839,54 @@ always @(posedge clk_sys) begin
             ioctl_req_wr <= 1;
 
             // Initialize BASIC pointers to simulate the BASIC LOAD command
-            case(ioctl_load_addr)
-               // TXT (2D-2E)
-               // Set these two bytes to $01, $08 just as they would be on reset (the BASIC LOAD command does not alter these)
-               'h2D: inj_meminit_data <= 'h01;
-               'h2E: inj_meminit_data <= 'h1C;
+            if (c128_n)
+               // C64 mode
+               case(ioctl_load_addr)
+                  // TXT (2B-2C)
+                  // Set these two bytes to $01, $08 just as they would be on reset (the BASIC LOAD command does not alter these)
+                  'h2B: inj_meminit_data <= 'h01;
+                  'h2C: inj_meminit_data <= 'h08;
 
-               // SAVE_START (AC-AD)
-               // Set these two bytes to zero just as they would be on reset (the BASIC LOAD command does not alter these)
-               'hAC, 'hAD: inj_meminit_data <= 'h00;
+                  // SAVE_START (AC-AD)
+                  // Set these two bytes to zero just as they would be on reset (the BASIC LOAD command does not alter these)
+                  'hAC, 'hAD: inj_meminit_data <= 'h00;
+                  
+                  // VAR (2D-2E), ARY (2F-30), STR (31-32), LOAD_END (AE-AF)
+                  // Set these just as they would be with the BASIC LOAD command (essentially they are all set to the load end address)
+                  'h2D, 'h2F, 'h31, 'hAE: inj_meminit_data <= inj_end[7:0];
+                  'h2E, 'h30, 'h32, 'hAF: inj_meminit_data <= inj_end[15:8];
+                  
+                  default: begin
+                     ioctl_req_wr <= 0;
+                     
+                     // advance the address
+                     ioctl_load_addr <= ioctl_load_addr + 1'b1;
+                  end
+               endcase            
+            else
+               // C128 mode
+               case(ioctl_load_addr)
+                  // TXT (2D-2E)
+                     // Set these two bytes to $01, $1C just as they would be on reset (the BASIC LOAD command does not alter these)
+                  'h2D: inj_meminit_data <= 'h01;
+                  'h2E: inj_meminit_data <= 'h1C;
 
-               // VAR (2D-2E), ARY (2F-30), STR (31-32), LOAD_END (AE-AF)
-               // Set these just as they would be with the BASIC LOAD command (essentially they are all set to the load end address)
-               'h2F, 'h31, 'h33, 'hAE: inj_meminit_data <= inj_end[7:0];
-               'h30, 'h32, 'h34, 'hAF: inj_meminit_data <= inj_end[15:8];
+                  // SAVE_START (AC-AD)
+                  // Set these two bytes to zero just as they would be on reset (the BASIC LOAD command does not alter these)
+                  'hAC, 'hAD: inj_meminit_data <= 'h00;
 
-               default: begin
-                  ioctl_req_wr <= 0;
+                  // VAR (2F-30), ARY (31-32), STR (33-34), LOAD_END (AE-AF)
+                  // Set these just as they would be with the BASIC LOAD command (essentially they are all set to the load end address)
+                  'h2F, 'h31, 'h33, 'hAE: inj_meminit_data <= inj_end[7:0];
+                  'h30, 'h32, 'h34, 'hAF: inj_meminit_data <= inj_end[15:8];
 
-                  // advance the address
-                  ioctl_load_addr <= ioctl_load_addr + 1'b1;
-               end
-            endcase
+                  default: begin
+                     ioctl_req_wr <= 0;
+
+                     // advance the address
+                     ioctl_load_addr <= ioctl_load_addr + 1'b1;
+                  end
+               endcase
          end
       end
    end
@@ -1047,11 +1095,10 @@ fpga64_sid_iec #(
 `else   
    .vdcDebug(0),
 `endif
-   .osmode(0),
-   .cpumode(0),
    .turbo_mode(2'b01),
    .turbo_speed(2'b00),
 
+   .go64(go64),
    .ps2_key(key),
    .kbd_reset((~reset_n & ~status[1]) | reset_keys),
 	.shift_mod(~status[60:59]),

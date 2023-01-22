@@ -66,6 +66,7 @@ port(
    cpslk_sense : out std_logic;
    d4080_sense : out std_logic;
    noscr_sense : out std_logic;
+   go64        : in  std_logic;
 
    -- external memory
    ramAddr     : out unsigned(17 downto 0);
@@ -200,14 +201,10 @@ port(
 
    -- System memory size
    sys256k     : in  std_logic;
+
    -- System mode
    c128_n      : out std_logic;
-   z80_n       : out std_logic;
-
-   --test
-   osmode      : in  std_logic;
-   cpumode     : in  std_logic
-
+   z80_n       : out std_logic
 );
 end fpga64_sid_iec;
 
@@ -624,8 +621,6 @@ port map (
    cs_lr => cs_mmuH,
 
    sys256k => sys256k, -- "1" for 256K system memory
-   osmode => osmode,  -- debug
-   cpumode => cpumode,  -- debug
 
    we => mmu_we,
 
@@ -645,7 +640,6 @@ port map (
    gamei => game,
    gameo => mmu_game,
 
-   fsdiri => '1',
    fsdiro => fsdir_n,
 
    c128_n => mmu_c128_n,
@@ -1252,6 +1246,7 @@ port map (
    reset => kbd_reset,
 
    ps2_key => ps2_key,
+   go64 => go64,
 
    joyA => not unsigned(joyA(6 downto 0)),
    joyB => not unsigned(joyB(6 downto 0)),

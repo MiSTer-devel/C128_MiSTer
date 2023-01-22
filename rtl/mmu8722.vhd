@@ -12,9 +12,9 @@ use ieee.numeric_std.all;
 entity mmu8722 is
 	port(
 		-- config
-		sys256k: in std_logic;  -- "0" 128k system RAM, "1" 256k system RAM
-		osmode: in std_logic;   -- (debug) reset state for c128_n: "0" C128, "1" C64
-		cpumode: in std_logic;  -- (debug) reset state for z80_n: "0" Z80, "1" 8502
+		sys256k: in std_logic := '0';  -- "0" 128k system RAM, "1" 256k system RAM
+		osmode: in std_logic := '0';   -- reset state for c128_n: "0" C128, "1" C64
+		cpumode: in std_logic := '0';  -- reset state for z80_n: "0" Z80, "1" 8502
 
 		-- bus
 		clk: in std_logic;
@@ -30,13 +30,13 @@ entity mmu8722 is
 		do: out unsigned(7 downto 0);
 
 		-- 6529 style bidir pins
-		d4080i: in std_logic;
+		d4080i: in std_logic := '1';
 		d4080o: out std_logic;
-		exromi: in std_logic;
+		exromi: in std_logic := '1';
 		exromo: out std_logic;
-		gamei: in std_logic;
+		gamei: in std_logic := '1';
 		gameo: out std_logic;
-		fsdiri: in std_logic;
+		fsdiri: in std_logic := '1';
 		fsdiro: out std_logic;
 
 		-- system config
@@ -103,7 +103,7 @@ begin
 				reg_fsdir <= cpumode or osmode;
 				reg_exrom <= cpumode or osmode;
 				reg_game <= cpumode or osmode;
-				reg_d4080 <= '0';
+				reg_d4080 <= cpumode or osmode;
 				reg_os <= osmode;
 				reg_vicbank <= (others => '0');
 				reg_commonH <= '0';
