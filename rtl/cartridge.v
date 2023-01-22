@@ -712,14 +712,14 @@ wire cs_iof = IOF && (mem_write ? IOF_wr_ena : IOF_ena);
 
 assign mem_ce_out = mem_ce | (cs_ioe & stb_ioe) | (cs_iof & stb_iof);
 
-//RAM banks are mapped to 0x010000 (64K max)
+//RAM banks are mapped to 0x040000 (64K max)
 //ROM banks are mapped to 0x100000 (1MB max)
 function [7:0] get_bank;
 	input [6:0] bank;
 	input       ram;
 	input       addr13;
 begin
-	get_bank = ram ? {5'b00001, bank[2:0]} : (cart_c128 ? {1'b1, bank[5:0], addr13} : {1'b1, bank[6:0]} );
+	get_bank = ram ? {5'b00100, bank[2:0]} : (cart_c128 ? {1'b1, bank[5:0], addr13} : {1'b1, bank[6:0]} );
 end
 endfunction
 
@@ -753,7 +753,7 @@ always begin
 					addr_out[24:13] = get_bank(2, 0, 0);
 				end
 			99: if(IOE) begin
-					addr_out[24:8] <= {3'b011, geo_bank};
+					addr_out[24:8] <= {3'b011, geo_bank};  // Map GeoRAM to 0xC00000-0xFFFFFF
 				end
 			255: if(romH || romL) addr_out = 0;
 		default:;

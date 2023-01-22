@@ -734,7 +734,7 @@ always @(posedge clk_sys) begin
       if (load_prg) begin
          // PRG header
          // Load address low-byte
-         if      (ioctl_addr == 0) begin ioctl_load_addr[7:0]  <= ioctl_data; inj_end[7:0]  <= ioctl_data; end
+         if      (ioctl_addr == 0) begin ioctl_load_addr[24:0] <= ioctl_data; inj_end[7:0]  <= ioctl_data; end
          // Load address high-byte
          else if (ioctl_addr == 1) begin ioctl_load_addr[15:8] <= ioctl_data; inj_end[15:8] <= ioctl_data; end
          else begin ioctl_req_wr <= 1; inj_end <= inj_end + 1'b1; end
@@ -857,7 +857,7 @@ always @(posedge clk_sys) begin
    if (erasing && !ioctl_req_wr) begin
       erase_to <= erase_to + 1'b1;
       if (&erase_to) begin
-         if (ioctl_load_addr < ({erase_cram, 16'hFFFF}))
+         if (ioctl_load_addr < (erase_cram ? 'h4FFFF : 'h3FFFF))
             ioctl_req_wr <= 1;
          else begin
             erasing <= 0;
