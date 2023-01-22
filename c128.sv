@@ -420,7 +420,9 @@ always @(posedge clk_sys) begin
    else if (erasing) force_erase <= 0;
    else if (!reset_counter) begin
       do_erase <= 0;
-      if(reset_wait && c128_addr[15:0] == 'hFFCF) reset_wait <= 0;
+      // C64: wait for $FFCF CHRIN
+      // C128: wait for $FFC3 ICLOSE
+      if(reset_wait && c128_addr[15:0] == (c128_n ? 'hFFCF : 'hFFC3)) reset_wait <= 0;
    end
    else begin
       reset_counter <= reset_counter - 1;
