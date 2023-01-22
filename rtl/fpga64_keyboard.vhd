@@ -76,6 +76,7 @@ architecture rtl of fpga64_keyboard is
 
 	signal extended: boolean;
 	signal pressed: std_logic := '0';
+	signal reset_0 : std_logic := '0';
 
 	signal key_del: std_logic := '0';
 	signal key_return: std_logic := '0';
@@ -210,6 +211,7 @@ architecture rtl of fpga64_keyboard is
 	signal key_fn_crsr : std_logic;
 
 begin
+	reset_0 <= reset;
 	delay_end <= '1' when delay_cnt = 0 else '0';
 
 	capslock <= key_capslock or (key_F4 and key_fn);
@@ -218,6 +220,7 @@ begin
 		if rising_edge(clk) then
 			if reset = '1' then
 				capslock_0 <= '0';
+				capslock_state <= '1';
 			else
 				capslock_0 <= capslock;
 				if (capslock = '1' and capslock_0 = '0') then
@@ -248,6 +251,7 @@ begin
 		if rising_edge(clk) then
 			if reset = '1' then
 				shift_lock_0 <= '0';
+				shift_lock_state <= '0';
 			else
 				shift_lock_0 <= shift_lock;
 				if (shift_lock = '1' and shift_lock_0 = '0') then
@@ -272,7 +276,10 @@ begin
 				delay_cnt <= delay_cnt - 1;
 			end if;
 
-			if noscroll_delay /= 0 then
+			if reset = '1' then
+				noscroll_lock <= '0';
+				noscroll_delay <= 0;
+			elsif noscroll_delay /= 0 then
 				noscroll_delay <= noscroll_delay - 1;
 			else
 				if key_noscroll = '1' then
@@ -598,7 +605,7 @@ begin
 				end case;
 			end if;
 
-			if reset = '1' then
+			if reset = '1' and reset_0 = '0' then
 					key_F1        <= '0';
 					key_F2        <= '0';
 					key_F3        <= '0';
@@ -696,7 +703,6 @@ begin
 					key_noscroll  <= '0';
 					key_help      <= '0';
 					key_linefd    <= '0';
-					noscroll_lock <= '0';
 			end if;
 
 			mod_key <= key_fn;
