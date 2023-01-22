@@ -451,6 +451,7 @@ component vdc_top
       version       : in  unsigned(1 downto 0);
       ram64k        : in  std_logic;
       initRam       : in  std_logic;
+      ntsc          : in  std_logic;
       debug         : in  std_logic;
 
       clk           : in  std_logic;
@@ -900,6 +901,7 @@ port map (
    version => vdcVersion,
    ram64k => vdc64k,
    initRam => vdcInitRam,
+   ntsc => ntscMode,
    debug => vdcDebug,
 
    clk => clk32,

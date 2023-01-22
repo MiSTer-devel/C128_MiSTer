@@ -8,11 +8,13 @@ module vdc_top #(
 	parameter RAM_ADDR_BITS = 16,
 	parameter C_LATCH_WIDTH = 8,
 	parameter S_LATCH_WIDTH = 82,
-	parameter SYSCLK = 31527954
+	parameter SYSCLK_PAL = 31527954,
+	parameter SYSCLK_NTSC = 32727266
 )(
 	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
 	input          initRam,   // 1=initialize RAM on reset
+	input          ntsc,	  // Base clock: 1=NTSC, 0=PAL
 	input          debug,     // 1=enable debug video output
 
 	input          clk,
@@ -43,6 +45,8 @@ module vdc_top #(
 //   0      8563 R7A    initial version, 16k or 64k RAM
 //   1      8563 R9     changes to R25, 16k or 64k RAM
 //   2      8568        adds R37, 64k RAM
+
+wire [31:0] SYSCLK = ntsc ? SYSCLK_NTSC : SYSCLK_PAL;
 
 reg enable;
 always @(posedge clk) begin
