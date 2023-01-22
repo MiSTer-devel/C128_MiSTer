@@ -187,9 +187,9 @@ always @(posedge clk) begin
 end
 
 wire [N:0] iec_data_d, iec_clk_d, iec_fclk_d;
-iecdrv_reset_filter #(NDR) (clk, reset_drv, iec_clk_d, iec_clk_o);
-iecdrv_reset_filter #(NDR) (clk, reset_drv, iec_data_d, iec_data_o);
-iecdrv_reset_filter #(NDR) (clk, reset_drv, iec_fclk_d, iec_fclk_o);
+iecdrv_reset_filter #(NDR) rst_flt_clk  (clk, reset_drv, iec_clk_d, iec_clk_o);
+iecdrv_reset_filter #(NDR) rst_flt_data (clk, reset_drv, iec_data_d, iec_data_o);
+iecdrv_reset_filter #(NDR) rst_flt_fclk (clk, reset_drv, iec_fclk_d, iec_fclk_o);
 
 wire [N:0] ext_en;
 wire [7:0] par_data_d[NDR];
