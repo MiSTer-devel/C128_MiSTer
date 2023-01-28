@@ -46,14 +46,11 @@ use IEEE.numeric_std.all;
 
 entity fpga64_sid_iec is
 generic (
-   EXCLUDE_STD_ROMS : integer := 0;
-   VDC_ADDR_BITS    : integer := 16
+   VDC_ADDR_BITS : integer := 16
 );
 port(
    clk32       : in  std_logic;
    reset_n     : in  std_logic;
-   dcr         : in  std_logic;
-   cpslk_mode  : in  std_logic;
 
    pause       : in  std_logic := '0';
    pause_out   : out std_logic;
@@ -125,6 +122,10 @@ port(
    mod_key     : out std_logic;
    tape_play   : out std_logic;
 
+   -- system ROMs
+   sysRom      : out std_logic;
+   sysRomBank  : out unsigned(4 downto 0);
+
    -- dma access
    dma_req     : in  std_logic := '0';
    dma_cycle   : out std_logic;
@@ -180,12 +181,6 @@ port(
    iec_srq_n_o : out std_logic;
    iec_srq_n_i : in  std_logic;
    iec_atn_o	: out std_logic;
-
-   rom_addr    : in  std_logic_vector(15 downto 0);
-   rom_data    : in  std_logic_vector(7 downto 0);
-   rom14_wr    : in  std_logic;
-   rom23_wr    : in  std_logic;
-   romF1_wr    : in  std_logic;
 
    cass_motor  : out std_logic;
    cass_write  : out std_logic;
@@ -656,14 +651,9 @@ mmu_we <= pulseWr when cs_mmuH = '1' else pulseWr_io;
 -- PLA and bus-switches
 -- -----------------------------------------------------------------------
 buslogic: entity work.fpga64_buslogic
-generic map (
-   EXCLUDE_STD_ROMS => EXCLUDE_STD_ROMS
-)
 port map (
    clk => clk32,
    reset => reset,
-   dcr => dcr,
-   cpslk_mode => cpslk_mode,
 
    cpuHasBus => cpuHasBus,
    aec => aec,
@@ -704,7 +694,7 @@ port map (
    systemWe => systemWe,
    systemAddr => systemAddr,
    dataToCpu => cpuDi,
-   dataToVic => vicDi,
+   -- dataToVic => vicDi,
    colorA10  => colorA10,
 
    io_enable => io_enable,
@@ -723,12 +713,8 @@ port map (
    cs_romL => romL,
    cs_romH => romH,
    cs_UMAXromH => UMAXromH,
-
-   rom_addr => rom_addr,
-   rom_data => rom_data,
-   rom14_wr => rom14_wr,
-   rom23_wr => rom23_wr,
-   romF1_wr => romF1_wr
+   cs_sysRom => sysRom,
+   sysRomBank => sysRomBank
 );
 
 IOE <= ioe_i;
@@ -767,6 +753,7 @@ begin
    end if;
 end process;
 
+vicDi <= ramDin;
 -- In the first three cycles after BA went low, the VIC reads
 -- $ff as character pointers and
 -- as color information the lower 4 bits of the opcode after the access to $d011.

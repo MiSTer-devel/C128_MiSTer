@@ -28,6 +28,9 @@ module cartridge
 	output            game,						// game line output (from cartridge)
 	input					game_in,				   // game line input (to cartridge)
 
+	input             sysRom,              // select system ROM
+	input       [4:0] sysRomBank,          // system ROM bank
+
 	input             romL,						// romL signal in
 	input             romH,						// romH signal in
 	input             UMAXromH,				// romH VIC II address signal
@@ -734,6 +737,8 @@ always begin
 	addr_out = addr_in;
 
 	if(reset_n) begin
+		if(sysRom) addr_out[24:12] = {3'b100, sysRomBank[4:0]}; // system ROM banks are mapped to 0x080000 (128k max)
+
 		if(romH & (romH_we | ~mem_write)) addr_out[24:13] =  get_bank(bank_hi, romH_we, addr_in[13]);
 		if(romL & (romL_we | ~mem_write)) addr_out        = {get_bank(bank_lo, romL_we, addr_in[13] & mask_lo[13]), addr_in[12:0] & mask_lo[12:0]};
 

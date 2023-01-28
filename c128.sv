@@ -198,7 +198,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX                                X 
+// XXXXXXXXXXXX    XX XXXXXXXXXX XX                                X 
 
 // bits  0.. 79 keep in sync with C64 core
 // bits 80..127 C128 core options
@@ -286,17 +286,9 @@ localparam CONF_STR = {
 	"P2O[42],Pause When OSD is Open,No,Yes;",
 	"P2O[39],Tape Autoplay,Yes,No;",
    "P2-;",
-   "P2FC8,ROM,Syst. ROM1+4 C64+Kernal+Char;",
-   "P2FC9,ROM,Syst. ROM2+3 Basic          ;",
-   "P2FC6,ROM,Function ROM                ;",
    "P2FC4,R41R70R71R81,Drive ROM                   ;",
    "P2-;",
    "P2FC5,CRT,Boot Cartridge              ;",
-   "P2-;",
-`ifndef EXCLUDE_STD_ROMS
-   "P2O[93],ROM set,128DCR,Standard;",
-`endif
-   "P2O[82],Char switch,C64 mode,Caps Lk key;",
    "-;",
 	"O[3],Swap Joysticks,No,Yes;",
    "-;",
@@ -412,7 +404,7 @@ always @(posedge clk_sys) begin
       reset_wait <= 1;
       reset_counter <= 255;
    end
-   else if (ioctl_download & (load_crt | load_rom14 | load_rom23 | load_romF1)) begin
+   else if (ioctl_download & (load_crt | load_boot)) begin
       do_erase <= 1;
       reset_counter <= 255;
    end
@@ -527,16 +519,16 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .info(info)
 );
 
+wire load_boot  = ioctl_index[5:0] == 0;
 wire load_prg   = ioctl_index == 'h01;
 wire load_crt   = ioctl_index == 'h41 || ioctl_index == 5;
 wire load_reu   = ioctl_index == 'h81;
 wire load_tap   = ioctl_index == 'hC1;
 wire load_flt   = ioctl_index == 7;
-wire load_rom14 = ioctl_index == 8;
-wire load_rom23 = ioctl_index == 9;
-wire load_romF1 = ioctl_index == 10;
 wire load_c15xx = ioctl_index == 11;
 
+wire sysRom;
+wire [4:0] sysRomBank;
 wire game;
 wire game_mmu;
 wire exrom;
@@ -566,6 +558,9 @@ cartridge cartridge
    .cart_bank_type(cart_bank_type),
    .cart_bank_raddr(ioctl_load_addr),
    .cart_bank_wr(cart_hdr_wr),
+
+   .sysRom(sysRom),
+   .sysRomBank(sysRomBank),
 
    .exrom(exrom),
    .exrom_in(exrom_mmu),
@@ -670,6 +665,7 @@ wire [1:0] pd12_mode = status[27:26];
 wire [1:0] pd34_mode = status[29:28];
 
 reg [24:0] ioctl_load_addr;
+reg [18:0] ioctl_load_size;
 reg        ioctl_req_wr;
 
 reg [15:0] cart_id;
@@ -734,6 +730,22 @@ always @(posedge clk_sys) begin
    if (io_cycle & io_cycleD) {io_cycle_ce, io_cycle_we} <= 0;
 
    if (ioctl_wr) begin
+      if (load_boot) begin
+         if (ioctl_addr == 0) begin
+            case(ioctl_index[7:6])
+               0 : begin ioctl_load_addr <= 25'h080000; ioctl_load_size <= 19'h17FFF; end  // System ROMs (ROM1/4, ROM2/3, char) ROMn: 32k, char: 2k
+               1 : begin ioctl_load_addr <= 25'h0A0000; ioctl_load_size <= 19'h5FFFF; end  // Drive ROMs (1541x2, 1570x2, 1571x2, (unused)x2, 1581x2) 32x2k each
+               2 : begin ioctl_load_addr <= 25'h098000; ioctl_load_size <= 19'h07FFF; end  // Internal function ROM (32k)
+               3 : begin ioctl_load_addr <= 25'h100000; ioctl_load_size <= 19'h07FFF; end  // External function ROM (32k)
+            endcase
+            ioctl_req_wr <= 1; 
+         end
+         else if (ioctl_load_size) begin
+            ioctl_load_size <= ioctl_load_size - 1'b1;
+            ioctl_req_wr <= 1; 
+         end
+      end
+
       if (load_prg) begin
          // PRG header
          // Load address low-byte
@@ -1018,9 +1030,9 @@ sdram sdram
    .clk(clk64),
    .init(~pll_locked),
    .refresh(refresh),
-   .addr( io_cycle ? io_cycle_addr : ext_cycle ? reu_ram_addr : cart_addr    ),
-   .ce  ( io_cycle ? io_cycle_ce   : ext_cycle ? reu_ram_ce   : cart_ce      ),
-   .we  ( io_cycle ? io_cycle_we   : ext_cycle ? reu_ram_we   : cart_we      ),
+   .addr( io_cycle ? io_cycle_addr : ext_cycle ? reu_ram_addr : cart_addr     ),
+   .ce  ( io_cycle ? io_cycle_ce   : ext_cycle ? reu_ram_ce   : cart_ce       ),
+   .we  ( io_cycle ? io_cycle_we   : ext_cycle ? reu_ram_we   : cart_we       ),
    .din ( io_cycle ? io_cycle_data : ext_cycle ? reu_ram_dout : c128_data_out ),
    .dout( sdram_data )
 );
@@ -1063,9 +1075,6 @@ wire        c64_iec_data_i;
 wire        c64_iec_srq_n_i;
 
 fpga64_sid_iec #(
-`ifdef EXCLUDE_STD_ROMS
-   .EXCLUDE_STD_ROMS(1),
-`endif
 `ifdef REDUCE_VDC_RAM
    .VDC_ADDR_BITS(14)
 `else
@@ -1076,12 +1085,6 @@ fpga64_sid_iec #(
    .reset_n(reset_n),
    .pause(freeze),
    .pause_out(c64_pause),
-`ifdef EXCLUDE_STD_ROMS
-   .dcr(1),
-`else
-   .dcr(~status[93]),
-`endif
-   .cpslk_mode(status[82]),
 
    .sys256k(status[87]),
    .vdcVersion({(~status[81])^status[80],status[80]}),
@@ -1155,6 +1158,9 @@ fpga64_sid_iec #(
    .io_ext(cart_oe | reu_oe | opl_en),
    .io_data(cart_oe ? cart_data : reu_oe ? reu_dout : opl_dout),
 
+   .sysRom(sysRom),
+   .sysRomBank(sysRomBank),
+
    .dma_req(dma_req),
    .dma_cycle(dma_cycle),
    .dma_addr(dma_addr),
@@ -1212,12 +1218,6 @@ fpga64_sid_iec #(
    .cnt2_o(cnt2_o),
    .cnt1_i(cnt1_i),
    .cnt1_o(cnt1_o),
-
-   .rom_addr(ioctl_addr[15:0]),
-   .rom_data(ioctl_data),
-   .rom14_wr(load_rom14 && !ioctl_addr[16] && ioctl_download && ioctl_wr),
-   .rom23_wr(load_rom23 && !ioctl_addr[16:15] && ioctl_download && ioctl_wr),
-   .romF1_wr(load_romF1 && !ioctl_addr[16:15] && ioctl_download && ioctl_wr),
 
    .cass_write(cass_write),
    .cass_motor(cass_motor),
