@@ -11,10 +11,10 @@ module vdc_top #(
 	parameter SYSCLK_PAL = 31527954,
 	parameter SYSCLK_NTSC = 32727266
 )(
-	input    [1:0] version,   // 0=8563R7A, 1=8563R9, 2=8568
+	input          version,   // 0=8563R9, 1=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
 	input          initRam,   // 1=initialize RAM on reset
-	input          ntsc,	  // Base clock: 1=NTSC, 0=PAL
+	input          ntsc,      // Base clock: 1=NTSC, 0=PAL
 	input          debug,     // 1=enable debug video output
 
 	input          clk,
@@ -40,11 +40,6 @@ module vdc_top #(
 	output		   disableVideo,
 	output   [3:0] rgbi		  
 );
-
-// version  chip
-//   0      8563 R7A    initial version, 16k or 64k RAM
-//   1      8563 R9     changes to R25, 16k or 64k RAM
-//   2      8568        adds R37, 64k RAM
 
 wire [31:0] SYSCLK = ntsc ? SYSCLK_NTSC : SYSCLK_PAL;
 
@@ -142,8 +137,8 @@ wire		hsync_pos, hblank_pos;
 wire        busy;
 wire  		hVisible, vVisible, hdispen;
 
-assign      vsync = vsync_pos ^ (~version[1] & reg_vspol);
-assign      hsync = hsync_pos ^ (~version[1] & reg_hspol);
+assign      vsync = vsync_pos ^ (~version & reg_vspol);
+assign      hsync = hsync_pos ^ (~version & reg_hspol);
 assign      vblank = vblank_pos | vsync_pos;
 assign      hblank = hblank_pos | hsync_pos;
 assign      ilace = reg_im[0];
@@ -427,7 +422,7 @@ always @(posedge clk) begin
 						35: reg_dee      <= db_in;
 						36: reg_drr      <= db_in[3:0];
 						// R37 only exists in 8568
-						37: if (version[1]) begin
+						37: if (version) begin
 								reg_hspol  <= db_in[7];
 								reg_vspol  <= db_in[6];
 							end
@@ -436,7 +431,7 @@ always @(posedge clk) begin
 		end
 		else begin
 			if (!rs) begin
-				db_out <= {~busy, lpStatus, ~vVisible, 3'b000, version};
+				db_out <= {~busy, lpStatus, ~vVisible, 3'b000, version, ~version};
 			end
 			else
 				case (regSel)
@@ -477,7 +472,7 @@ always @(posedge clk) begin
 					34: db_out <= reg_deb;
 					35: db_out <= reg_dee;
 					36: db_out <= {4'b1111, reg_drr};
-					37: db_out <= {reg_hspol|~version[1], reg_vspol|~version[1], 6'b111111};
+					37: db_out <= {reg_hspol|~version, reg_vspol|~version, 6'b111111};
 					default: db_out <= 8'b11111111;
 				endcase
 		end

@@ -47,9 +47,9 @@ entity video_vicii_656x is
 		mode6567R8 : in std_logic; -- new NTSC 65 cycles and 263 line
 		mode6572 : in std_logic; -- PAL-N 65 cycles and 312 lines
 
-		mode8564 : in std_logic; -- C128 VIC-II, NTSC
-		mode8566 : in std_logic; -- C128 VIC-II, PAL-B
-		mode8569 : in std_logic; -- C128 VIC-II, PAL-N
+		mode8564 : in std_logic; -- C128 VIC-IIe, NTSC
+		mode8566 : in std_logic; -- C128 VIC-IIe, PAL-B
+		mode8569 : in std_logic; -- C128 VIC-IIe, PAL-N
 
 		turbo_en: in std_logic;  -- Enable turbo mode in 65xx models
 		turbo_state: out std_logic;
@@ -1663,8 +1663,8 @@ writeRegisters: process(clk)
 					when "110000" => 
 						if vic2e = '1' or turbo_en = '1' then
 							turbo_reg <= diRegisters(0);
-							test_reg <= diRegisters(1);
-						end if;					
+							test_reg <= diRegisters(1) and vic2e;
+						end if;
 					when others => null;
 					end case;
 				end if;
@@ -1735,7 +1735,7 @@ readRegisters: process(clk)
 			                    do <= (others => '1');
 			                 end if;
 			when "110000" => if vic2e = '1' or turbo_en ='1' then
-									  do <= "111111" & test_reg & turbo_reg;
+									  do <= "111111" & (test_reg or not vic2e) & turbo_reg;
 								  else
 								     do <= (others => '1');
 								  end if;

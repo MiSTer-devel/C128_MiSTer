@@ -198,7 +198,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX    XX XXXXXXXXXX XX                                X 
+// XXXXXXXXXXXX    X  XXXXXXXXXX XX                                X 
 
 // bits  0.. 79 keep in sync with C64 core
 // bits 80..127 C128 core options
@@ -208,7 +208,7 @@ localparam CONF_STR = {
    "C128;UART9600:2400;",
    // XXXXXXXXXXXXXXXXXXXXXXXXXXXX
 `ifdef VDC_XRAY
-   "O[127],VDC XRay,Off,On;",
+   "HBO[127],VDC XRay,Off,On;",
 `else
    "-,/!\\ This in-development core;",
    "-,needs a modified MiSTer main;",
@@ -235,16 +235,19 @@ localparam CONF_STR = {
 	"P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
    "P1-;",
    "P1O[95:94],VIC Jailbars,Off,Low,Medium,High;",
-   "P1-;",
-   "P1O[81:80],VDC version,2 (8568/DCR),1 (8563R9),0 (8563R7a);",
+   "HBP1-;",
+   "HBHAP1O[80],VDC Model,8563R9,8568;",
+   "HBhAP1O[80],VDC Model,8568,8563R9;",
 `ifndef REDUCE_VDC_RAM
-   "h6P1O[88],VDC memory,16k,64k;",
+   "HBh6P1O[88],VDC memory,16k,64k;",
 `endif
-   "P1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
-   "h2P1O[90:89],VDC colour,White,Green,Amber,Red;",
+   "HBP1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
+   "HBh2P1O[90:89],VDC colour,White,Green,Amber,Red;",
    "P1-;",
-	"P1O[13],Left SID,8580,6581;",
-	"P1O[16],Right SID,8580,6581;",
+	"HAP1O[13],Left SID,6581,8580;",
+	"hAP1O[13],Left SID,8580,6581;",
+	"HAP1O[16],Right SID,6581,8580;",
+	"hAP1O[16],Right SID,8580,6581;",
 	"D4P1O[66:64],Left Filter,Default,Custom 1,Custom 2,Custom 3,Adjustable;",
 	"D5P1O[69:67],Right Filter,Default,Custom 1,Custom 2,Custom 3,Adjustable;",
 	"D4D8P1O[72:70],Left Fc Offset,0,1,2,3,4,5;",
@@ -259,13 +262,15 @@ localparam CONF_STR = {
    "P2,Hardware;",
 	"P2O[58:57],Enable Drive #8,If Mounted,Always,Never;",
 	"P2O[56:55],Enable Drive #9,If Mounted,Always,Never;",
-   "D7P2O[84:83],Drive #8 5.25\" model,1571,1541,1570;",
-   "D0P2O[86:85],Drive #9 5.25\" model,1571,1541,1570;",
+   "HBD7P2O[84:83],Drive #8 5.25\" model,1571,1541,1570;",
+   "HBD0P2O[86:85],Drive #9 5.25\" model,1571,1541,1570;",
+   "hBD7P2O[84:83],Drive #8 5.25\" model,1541,1571,1570;",
+   "hBD0P2O[86:85],Drive #9 5.25\" model,1541,1571,1570;",
 	"P2O[44],Parallel port,Enabled,Disabled;",
 	"P2O[25],External IEC,Disabled,Enabled;",
 	"P2R[6],Reset Disk Drives;",
    "P2-;",
-   "P2O[87],Internal memory,128K,256K;",
+   "HBP2O[87],Internal memory,128K,256K;",
 	"P2O[52],GeoRAM,Disabled,4MB;",
 	"P2O[54:53],REU,Disabled,512KB,2MB (512KB wrap),16MB;",
    "P2-;",
@@ -273,7 +278,8 @@ localparam CONF_STR = {
 	"P2O[51],RS232 mode,UP9600,VIC-1011;",
 	"P2O[33],RS232 connection,Internal,External;",
 	"P2O[36],Real-Time Clock,Auto,Disabled;",
-   "P2O[45],CIA Model,8521,6526;",
+   "HAP2O[45],CIA Model,6526,8521;",
+   "hAP2O[45],CIA Model,8521,6526;",
    "P2-;",
 	"P2O[27:26],Pot 1/2,Joy 1 Fire 2/3,Mouse,Paddles 1/2;",
 	"P2O[29:28],Pot 3/4,Joy 2 Fire 2/3,Mouse,Paddles 3/4;",
@@ -437,6 +443,10 @@ wire         ioctl_download;
 wire  [31:0] ioctl_file_ext;
 
 reg    [7:0] sysconfig=0;
+wire         cfg_chipset=sysconfig[0];
+wire         cfg_pure64=sysconfig[1];
+wire         cfg_cpslk=sysconfig[2];
+
 wire  [31:0] sd_lba[2];
 wire   [5:0] sd_blk_cnt[2];
 wire   [1:0] sd_rd;
@@ -483,7 +493,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .paddle_3(pd4),
 
    .status(status),
-   .status_menumask({~status[69], ~status[66], status[58], |status[81:80], ~status[16], ~status[13], tap_loaded, status[92], |vcrop, status[56]}),
+   .status_menumask({cfg_pure64, cfg_chipset, ~status[69], ~status[66], status[58], vdcVersion, sidVersion[1], sidVersion[0], tap_loaded, status[92], |vcrop, status[56]}),
    .buttons(buttons),
    .forced_scandoubler(forced_scandoubler),
    .gamma_bus(gamma_bus),
@@ -734,8 +744,8 @@ always @(posedge clk_sys) begin
    if (ioctl_wr) begin
       if (load_rom) begin
          if (ioctl_addr == 0) ioctl_load_addr <= 25'h080000;
-            ioctl_req_wr <= 1; 
-         end
+         ioctl_req_wr <= 1; 
+      end
 
       if (load_cfg) begin
          sysconfig <= ioctl_data;
@@ -750,7 +760,7 @@ always @(posedge clk_sys) begin
          else if (ioctl_addr == 1) begin
             inj_end[15:8] <= ioctl_data;
             if (~status[50]) begin
-               go64 <= ~ioctl_data[4];
+               go64 <= ~(cfg_pure64 | ioctl_data[4]);
                prg_reset <= 1;
             end
          end
@@ -1052,6 +1062,9 @@ wire [17:0] audio_l,audio_r;
 
 wire        ntsc = status[2];
 
+wire        ciaVersion = status[45]^cfg_chipset;
+wire  [1:0] sidVersion = {status[16]^cfg_chipset, status[13]^cfg_chipset};
+
 wire        vicHsync, vicVsync;
 wire  [7:0] vicR, vicG, vicB;
 
@@ -1060,6 +1073,7 @@ wire        vdcHsync, vdcVsync;
 wire        vdcHblank, vdcVblank;
 wire        vdcIlace, vdcF1, vdcDisable;
 wire  [7:0] vdcR, vdcG, vdcB;
+wire        vdcVersion = status[80]^cfg_chipset;
 
 wire        c64_iec_atn;
 wire        c64_iec_clk_o;
@@ -1081,12 +1095,13 @@ fpga64_sid_iec #(
    .pause(freeze),
    .pause_out(c64_pause),
 
+   .pure64(cfg_pure64),
    .sys256k(status[87]),
-   .vdcVersion({(~status[81])^status[80],status[80]}),
+   .vdcVersion(vdcVersion),
 `ifdef REDUCE_VDC_RAM
    .vdc64k(0),
 `else
-   .vdc64k(status[88]|~(status[81]|status[80])),
+   .vdc64k(status[88]|vdcVersion),
 `endif
    .vdcInitRam(~status[24]),
    .vdcPalette(status[92:89]),
@@ -1164,7 +1179,7 @@ fpga64_sid_iec #(
    .dma_we(dma_we),
    .irq_ext_n(~reu_irq),
 
-   .cia_mode(~status[45]),
+   .cia_mode(ciaVersion),
 
    .joya({(pd12_mode && !joy[9:8]) ? joyA_c64[6:5] : 2'b00, joyA_c64[4:0] | {1'b0, pd12_mode[1] & paddle_2_btn, pd12_mode[1] & paddle_1_btn, 2'b00} | {pd12_mode[0] & mouse_btn[0], 3'b000, pd12_mode[0] & mouse_btn[1]}}),
    .joyb({(pd34_mode && !joy[9:8]) ? joyB_c64[6:5] : 2'b00, joyB_c64[4:0] | {1'b0, pd34_mode[1] & paddle_4_btn, pd34_mode[1] & paddle_3_btn, 2'b00} | {pd34_mode[0] & mouse_btn[0], 3'b000, pd34_mode[0] & mouse_btn[1]}}),
@@ -1184,7 +1199,7 @@ fpga64_sid_iec #(
    .sid_ld_wr(sid_ld_wr),
    .sid_mode(status[21:20]),
    .sid_filter(2'b11),
-   .sid_ver({~status[16],~status[13]}),
+   .sid_ver(sidVersion),
 	.sid_cfg({status[68:67],status[65:64]}),
 	.sid_fc_off_l(status[66] ? (13'h600 - {status[72:70],7'd0}) : 13'd0),
 	.sid_fc_off_r(status[69] ? (13'h600 - {status[75:73],7'd0}) : 13'd0),
@@ -1265,12 +1280,20 @@ end
 function [1:0] map_drive_model;
    input [1:0] st;
 begin
-   case(st)
-      2'b00: return 2'b10;    // 1571
-      2'b01: return 2'b00;    // 1541
-      2'b10: return 2'b01;    // 1570
-      default: return 2'bXX;  // (unused)
-   endcase
+   if (!cfg_pure64)
+      case(st)
+         2'b00: return 2'b10;    // 1571
+         2'b01: return 2'b00;    // 1541
+         2'b10: return 2'b01;    // 1570
+         default: return 2'bXX;  // (unused)
+      endcase
+   else
+      case(st)
+         2'b00: return 2'b00;    // 1541
+         2'b01: return 2'b10;    // 1571
+         2'b10: return 2'b01;    // 1570
+         default: return 2'bXX;  // (unused)
+      endcase
 end
 endfunction
 
@@ -1864,7 +1887,7 @@ osdinfo osdinfo
    .d4080_sense(d4080_sense),
    .noscr_sense(noscr_sense),
 
-   .cpslk_mode(status[82]),
+   .cpslk_mode(cfg_cpslk),
 
    .info_req(info_req),
    .info(info)

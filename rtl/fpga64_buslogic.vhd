@@ -30,6 +30,7 @@ entity fpga64_buslogic is
 	port (
 		clk         : in std_logic;
 		reset       : in std_logic;
+		pure64      : in std_logic;
 
 		cpuHasBus   : in std_logic;
 		aec         : in std_logic;
@@ -140,7 +141,7 @@ begin
 	rom1Bank  <= "000" & (cpuAddr(14) and cpuAddr(13)) & cpuAddr(12);
 	rom4Bank  <= "001" & cpuAddr(13) & tAddr(12);
 	rom23Bank <= "01"  & not cpuAddr(14) & cpuAddr(13) & cpuAddr(12);
-	romCBank  <= "100" & not cpslk_sense & c128_n;
+	romCBank  <= "100" & not cpslk_sense & not c128_n;
 	romFbank  <= "11"  & cpuAddr(14) & cpuAddr(13) & cpuAddr(12);
 
 	process(ramData, vicData, sidData, mmuData, vdcData, colorData,
@@ -353,7 +354,10 @@ begin
 							when X"4" =>
 								cs_sidLoc <= not z80m1;
 							when X"6" =>
-								cs_vdcLoc <= not z80m1;
+								cs_vdcLoc <= not pure64 and not z80m1;
+								cs_sidLoc <= pure64 and not z80m1;
+							when X"5" | X"7" =>
+								cs_sidLoc <= pure64 and not z80m1;
 							when X"8" | X"9" | X"A" | X"B" =>
 								cs_colorLoc <= '1';
 							when X"C" =>

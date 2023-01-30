@@ -1,0 +1,55 @@
+<misterromdescription>
+  <name>C64 (C128 core)</name>
+  <mratimestamp>20230129</mratimestamp>
+  <year>1982</year>
+  <manufacturer>Commodore</manufacturer>
+  <rbf>C128</rbf>
+  <setname>C64_C128</setname>
+  <romstruct>
+    Index 0: ROMs
+      000000 - 003FFF: ROM1 (C64)
+      004000 - 007FFF: ROM4
+        04000: Editor
+        05000: Z80 bios
+        06000: C128 kernal
+      008000 - 007FFF: ROM2 (C128 Basic lo)
+      00C000 - 00FFFF: ROM3 (C128 Basic hi)
+      010000 - 013FFF: Character ROM
+        10000: C64 ASCII
+        11000: C128 ASCII
+        12000: C64 DIN
+        13000: C128 DIN
+      014000 - 017FFF: unused
+      018000 - 01FFFF: Internal function ROM
+      020000 - 02FFFF: 1541 (two copies of each drive rom, separate roms for devices 8 and 9)
+      030000 - 03FFFF: 1570
+      040000 - 04FFFF: 1571
+      050000 - 05FFFF: 1581
+      060000 - 0FFFFF: unused
+      100000 - 17FFFF: External function ROM
+
+    Index 1: Variant options
+      bit 0: Chipset: 0=original (6526/6581/8563) 1=CR version (8521/8580/8568) 
+      bit 1: Operating mode: 0=C128 1="Pure" C64 (disables Z80/MMU/VDC)
+      bit 2: Caps lock mode: 0=Normal 1=ASCII/DIN
+  </romstruct>
+  <rom index="0" zip="C128rom.zip" md5="7dd933885b9b346abb2bc836e708c10e">
+    <part name="c64.bin"/>
+    <part repeat="0xC000">00</part>
+    <part name="characters.390059-01.bin" offset="0" length="0x1000"/>
+    <part repeat="0xE000">00</part>
+    <part repeat="0x4000">FF</part>
+    <part name="1541C.251968-02.bin"/> 
+    <part repeat="0x4000">FF</part>
+    <part name="1541C.251968-02.bin"/> 
+    <part name="1570.315090-01.bin"/>
+    <part name="1570.315090-01.bin"/>
+    <part name="1571.310654-05.bin"/>
+    <part name="1571.310654-05.bin"/>
+    <part name="1581.318045-02.bin"/>
+    <part name="1581.318045-02.bin"/>
+  </rom>
+  <rom index="1">
+    <part>02</part>
+  </rom>
+</misterromdescription>

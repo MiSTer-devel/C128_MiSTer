@@ -188,7 +188,7 @@ port(
    cass_read   : in  std_logic;
 
    -- VDC
-   vdcVersion  : in  unsigned(1 downto 0);
+   vdcVersion  : in  std_logic;
    vdc64k      : in  std_logic;
    vdcInitRam  : in  std_logic;
    vdcPalette  : in  unsigned(3 downto 0);
@@ -198,6 +198,7 @@ port(
    sys256k     : in  std_logic;
 
    -- System mode
+   pure64      : in  std_logic;
    c128_n      : out std_logic;
    z80_n       : out std_logic
 );
@@ -443,7 +444,7 @@ component vdc_top
       RAM_ADDR_BITS : integer
    );
    port (
-      version       : in  unsigned(1 downto 0);
+      version       : in  std_logic;
       ram64k        : in  std_logic;
       initRam       : in  std_logic;
       ntsc          : in  std_logic;
@@ -616,6 +617,8 @@ port map (
    cs_io => cs_mmuL,
    cs_lr => cs_mmuH,
 
+   osmode => pure64,
+   cpumode => pure64,
    sys256k => sys256k, -- "1" for 256K system memory
 
    we => mmu_we,
@@ -654,6 +657,7 @@ buslogic: entity work.fpga64_buslogic
 port map (
    clk => clk32,
    reset => reset,
+   pure64 => pure64,
 
    cpuHasBus => cpuHasBus,
    aec => aec,
@@ -778,13 +782,13 @@ port map (
    ba => baLoc,
    ba_dma => ba_dma,
 
-   mode6569 => '0',
-   mode6567old => '0',
-   mode6567R8 => '0',
-   mode6572 => '0',
+	mode6569 => pure64 and (not ntscMode),
+	mode6567old => '0',
+	mode6567R8 => pure64 and ntscMode,
+	mode6572 => '0',
 
-   mode8564 => ntscMode,
-   mode8566 => (not ntscMode),
+   mode8564 => not pure64 and ntscMode,
+   mode8566 => not pure64 and (not ntscMode),
    mode8569 => '0',
 
    turbo_en => turbo_en,
@@ -892,7 +896,7 @@ port map (
    debug => vdcDebug,
 
    clk => clk32,
-   reset => reset,
+   reset => reset or pure64,
    init => '0',
 
    enableBus => enableVdc,
@@ -1100,6 +1104,8 @@ cpuIrq_n <= irq_cia1 and irq_vic and irq_n and irq_ext_n;
 
 cpu_6510: entity work.cpu_6510
 port map (
+   mode => not pure64,
+
    clk => clk32,
    reset => reset,
    enable => cpuactT65 and cpucycT65 and not dma_active,
@@ -1117,14 +1123,14 @@ port map (
    doIO => cpuPO
 );
 
-cpslk_sense_cpu <= cpuPO(6);
+cpslk_sense_cpu <= cpuPO(6) or pure64;
 cass_motor <= cpuPO(5);
 cass_write <= cpuPO(3);
 
 cpu_z80: entity work.cpu_z80
 port map (
    clk => clk32,
-   reset => reset,
+   reset => reset or pure64,
    enable => cpucycT80 and not dma_active,
    busrq_n => baLoc and cpuactT80,
    busak_n => cpuBusAk_T80_n,
@@ -1182,7 +1188,7 @@ begin
 
       -- CPU selection
       if (sysCycle = sysCycleDef'pred(CYCLE_CPU0)) then
-         cpuactT65 <= mmu_z80_n and not cpuBusAk_T80_n;
+         cpuactT65 <= mmu_z80_n and (not cpuBusAk_T80_n or pure64);
          cpuactT80 <= not mmu_z80_n;
       end if;
 
@@ -1233,6 +1239,7 @@ Keyboard: entity work.fpga64_keyboard
 port map (
    clk => clk32,
    reset => kbd_reset,
+   pure64 => pure64,
 
    ps2_key => ps2_key,
    go64 => go64,
