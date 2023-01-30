@@ -303,6 +303,7 @@ localparam CONF_STR = {
    "CHARSET: DIN,CHARSET: ASCII,",
    "40/80 DISPLAY: 80,40/80 DISPLAY: 40,",
    "NO SCROLL LOCK: Off,NO SCROLL LOCK: On;",
+   "DEFMRA,/_Computer/C128def.mra;",
    "V,v",`BUILD_DATE
 };
 
@@ -404,7 +405,7 @@ always @(posedge clk_sys) begin
       reset_wait <= 1;
       reset_counter <= 255;
    end
-   else if (ioctl_download & (load_crt | load_boot)) begin
+   else if (ioctl_download & (load_crt | load_rom)) begin
       do_erase <= 1;
       reset_counter <= 255;
    end
@@ -435,6 +436,7 @@ wire   [9:0] ioctl_index;
 wire         ioctl_download;
 wire  [31:0] ioctl_file_ext;
 
+reg    [7:0] sysconfig=0;
 wire  [31:0] sd_lba[2];
 wire   [5:0] sd_blk_cnt[2];
 wire   [1:0] sd_rd;
@@ -519,11 +521,12 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .info(info)
 );
 
-wire load_boot  = ioctl_index[5:0] == 0;
-wire load_prg   = ioctl_index == 'h01;
-wire load_crt   = ioctl_index == 'h41 || ioctl_index == 5;
-wire load_reu   = ioctl_index == 'h81;
-wire load_tap   = ioctl_index == 'hC1;
+wire load_rom   = ioctl_index == 0;
+wire load_cfg   = ioctl_index == 1;
+wire load_prg   = ioctl_index == 'h02;
+wire load_crt   = ioctl_index == 'h42 || ioctl_index == 5;
+wire load_reu   = ioctl_index == 'h82;
+wire load_tap   = ioctl_index == 'hC2;
 wire load_flt   = ioctl_index == 7;
 wire load_c15xx = ioctl_index == 11;
 
@@ -665,7 +668,6 @@ wire [1:0] pd12_mode = status[27:26];
 wire [1:0] pd34_mode = status[29:28];
 
 reg [24:0] ioctl_load_addr;
-reg [18:0] ioctl_load_size;
 reg        ioctl_req_wr;
 
 reg [15:0] cart_id;
@@ -730,20 +732,13 @@ always @(posedge clk_sys) begin
    if (io_cycle & io_cycleD) {io_cycle_ce, io_cycle_we} <= 0;
 
    if (ioctl_wr) begin
-      if (load_boot) begin
-         if (ioctl_addr == 0) begin
-            case(ioctl_index[7:6])
-               0 : begin ioctl_load_addr <= 25'h080000; ioctl_load_size <= 19'h17FFF; end  // System ROMs (ROM1/4, ROM2/3, char) ROMn: 32k, char: 2k
-               1 : begin ioctl_load_addr <= 25'h0A0000; ioctl_load_size <= 19'h5FFFF; end  // Drive ROMs (1541x2, 1570x2, 1571x2, (unused)x2, 1581x2) 32x2k each
-               2 : begin ioctl_load_addr <= 25'h098000; ioctl_load_size <= 19'h07FFF; end  // Internal function ROM (32k)
-               3 : begin ioctl_load_addr <= 25'h100000; ioctl_load_size <= 19'h07FFF; end  // External function ROM (32k)
-            endcase
+      if (load_rom) begin
+         if (ioctl_addr == 0) ioctl_load_addr <= 25'h080000;
             ioctl_req_wr <= 1; 
          end
-         else if (ioctl_load_size) begin
-            ioctl_load_size <= ioctl_load_size - 1'b1;
-            ioctl_req_wr <= 1; 
-         end
+
+      if (load_cfg) begin
+         sysconfig <= ioctl_data;
       end
 
       if (load_prg) begin
