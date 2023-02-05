@@ -33,7 +33,7 @@
       bit 1: Operating mode: 0=C128 1="Pure" C64 (disables Z80/MMU/VDC)
       bit 2: Caps lock mode: 0=Normal 1=ASCII/DIN
   </romstruct>
-  <rom index="0" zip="C128rom.zip" md5="993d907311d2ae55dfab0a1c947d29c3">
+  <rom index="0" zip="C128rom.zip" md5="ff34238a0194ca6a52adfea7c0824a15">
     <part name="c64.bin"/>
     <part name="editor.318020-05.bin"/>
     <part name="z80bios.bin"/>
@@ -43,10 +43,10 @@
     <part name="characters.390059-01.bin"/>
     <part repeat="0x4000">00</part>
     <part repeat="0x8000">FF</part>
-    <part name="1541C.251968-02.bin"/> 
-    <part name="1541C.251968-02.bin"/> 
-    <part name="1541C.251968-02.bin"/> 
-    <part name="1541C.251968-02.bin"/> 
+    <part name="1541-II.355640-01.bin"/> 
+    <part name="1541-II.355640-01.bin"/> 
+    <part name="1541-II.355640-01.bin"/> 
+    <part name="1541-II.355640-01.bin"/> 
     <part name="1570.315090-01.bin"/>
     <part name="1570.315090-01.bin"/>
     <part name="1571.310654-05.bin"/>
