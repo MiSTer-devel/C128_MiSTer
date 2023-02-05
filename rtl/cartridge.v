@@ -737,7 +737,7 @@ always begin
 	addr_out = addr_in;
 
 	if(reset_n) begin
-		if(sysRom) addr_out[24:12] = {3'b100, sysRomBank[4:0]}; // system ROM banks are mapped to 0x080000 (128k max)
+		if(sysRom) addr_out[24:12] = {3'b011, sysRomBank}; // system ROM banks are mapped to 0x060000
 
 		if(romH & (romH_we | ~mem_write)) addr_out[24:13] =  get_bank(bank_hi, romH_we, addr_in[13]);
 		if(romL & (romL_we | ~mem_write)) addr_out        = {get_bank(bank_lo, romL_we, addr_in[13] & mask_lo[13]), addr_in[12:0] & mask_lo[12:0]};

@@ -708,8 +708,8 @@ reg  [7:0] io_cycle_data;
 
 reg        cfg_loaded = 0;
 
-localparam SYSTEM_ROM_ADDR = 25'h0080000;
-localparam DRIVE_ROM_ADDR = 25'h00A0000;
+localparam SYSTEM_ROM_ADDR = 25'h0060000;
+localparam DRIVE_ROM_ADDR = 25'h0080000;
 localparam CRT_ADDR = 25'h0100000;
 localparam TAP_ADDR = 25'h0200000;
 localparam REU_ADDR = 25'h1000000;
