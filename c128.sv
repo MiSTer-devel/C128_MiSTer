@@ -220,7 +220,7 @@ localparam CONF_STR = {
    "H7S0,D64G64D71G71D81T64,Mount #8                    ;",
    "H0S1,D64G64D71G71D81T64,Mount #9                    ;",
    "-;",
-   "F1,PRGCRTREUTAP;",
+   "F2,PRGCRTREUTAP;",
    "h3-;",
 	"h3R[7],Tape Play/Pause;",
 	"h3R[23],Tape Unload;",
