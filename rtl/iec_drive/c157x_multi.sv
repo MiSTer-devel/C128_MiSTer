@@ -57,10 +57,14 @@ module c157x_multi #(parameter PARPORT=1,DRIVES=2)
 	output  [7:0] sd_buff_din[NDR],
 	input         sd_buff_wr,
 
-	input   [1:0] rom_sel,
-	input  [14:0] rom_addr,
-	input   [7:0] rom_data,
-	input         rom_wr
+	// input   [1:0] rom_sel,
+	// input  [14:0] rom_addr,
+	// input   [7:0] rom_data,
+	// input         rom_wr
+
+	output [14:0] mem_a[NDR],
+	input   [7:0] rom_do[NDR],
+	input   [N:0] empty8k
 );
 
 localparam NDR = (DRIVES < 1) ? 1 : (DRIVES > 4) ? 4 : DRIVES;
@@ -101,90 +105,90 @@ always @(posedge clk) begin
 	end
 end
 
-reg rom_32k_i[4];
-reg rom_16k_i[4];
-reg empty8k[4];
-always @(posedge clk_sys) begin
-	if (rom_wr & !rom_addr) empty8k[rom_sel] <= 1;
-	if (rom_wr & |rom_data & ~&rom_data) begin
-		{rom_32k_i[rom_sel], rom_16k_i[rom_sel]} <= rom_addr[14:13];
-		if(rom_addr[14:8] && !rom_addr[14:13]) empty8k[rom_sel] <= 0;
-	end
-end
+// reg rom_32k_i[4];
+// reg rom_16k_i[4];
+// reg empty8k[4];
+// always @(posedge clk_sys) begin
+// 	if (rom_wr & !rom_addr) empty8k[rom_sel] <= 1;
+// 	if (rom_wr & |rom_data & ~&rom_data) begin
+// 		{rom_32k_i[rom_sel], rom_16k_i[rom_sel]} <= rom_addr[14:13];
+// 		if(rom_addr[14:8] && !rom_addr[14:13]) empty8k[rom_sel] <= 0;
+// 	end
+// end
 
-reg [1:0] rom_sz[4];
-always @(posedge clk) for(int i=0; i<4; i++) rom_sz[i] <= {rom_32k_i[i],rom_32k_i[i]|rom_16k_i[i]}; // support for 8K/16K/32K ROM
+// reg [1:0] rom_sz[4];
+// always @(posedge clk) for(int i=0; i<4; i++) rom_sz[i] <= {rom_32k_i[i],rom_32k_i[i]|rom_16k_i[i]}; // support for 8K/16K/32K ROM
 
-initial begin
-	rom_32k_i = '{0,1,1,1};
-	rom_16k_i = '{1,1,1,1};
-	empty8k   = '{0,0,0,0};
-end
+// initial begin
+// 	rom_32k_i = '{0,1,1,1};
+// 	rom_16k_i = '{1,1,1,1};
+// 	empty8k   = '{0,0,0,0};
+// end
 
-wire [7:0] rom_do[3];
-iecdrv_mem #(8,15,"rtl/iec_drive/c1541_rom.mif") rom1541
-(
-	.clock_a(clk_sys),
-	.address_a(rom_addr),
-	.data_a(rom_data),
-	.wren_a(rom_sel == 0 ? rom_wr : 0),
-
-	.clock_b(clk),
-	.address_b(mem_a),
-	.q_b(rom_do[0])
-);
-
-iecdrv_mem #(8,15,"rtl/iec_drive/c1570_rom.mif") rom1570
-(
-	.clock_a(clk_sys),
-	.address_a(rom_addr),
-	.data_a(rom_data),
-	.wren_a(rom_sel == 1 ? rom_wr : 0),
-
-	.clock_b(clk),
-	.address_b(mem_a),
-	.q_b(rom_do[1])
-);
-
-iecdrv_mem #(8,15,"rtl/iec_drive/c1571_rom.mif") rom1571
-(
-	.clock_a(clk_sys),
-	.address_a(rom_addr),
-	.data_a(rom_data),
-	.wren_a(rom_sel == 2 ? rom_wr : 0),
-
-	.clock_b(clk),
-	.address_b(mem_a),
-	.q_b(rom_do[2])
-);
-
-// iecdrv_mem #(8,15,"rtl/iec_drive/c1571cr_rom.mif") rom1571cr
+// wire [7:0] rom_do[3];
+// iecdrv_mem #(8,15,"rtl/iec_drive/c1541_rom.mif") rom1541
 // (
-// 	.clock_a(clk_sys),
-// 	.address_a(rom_addr),
-// 	.data_a(rom_data),
-// 	.wren_a(rom_sel == 3 ? rom_wr : 0),
+// 	// .clock_a(clk_sys),
+// 	// .address_a(rom_addr),
+// 	// .data_a(rom_data),
+// 	// .wren_a(rom_sel == 0 ? rom_wr : 0),
 
 // 	.clock_b(clk),
 // 	.address_b(mem_a),
-// 	.q_b(rom_do[3])
+// 	.q_b(rom_do[0])
 // );
 
-reg  [14:0] mem_a;
-wire [14:0] drv_addr[NDR];
-reg   [7:0] drv_data[NDR];
-always @(posedge clk) begin
-	reg [2:0] state;
-	reg [14:0] mem_d;
-	
-	if(~&state)  state <= state + 1'd1;
-	if(ph2_f[1]) state <= 0;
+// iecdrv_mem #(8,15,"rtl/iec_drive/c1570_rom.mif") rom1570
+// (
+// 	// .clock_a(clk_sys),
+// 	// .address_a(rom_addr),
+// 	// .data_a(rom_data),
+// 	// .wren_a(rom_sel == 1 ? rom_wr : 0),
 
-	for(int i=0; i<NDR; i=i+1) begin
- 		if (state == i)   mem_a <= { drv_addr[i][14:13] & rom_sz[drv_mode[i]], drv_addr[i][12:0] };
-		if (state == i+3) drv_data[i] <= rom_do[drv_mode[i]];
-	end
-end
+// 	.clock_b(clk),
+// 	.address_b(mem_a),
+// 	.q_b(rom_do[1])
+// );
+
+// iecdrv_mem #(8,15,"rtl/iec_drive/c1571_rom.mif") rom1571
+// (
+// 	// .clock_a(clk_sys),
+// 	// .address_a(rom_addr),
+// 	// .data_a(rom_data),
+// 	// .wren_a(rom_sel == 2 ? rom_wr : 0),
+
+// 	.clock_b(clk),
+// 	.address_b(mem_a),
+// 	.q_b(rom_do[2])
+// );
+
+// // iecdrv_mem #(8,15,"rtl/iec_drive/c1571cr_rom.mif") rom1571cr
+// // (
+// // 	.clock_a(clk_sys),
+// // 	.address_a(rom_addr),
+// // 	.data_a(rom_data),
+// // 	.wren_a(rom_sel == 3 ? rom_wr : 0),
+
+// // 	.clock_b(clk),
+// // 	.address_b(mem_a),
+// // 	.q_b(rom_do[3])
+// // );
+
+// reg  [14:0] mem_a;
+// wire [14:0] drv_addr[NDR];
+// reg   [7:0] drv_data[NDR];
+// always @(posedge clk) begin
+// 	reg [2:0] state;
+// 	reg [14:0] mem_d;
+	
+// 	if(~&state)  state <= state + 1'd1;
+// 	if(ph2_f[1]) state <= 0;
+
+// 	for(int i=0; i<NDR; i=i+1) begin
+//  		if (state == i)   mem_a[i] <= drv_addr[i];
+// 		if (state == i+3) drv_data[i] <= rom_do[i];
+// 	end
+// end
 
 wire [N:0] iec_data_d, iec_clk_d, iec_fclk_d;
 iecdrv_reset_filter #(NDR) rst_flt_clk  (clk, reset_drv, iec_clk_d, iec_clk_o);
@@ -198,7 +202,7 @@ assign     par_stb_o = &{par_stb_d | ~ext_en};
 always_comb begin
 	par_data_o = 8'hFF;
  	for(int i=0; i<NDR; i=i+1) begin
-	 	ext_en[i] = rom_sz[drv_mode[i]][1] & empty8k[drv_mode[i]] & |PARPORT & ~&drv_mode[i] & ~reset_drv[i];
+	 	ext_en[i] = /*rom_sz[drv_mode[i]][1] &*/ empty8k[i] & |PARPORT & ~&drv_mode[i] & ~reset_drv[i];
 		if (ext_en[i]) par_data_o = par_data_o & par_data_d[i];
 	end
 end
@@ -243,8 +247,8 @@ generate
 			.par_stb_o(par_stb_d[i]),
 
 			.ext_en(ext_en[i]),
-			.rom_addr(drv_addr[i]),
-			.rom_data(drv_data[i]),
+			.rom_addr(mem_a[i]),
+			.rom_data(rom_do[i]),
 
 			.clk_sys(clk_sys),
 
