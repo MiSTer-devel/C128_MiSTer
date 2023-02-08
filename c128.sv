@@ -937,7 +937,10 @@ always @(posedge clk_sys) begin
    start_strk  <= old_meminit & ~inj_meminit;
 
    old_st0 <= status[17];
-   if (~old_st0 & status[17]) cart_attached <= 0;
+   if (~old_st0 & status[17]) begin
+      cart_attached <= 0;
+      cart_ext_rom <= 0;
+   end
 
    if (!erasing && force_erase) begin
       erasing <= 1;
