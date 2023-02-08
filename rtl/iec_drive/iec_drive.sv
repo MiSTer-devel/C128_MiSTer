@@ -65,12 +65,12 @@ reg [N:0] img_gcr;       // gcr enabled disk image (d64/g64/d71/g71)
 reg [N:0] img_mfm;       // mfm enabled disk image (g64/g71)
 reg [N:0] img_hd;        // HD (3.5") disk image (d81)
 reg [3:0] rom_bank[NDR]; // ROM bank selector
-always @(clk_sys) 
+always @(posedge clk_sys) 
    for(int i=0; i<NDR; i=i+1) begin
       if(img_mounted[i] && img_size)
          {img_hd[i], img_mfm[i], img_gcr[i], img_ds[i]} = img_type;
 
-      rom_bank[i] = (img_hd[i] ? 3'd3 : drv_mode[i]) * NDR + i;
+      rom_bank[i] = 4'((img_hd[i] ? 3'd3 : drv_mode[i]) * NDR + i);
    end
 
 wire  [14:0] mem_a[NDR], rom_addr_d[NDR];

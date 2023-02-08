@@ -145,7 +145,7 @@ begin
 	romCBank  <= "100" & not cpslk_sense & not c128_n;
 	romFbank  <= "11"  & cpuAddr(14) & cpuAddr(13) & cpuAddr(12);
 
-	process(ramData, vicData, sidData, mmuData, vdcData, colorData,
+	process(ramData, ramDataFloat, vicData, sidData, mmuData, vdcData, colorData,
 		     cia1Data, cia2Data, cs_sysRomLoc, cs_romHLoc, cs_romLLoc, 
 			  cs_ramLoc, cs_vicLoc, cs_sidLoc, cs_colorLoc, cs_mmuLLoc, cs_mmuHLoc, cs_vdcLoc,
 			  cs_cia1Loc, cs_cia2Loc, lastVicData,
@@ -192,7 +192,7 @@ begin
 
 	process(
 		cpuHasBus, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
-		c128_n, z80_n, z80io, z80m1, mmu_rombank, mmu_iosel, cpuBank, vicBank,
+		pure64, c128_n, z80_n, z80io, z80m1, mmu_rombank, mmu_iosel, cpuBank, vicBank,
       rom1Bank, rom23Bank, rom4Bank, romCBank, romFBank
 	)
 	begin

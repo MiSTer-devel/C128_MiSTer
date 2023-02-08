@@ -33,7 +33,7 @@ always @(posedge clk_sys) begin
    else if (rom_req && rom_wr) begin
       if (&rom_addr)
          rom_valid <= 1;
-      rom_addr <= rom_addr + 1;
+      rom_addr <= rom_addr + 1'd1;
    end
 end
 
