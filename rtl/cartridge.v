@@ -14,6 +14,7 @@ module cartridge
 	input             cart_loading,
 	input      [15:0] cart_id,					// cart ID or cart type
 	input             cart_c128,  			// native C128 cart
+	input       [1:0] cart_ext_rom,        // External rom loaded during boot
 	input       [7:0] cart_exrom,				// CRT file EXROM status
 	input       [7:0] cart_game,				// CRT file GAME status
 	input      [15:0] cart_bank_laddr,		// bank loading address
@@ -722,7 +723,7 @@ function [7:0] get_bank;
 	input       ram;
 	input       addr13;
 begin
-	get_bank = ram ? {5'b00100, bank[2:0]} : (cart_c128 ? {1'b1, bank[5:0], addr13} : {1'b1, bank[6:0]} );
+	get_bank = ram ? {5'b00100, bank[2:0]} : (c128_n ? {1'b1, bank[6:0]} : {1'b1, bank[5:0], addr13});
 end
 endfunction
 
@@ -760,7 +761,18 @@ always begin
 			99: if(IOE) begin
 					addr_out[24:8] <= {3'b011, geo_bank};  // Map GeoRAM to 0xC00000-0xFFFFFF
 				end
-			255: if(romH || romL) addr_out = 0;
+			255: if (romL) begin
+					if (cart_ext_rom[0])
+						addr_out[24:13] <= get_bank(0, 0, addr_in[13]);
+					else
+						addr_out <= 0;
+				end
+			   else if (romH) begin
+					if (cart_ext_rom[c128_n ? 1 : 2])
+						addr_out[24:13] <= get_bank(1, 0, addr_in[13]);
+					else
+						addr_out <= 0;
+				end
 		default:;
 		endcase
 	end

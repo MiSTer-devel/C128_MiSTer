@@ -554,6 +554,7 @@ wire cart_oe;
 wire IOF_rd;
 wire  [7:0] cart_data;
 wire [24:0] cart_addr;
+wire  [2:0] cart_ext_rom;
 
 cartridge cartridge
 (
@@ -563,6 +564,7 @@ cartridge cartridge
    .cart_loading(ioctl_download && load_crt),
    .cart_id(cart_attached ? cart_id : status[52] ? 8'd99 : 8'd255),
    .cart_c128(cart_c128),
+   .cart_ext_rom(cart_ext_rom),
    .cart_exrom(cart_exrom),
    .cart_game(cart_game),
    .cart_bank_laddr(cart_bank_laddr),
@@ -753,7 +755,14 @@ always @(posedge clk_sys) begin
 
    if (ioctl_wr) begin
       if (load_rom) begin
-         if (ioctl_addr == 0) ioctl_load_addr <= SYSTEM_ROM_ADDR;
+         if (ioctl_addr == 0) begin
+            ioctl_load_addr <= SYSTEM_ROM_ADDR;
+            cart_ext_rom <= 0;
+         end
+         if (ioctl_addr == 'hA0000) cart_ext_rom[0] <= 1;
+         if (ioctl_addr == 'hA2000) cart_ext_rom[1] <= 1;
+         if (ioctl_addr == 'hA4000) cart_ext_rom[2] <= 1;
+
          ioctl_req_wr <= 1; 
       end
 
@@ -787,6 +796,7 @@ always @(posedge clk_sys) begin
             ioctl_load_addr <= CRT_ADDR;
             cart_blk_len <= 0;
             cart_hdr_cnt <= 0;
+            cart_ext_rom <= 0;
          end
 
          if (ioctl_addr == 8'h01) cart_c128       <= ioctl_data[0];
