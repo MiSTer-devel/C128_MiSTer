@@ -10,6 +10,7 @@ module cartridge
 	parameter RAM_ADDR,
 	parameter CRM_ADDR,
 	parameter ROM_ADDR,
+	parameter IFR_ADDR,
 	parameter CRT_ADDR,
 	parameter GEO_ADDR
 )
@@ -21,7 +22,8 @@ module cartridge
 	input             cart_loading,
 	input      [15:0] cart_id,					// cart ID or cart type
 	input             cart_c128,  			// native C128 cart
-	input       [1:0] cart_ext_rom,        // External rom loaded during boot
+	input       [1:0] cart_int_rom,        // Internal function rom loaded during boot
+	input       [2:0] cart_ext_rom,        // External function rom loaded during boot
 	input       [7:0] cart_exrom,				// CRT file EXROM status
 	input       [7:0] cart_game,				// CRT file GAME status
 	input      [15:0] cart_bank_laddr,		// bank loading address
@@ -39,6 +41,8 @@ module cartridge
 	input             sysRom,              // select system ROM
 	input       [4:0] sysRomBank,          // system ROM bank
 
+	input             romFL,					// romFL signal in
+	input             romFH,					// romFH signal in
 	input             romL,						// romL signal in
 	input             romH,						// romH signal in
 	input             UMAXromH,				// romH VIC II address signal
@@ -749,6 +753,14 @@ always begin
 	if(reset_n) begin
 		if(sysRom) addr_out[24:12] = {8'(ROM_ADDR>>17), sysRomBank};
 
+		if(romFL) begin
+			addr_out[24:14] = {10'(IFR_ADDR>>15), 1'b0};
+			data_floating = ~cart_int_rom[0];
+		end
+		if(romFH) begin
+			addr_out[24:14] = {10'(IFR_ADDR>>15), 1'b1};
+			data_floating = ~cart_int_rom[1];
+		end
 		if(romH & (romH_we | ~mem_write)) addr_out[24:13] =  get_bank(bank_hi, romH_we, addr_in[13]);
 		if(romL & (romL_we | ~mem_write)) addr_out        = {get_bank(bank_lo, romL_we, addr_in[13] & mask_lo[13]), addr_in[12:0] & mask_lo[12:0]};
 
@@ -772,11 +784,11 @@ always begin
 				end
 			255: if (romL) begin
 					addr_out[24:13] = get_bank(0, 0, addr_in[13]);
-					data_floating = ~cart_ext_rom[0];
+					data_floating = ~(c128_n ? cart_ext_rom[0] : cart_ext_rom[0]|cart_ext_rom[1]);
 				end
 			   else if (romH) begin
 					addr_out[24:13] = get_bank(1, 0, addr_in[13]);
-					data_floating = ~cart_ext_rom[c128_n ? 1 : 2];
+					data_floating = ~(c128_n ? cart_ext_rom[1] : cart_ext_rom[2]);
 				end
 		default:;
 		endcase

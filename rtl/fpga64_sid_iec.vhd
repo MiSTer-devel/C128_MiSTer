@@ -114,6 +114,8 @@ port(
    irq_n       : in  std_logic;
    nmi_n       : in  std_logic;
    nmi_ack     : out std_logic;
+   romFL       : out std_logic;
+   romFH       : out std_logic;
    romL        : out std_logic;
    romH        : out std_logic;
    UMAXromH 	: out std_logic;
@@ -716,6 +718,8 @@ port map (
    cs_ram => cs_ram,
    cs_ioE => ioe_i,
    cs_ioF => iof_i,
+   cs_romFL => romFL,
+   cs_romFH => romFH,
    cs_romL => romL,
    cs_romH => romH,
    cs_UMAXromH => UMAXromH,

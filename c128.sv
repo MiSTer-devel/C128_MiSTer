@@ -555,12 +555,14 @@ wire IOF_rd;
 wire  [7:0] cart_data;
 wire [24:0] cart_addr;
 wire        cart_floating;
+wire  [1:0] cart_int_rom;
 wire  [2:0] cart_ext_rom;
 
 cartridge #(
    .RAM_ADDR(RAM_ADDR),
    .CRM_ADDR(CRM_ADDR),
    .ROM_ADDR(ROM_ADDR),
+   .IFR_ADDR(IFR_ADDR),
    .CRT_ADDR(CRT_ADDR),
    .GEO_ADDR(GEO_ADDR)
 ) cartridge
@@ -571,6 +573,7 @@ cartridge #(
    .cart_loading(ioctl_download && load_crt),
    .cart_id(cart_attached ? cart_id : status[52] ? 8'd99 : 8'd255),
    .cart_c128(cart_c128),
+   .cart_int_rom(cart_int_rom),
    .cart_ext_rom(cart_ext_rom),
    .cart_exrom(cart_exrom),
    .cart_game(cart_game),
@@ -590,6 +593,8 @@ cartridge #(
    .game_in(game_mmu),
 
    .c128_n(c128_n),
+   .romFL(romFL),
+   .romFH(romFH),
    .romL(romL),
    .romH(romH),
    .UMAXromH(UMAXromH),
@@ -724,9 +729,10 @@ reg        cfg_loaded = 0;
 // -- all blocks must be aligned on that block's size boundaries, so a 64k block must start at a 64k boundary, etc.
 localparam RAM_ADDR = 25'h0000000;  // System RAM: 256k
 localparam CRM_ADDR = 25'h0040000;  // Cartridge RAM: 64k
-localparam ROM_ADDR = 25'h0060000;  // System ROM: 128k  \
-localparam DRV_ADDR = 25'h0080000;  // Drive ROM: 512k    } loaded from boot.rom or MRA
-localparam CRT_ADDR = 25'h0100000;  // Cartridge: 1M     /
+localparam ROM_ADDR = 25'h0060000;  // System ROM: 96k (align on 128k)  \
+localparam IFR_ADDR = 25'h0078000;  // Internal function ROM: 32k        \
+localparam DRV_ADDR = 25'h0080000;  // Drive ROM: 512k                    } loaded from boot.rom or MRA
+localparam CRT_ADDR = 25'h0100000;  // Cartridge: 1M                     /
 localparam TAP_ADDR = 25'h0200000;  // Tape buffer
 localparam GEO_ADDR = 25'h0C00000;  // GeoRAM: 4M
 localparam REU_ADDR = 25'h1000000;  // REU: 16M
@@ -773,11 +779,15 @@ always @(posedge clk_sys) begin
          if (ioctl_addr == 0) begin
             ioctl_load_addr <= ROM_ADDR;
             cart_ext_rom <= 0;
+            cart_int_rom <= 0;
          end
-         if (ioctl_addr == CRT_ADDR-ROM_ADDR)        cart_ext_rom[0] <= 1;
-         if (ioctl_addr == CRT_ADDR-ROM_ADDR+'h2000) cart_ext_rom[1] <= 1;
-         if (ioctl_addr == CRT_ADDR-ROM_ADDR+'h4000) cart_ext_rom[2] <= 1;
-
+         if (|ioctl_data && ~&ioctl_data) begin
+            if (ioctl_addr[24:14] == {10'((IFR_ADDR-ROM_ADDR)>>15), 1'b0})  cart_int_rom[0] <= 1;
+            if (ioctl_addr[24:14] == {10'((IFR_ADDR-ROM_ADDR)>>15), 1'b1})  cart_int_rom[1] <= 1;
+            if (ioctl_addr[24:13] == {10'((CRT_ADDR-ROM_ADDR)>>15), 2'b00}) cart_ext_rom[0] <= 1;
+            if (ioctl_addr[24:13] == {10'((CRT_ADDR-ROM_ADDR)>>15), 2'b01}) cart_ext_rom[1] <= 1;
+            if (ioctl_addr[24:14] == {10'((CRT_ADDR-ROM_ADDR)>>15), 1'b1})  cart_ext_rom[2] <= 1;
+         end
          ioctl_req_wr <= 1; 
       end
 
@@ -1093,6 +1103,8 @@ wire        mod_key;
 
 wire        IOE;
 wire        IOF;
+wire        romFL;
+wire        romFH;
 wire        romL;
 wire        romH;
 wire        UMAXromH;
@@ -1200,8 +1212,10 @@ fpga64_sid_iec #(
    .freeze_key(freeze_key),
    .tape_play(tape_play),
    .mod_key(mod_key),
-   .roml(romL),
-   .romh(romH),
+   .romFL(romFL),
+   .romFH(romFH),
+   .romL(romL),
+   .romH(romH),
    .ioe(IOE),
    .iof(IOF),
    .io_rom(io_rom),

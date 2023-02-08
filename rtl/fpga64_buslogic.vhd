@@ -17,10 +17,11 @@
 -- Basic, Char and Kernel ROMs are included
 -- Original Kernel replaced by JiffyDos
 -- -----------------------------------------------------------------------
---
 -- Erik Scheffers 2022
 --
--- updated for C128
+-- extended for C128
+-- moved ROM images to SRAM
+-- -----------------------------------------------------------------------
 
 library IEEE;
 USE ieee.std_logic_1164.ALL;
@@ -94,11 +95,13 @@ entity fpga64_buslogic is
 		cs_cia2     : out std_logic;
 		cs_ram      : out std_logic;
 
-		-- To catridge port
+		-- To cartridge port
 		cs_ioE      : out std_logic;
 		cs_ioF      : out std_logic;
 		cs_romL     : out std_logic;
 		cs_romH     : out std_logic;
+		cs_romFL    : out std_logic;
+		cs_romFH    : out std_logic;
 		cs_UMAXromH : out std_logic;
 
 		-- Others
@@ -127,13 +130,14 @@ architecture rtl of fpga64_buslogic is
 	signal cs_ioFLoc      : std_logic;
 	signal cs_romLLoc     : std_logic;
 	signal cs_romHLoc     : std_logic;
+	signal cs_romFLLoc    : std_logic;
+	signal cs_romFHLoc    : std_logic;
 	signal cs_UMAXromHLoc : std_logic;
 	signal cs_UMAXnomapLoc: std_logic;
 	signal rom1Bank       : unsigned(4 downto 0);
 	signal rom23Bank      : unsigned(4 downto 0);
 	signal rom4Bank       : unsigned(4 downto 0);
 	signal romCBank       : unsigned(4 downto 0);
-	signal romFBank       : unsigned(4 downto 0);
 	signal ultimax        : std_logic;
 
 	signal currentAddr    : unsigned(17 downto 0);
@@ -143,10 +147,9 @@ begin
 	rom4Bank  <= "001" & cpuAddr(13) & tAddr(12);
 	rom23Bank <= "01"  & not cpuAddr(14) & cpuAddr(13) & cpuAddr(12);
 	romCBank  <= "100" & not cpslk_sense & not c128_n;
-	romFbank  <= "11"  & cpuAddr(14) & cpuAddr(13) & cpuAddr(12);
 
 	process(ramData, ramDataFloat, vicData, sidData, mmuData, vdcData, colorData,
-		     cia1Data, cia2Data, cs_sysRomLoc, cs_romHLoc, cs_romLLoc, 
+		     cia1Data, cia2Data, cs_sysRomLoc, cs_romFLLoc, cs_romFHLoc, cs_romHLoc, cs_romLLoc,
 			  cs_ramLoc, cs_vicLoc, cs_sidLoc, cs_colorLoc, cs_mmuLLoc, cs_mmuHLoc, cs_vdcLoc,
 			  cs_cia1Loc, cs_cia2Loc, lastVicData,
 			  cs_ioELoc, cs_ioFLoc,
@@ -177,6 +180,10 @@ begin
 			dataToCpu <= ramData;
 		elsif cs_romHLoc = '1' and ramDataFloat = '0' then
 			dataToCpu <= ramData;
+		elsif cs_romFLLoc = '1' and ramDataFloat = '0' then
+			dataToCpu <= ramData;
+		elsif cs_romFHLoc = '1' and ramDataFloat = '0' then
+			dataToCpu <= ramData;
 		elsif cs_ioELoc = '1' and io_rom = '1' and ramDataFloat = '0' then
 			dataToCpu <= ramData;
 		elsif cs_ioFLoc = '1' and io_rom = '1' and ramDataFloat = '0' then
@@ -193,7 +200,7 @@ begin
 	process(
 		cpuHasBus, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
 		pure64, c128_n, z80_n, z80io, z80m1, mmu_rombank, mmu_iosel, cpuBank, vicBank,
-      rom1Bank, rom23Bank, rom4Bank, romCBank, romFBank
+      rom1Bank, rom23Bank, rom4Bank, romCBank
 	)
 	begin
 		currentAddr <= (others => '1');
@@ -214,6 +221,8 @@ begin
 		cs_ioFLoc <= '0';
 		cs_romLLoc <= '0'; -- external rom L
 		cs_romHLoc <= '0'; -- external rom H
+		cs_romFLLoc <= '0'; -- internal function rom L
+		cs_romFHLoc <= '0'; -- internal function rom H
 		cs_UMAXromHLoc <= '0';		-- Ultimax flag for the VIC access - LCA
 		cs_UMAXnomapLoc <= '0';
 
@@ -234,8 +243,7 @@ begin
 								cs_sysRomLoc <= '1';
 								sysRomBank <= rom4Bank;
 							when B"01" =>
-								cs_sysRomLoc <= '1';
-								sysRomBank <= romFBank;
+							   cs_romFHLoc <= '1';
 							when B"10" =>
 								cs_romHLoc <= '1';
 							when B"11" =>
@@ -280,8 +288,7 @@ begin
 									cs_ramLoc <= '1';
 								end if;
 							when B"01" =>
-								cs_sysRomLoc <= '1';
-								sysRomBank <= romFBank;
+								cs_romFHLoc <= '1';
 							when B"10" =>
 								cs_romHLoc <= '1';
 							when B"11" =>
@@ -297,8 +304,7 @@ begin
 								cs_sysRomLoc <= '1';
 								sysRomBank <= rom23Bank;
 							when B"01" =>
-								cs_sysRomLoc <= '1';
-								sysRomBank <= romFBank;
+								cs_romFLLoc <= '1';
 							when B"10" =>
 								cs_romLLoc <= '1';
 							when B"11" =>
@@ -320,7 +326,6 @@ begin
 					else
 						cs_ramLoc <= '1';
 					end if;
-
 				when others =>
 					cs_ramLoc <= '1';
 				end case;
@@ -447,7 +452,7 @@ begin
 		end if;
 	end process;
 
-	cs_ram <= cs_ramLoc or cs_romLLoc or cs_romHLoc or cs_UMAXromHLoc or cs_UMAXnomapLoc or cs_sysRomLoc;
+	cs_ram <= cs_ramLoc or cs_romLLoc or cs_romHLoc or cs_romFLLoc or cs_romFHLoc or cs_UMAXromHLoc or cs_UMAXnomapLoc or cs_sysRomLoc;
 	cs_vic <= cs_vicLoc and io_enable;
 	cs_sid <= cs_sidLoc and io_enable;
 	cs_mmuH <= cs_mmuHLoc and io_enable;
@@ -460,6 +465,8 @@ begin
 	cs_ioF <= cs_ioFLoc and io_enable;
 	cs_romL <= cs_romLLoc;
 	cs_romH <= cs_romHLoc;
+	cs_romFL <= cs_romFLLoc;
+	cs_romFH <= cs_romFHLoc;
 	cs_UMAXromH <= cs_UMAXromHLoc;
 	cs_sysRom <= cs_sysRomLoc;
 
