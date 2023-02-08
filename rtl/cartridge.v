@@ -47,6 +47,7 @@ module cartridge
 	input      [17:0] addr_in,             // address from cpu
 	input       [7:0] data_in,  			   // data from cpu going to sdram
 	output reg [24:0] addr_out, 	         // translated address output
+	output reg        data_floating,
 
 	input             freeze_key,
 	input             mod_key,
@@ -732,6 +733,7 @@ always begin
 	IOF_rd = 0;
 	IO_data = 8'hFF;
 	force_ultimax = 0;
+	data_floating = 0;
 
 	//prohibit to write in ultimax mode into underlaying (actually non-existent) RAM
 	mem_write_out = ~(romL & ~romL_we & exrom_overide & ~game_overide) & mem_write;
@@ -759,19 +761,15 @@ always begin
 					addr_out[24:13] = get_bank(2, 0, 0);
 				end
 			99: if(IOE) begin
-					addr_out[24:8] <= {3'b011, geo_bank};  // Map GeoRAM to 0xC00000-0xFFFFFF
+					addr_out[24:8] = {3'b011, geo_bank};  // Map GeoRAM to 0xC00000-0xFFFFFF
 				end
 			255: if (romL) begin
-					if (cart_ext_rom[0])
-						addr_out[24:13] <= get_bank(0, 0, addr_in[13]);
-					else
-						addr_out <= 0;
+					addr_out[24:13] = get_bank(0, 0, addr_in[13]);
+					data_floating = ~cart_ext_rom[0];
 				end
 			   else if (romH) begin
-					if (cart_ext_rom[c128_n ? 1 : 2])
-						addr_out[24:13] <= get_bank(1, 0, addr_in[13]);
-					else
-						addr_out <= 0;
+					addr_out[24:13] = get_bank(1, 0, addr_in[13]);
+					data_floating = ~cart_ext_rom[c128_n ? 1 : 2];
 				end
 		default:;
 		endcase

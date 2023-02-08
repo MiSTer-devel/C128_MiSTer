@@ -38,6 +38,7 @@ entity fpga64_buslogic is
 		z80m1       : in std_logic;
 
 		ramData     : in unsigned(7 downto 0);
+		ramDataFloat: in std_logic;
 
 		--   C64 mode   C128 mode
 		-- 2 CHAREN     1=Disable char rom in VIC
@@ -155,7 +156,7 @@ begin
 		-- It will contain the last data read by the VIC. (if a C64 is shielded correctly)
 		dataToCpu <= lastVicData;
 		if cs_sysRomLoc = '1' then
-			dataToCpu <= unsigned(ramData);
+			dataToCpu <= ramData;
 		elsif cs_ramLoc = '1' then
 			dataToCpu <= ramData;
 		elsif cs_vicLoc = '1' then
@@ -172,13 +173,13 @@ begin
 			dataToCpu <= cia1Data;
 		elsif cs_cia2Loc = '1' then
 			dataToCpu <= cia2Data;
-		elsif cs_romLLoc = '1' then
+		elsif cs_romLLoc = '1' and ramDataFloat = '0' then
 			dataToCpu <= ramData;
-		elsif cs_romHLoc = '1' then
+		elsif cs_romHLoc = '1' and ramDataFloat = '0' then
 			dataToCpu <= ramData;
-		elsif cs_ioELoc = '1' and io_rom = '1' then
+		elsif cs_ioELoc = '1' and io_rom = '1' and ramDataFloat = '0' then
 			dataToCpu <= ramData;
-		elsif cs_ioFLoc = '1' and io_rom = '1' then
+		elsif cs_ioFLoc = '1' and io_rom = '1' and ramDataFloat = '0' then
 			dataToCpu <= ramData;
 		elsif cs_ioELoc = '1' and io_ext = '1' then
 			dataToCpu <= io_data;

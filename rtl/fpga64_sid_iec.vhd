@@ -68,6 +68,7 @@ port(
    -- external memory
    ramAddr     : out unsigned(17 downto 0);
    ramDin      : in  unsigned(7 downto 0);
+   ramDinFloat : in  std_logic;
    ramDout     : out unsigned(7 downto 0);
    ramCE       : out std_logic;
    ramWE       : out std_logic;
@@ -681,6 +682,7 @@ port map (
    io_data => io_data_i,
 
    ramData => ramDin,
+   ramDataFloat => ramDinFloat,
 
    cpuWe => cpuWe,
    cpuAddr => cpuAddr,

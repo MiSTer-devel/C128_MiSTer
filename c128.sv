@@ -554,6 +554,7 @@ wire cart_oe;
 wire IOF_rd;
 wire  [7:0] cart_data;
 wire [24:0] cart_addr;
+wire        cart_floating;
 wire  [2:0] cart_ext_rom;
 
 cartridge cartridge
@@ -598,6 +599,7 @@ cartridge cartridge
    .addr_in(c128_addr),
    .data_in(c128_data_out),
    .addr_out(cart_addr),
+   .data_floating(cart_floating),
 
    .freeze_key(freeze_key),
    .mod_key(mod_key),
@@ -1146,6 +1148,7 @@ fpga64_sid_iec #(
    .ramAddr(c128_addr),
    .ramDout(c128_data_out),
    .ramDin(sdram_data),
+   .ramDinFloat(cart_floating),
    .ramCE(ram_ce),
    .ramWE(ram_we),
 
