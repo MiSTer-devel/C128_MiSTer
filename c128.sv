@@ -292,8 +292,6 @@ localparam CONF_STR = {
 	"P2O[42],Pause When OSD is Open,No,Yes;",
 	"P2O[39],Tape Autoplay,Yes,No;",
    "P2-;",
-   // "P2FC4,R41R70R71R81,Drive ROM                   ;",
-   // "P2-;",
    "P2FC5,CRT,Boot Cartridge              ;",
    "-;",
 	"O[3],Swap Joysticks,No,Yes;",
@@ -402,7 +400,7 @@ always @(posedge clk_sys) begin
 
    reset_n <= !reset_counter;
 
-   if (RESET | status[0] | status[17] | buttons[1] | !pll_locked | !cfg_loaded) begin
+   if (RESET | status[0] | status[17] | buttons[1] | !pll_locked) begin
       if(RESET) do_erase <= 1;
       reset_counter <= 100000;
    end
@@ -411,7 +409,7 @@ always @(posedge clk_sys) begin
       reset_wait <= 1;
       reset_counter <= 255;
    end
-   else if (ioctl_download & (load_crt | load_rom | load_cfg)) begin
+   else if (ioctl_download & (load_rom | load_cfg | load_crt) & reset_counter <= 255) begin
       do_erase <= 1;
       reset_counter <= 255;
    end
@@ -440,9 +438,8 @@ wire  [24:0] ioctl_addr;
 wire   [7:0] ioctl_data;
 wire   [9:0] ioctl_index;
 wire         ioctl_download;
-// wire  [31:0] ioctl_file_ext;
 
-reg    [7:0] sysconfig=0;
+reg    [2:0] sysconfig=3'b001;
 wire         cfg_chipset=sysconfig[0];
 wire         cfg_pure64=sysconfig[1];
 wire         cfg_cpslk=sysconfig[2];
@@ -521,7 +518,6 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 
    .ioctl_download(ioctl_download),
    .ioctl_index(ioctl_index),
-   // .ioctl_file_ext(ioctl_file_ext),
    .ioctl_wr(ioctl_wr),
    .ioctl_addr(ioctl_addr),
    .ioctl_dout(ioctl_data),
@@ -723,7 +719,7 @@ reg        io_cycle_we;
 reg [24:0] io_cycle_addr;
 reg  [7:0] io_cycle_data;
 
-reg        cfg_loaded = 0;
+reg        rom_loaded = 0;
 
 // SDRAM layout 
 // -- all blocks must be aligned on that block's size boundaries, so a 64k block must start at a 64k boundary, etc.
@@ -747,10 +743,15 @@ always @(posedge clk_sys) begin
    reg [15:0] inj_end;
    reg  [7:0] inj_meminit_data;
    reg        prg_reseting;
+   reg        load_rom_d;
 
    old_download <= ioctl_download;
    io_cycleD <= io_cycle;
    cart_hdr_wr <= 0;
+
+   load_rom_d <= (ioctl_download & load_rom);
+   if (load_rom_d && !ioctl_download)
+      rom_loaded <= 1;
 
    if (~io_cycle & io_cycleD) begin
       io_cycle_ce <= 1;
@@ -780,6 +781,7 @@ always @(posedge clk_sys) begin
             ioctl_load_addr <= ROM_ADDR;
             cart_ext_rom <= 0;
             cart_int_rom <= 0;
+            rom_loaded <= 0;
          end
          if (|ioctl_data && ~&ioctl_data) begin
             if (ioctl_addr[24:14] == {10'((IFR_ADDR-ROM_ADDR)>>15), 1'b0})  cart_int_rom[0] <= 1;
@@ -792,8 +794,7 @@ always @(posedge clk_sys) begin
       end
 
       if (load_cfg) begin
-         sysconfig <= ioctl_data;
-         cfg_loaded <= 1;
+         sysconfig <= ioctl_data[2:0];
       end
 
       if (load_prg) begin
@@ -1398,7 +1399,6 @@ iec_drive iec_drive
    .sd_buff_din(sd_buff_din),
    .sd_buff_wr(sd_buff_wr),
 
-   // .rom_file_ext(ioctl_file_ext),
    .rom_req (drive_rom_req),
    .rom_addr(drive_rom_addr),
    .rom_data(sdram_data),
@@ -1412,7 +1412,7 @@ always @(posedge clk_sys) begin
    io_cycleD <= io_cycle;
    drive_rom_wr <= 0;
 
-   if (drive_rom_req && !io_cycleD && io_cycle && !ioctl_req_wr && !tap_io_cycle && cfg_loaded)
+   if (drive_rom_req && !io_cycleD && io_cycle && !ioctl_req_wr && !tap_io_cycle && rom_loaded)
       drive_rom_cycle <= 2'd2;
 
    if (drive_rom_cycle) begin
