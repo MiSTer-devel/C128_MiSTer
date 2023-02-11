@@ -239,7 +239,7 @@ localparam CONF_STR = {
    "HBHAP1O[80],VDC Model,8563R9,8568;",
    "HBhAP1O[80],VDC Model,8568,8563R9;",
 `ifndef REDUCE_VDC_RAM
-   "HBh6P1O[88],VDC memory,16k,64k;",
+   "HBH6P1O[88],VDC memory,16k,64k;",
 `endif
    "HBP1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
    "HBh2P1O[90:89],VDC colour,White,Green,Amber,Red;",
