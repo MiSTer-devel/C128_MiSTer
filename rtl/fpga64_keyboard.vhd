@@ -219,9 +219,11 @@ begin
 	capslock_toggle: process(clk)
 	begin
 		if rising_edge(clk) then
-			if reset = '1' or pure64='1' then
+			if pure64 = '1' then
 				capslock_0 <= '0';
 				capslock_state <= '1';
+			elsif reset = '1' then
+				capslock_0 <= '0';
 			else
 				capslock_0 <= capslock;
 				if (capslock = '1' and capslock_0 = '0') then
@@ -235,7 +237,10 @@ begin
 	disp4080_toggle: process(clk)
 	begin
 		if rising_edge(clk) then
-			if reset = '1' or pure64 = '1' then
+			if pure64 = '1' then
+				disp4080_0 <= '0';
+				disp4080_state <= '1';
+			elsif reset = '1' then
 				disp4080_0 <= '0';
 			else
 				disp4080_0 <= disp4080;

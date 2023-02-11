@@ -32,6 +32,7 @@ entity fpga64_buslogic is
 		clk         : in std_logic;
 		reset       : in std_logic;
 		pure64      : in std_logic;
+		cpslk_mode  : in std_logic;
 
 		cpuHasBus   : in std_logic;
 		aec         : in std_logic;
@@ -146,7 +147,7 @@ begin
 	rom1Bank  <= "000" & (cpuAddr(14) and cpuAddr(13)) & cpuAddr(12);
 	rom4Bank  <= "001" & cpuAddr(13) & tAddr(12);
 	rom23Bank <= "01"  & not cpuAddr(14) & cpuAddr(13) & cpuAddr(12);
-	romCBank  <= "100" & not cpslk_sense & not c128_n;
+	romCBank  <= "1000" & not ((not cpslk_mode and c128_n) or (cpslk_mode and cpslk_sense));
 
 	process(ramData, ramDataFloat, vicData, sidData, mmuData, vdcData, colorData,
 		     cia1Data, cia2Data, cs_sysRomLoc, cs_romFLLoc, cs_romFHLoc, cs_romHLoc, cs_romLLoc,

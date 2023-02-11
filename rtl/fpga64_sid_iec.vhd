@@ -59,6 +59,7 @@ port(
    ps2_key     : in  std_logic_vector(10 downto 0);
    kbd_reset   : in  std_logic := '0';
    shift_mod   : in  std_logic_vector(1 downto 0);
+   cpslk_mode  : in  std_logic;
    sftlk_sense : out std_logic;
    cpslk_sense : out std_logic;
    d4080_sense : out std_logic;
@@ -661,6 +662,7 @@ port map (
    clk => clk32,
    reset => reset,
    pure64 => pure64,
+   cpslk_mode => cpslk_mode,
 
    cpuHasBus => cpuHasBus,
    aec => aec,
