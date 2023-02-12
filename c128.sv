@@ -296,6 +296,7 @@ localparam CONF_STR = {
    "jn,A,B,Y,X|P,R,L;",
    "jp,A,B,Y,X|P,R,L;",
    "I,",
+   "Missing/invalid boot.rom or MRA file,",
    "SHIFT LOCK: Off,SHIFT LOCK: On,",
    "CAPS LOCK: On,CAPS LOCK: Off,",
    "ASCII/DIN: DIN,ASCII/DIN: ASCII,",
@@ -391,9 +392,9 @@ always @(posedge clk_sys) begin
    integer reset_counter;
    reg do_erase = 1;
 
-   reset_n <= !reset_counter;
+   reset_n <= ~|reset_counter;
 
-   if (RESET | status[0] | status[17] | buttons[1] | !pll_locked) begin
+   if (RESET | status[0] | status[17] | buttons[1] | !pll_locked | !rom_loaded) begin
       if(RESET) do_erase <= 1;
       reset_counter <= 100000;
    end
@@ -719,6 +720,7 @@ reg        io_cycle_we;
 reg [24:0] io_cycle_addr;
 reg  [7:0] io_cycle_data;
 
+wire       rom_loading = ioctl_download & load_rom;
 reg        rom_loaded = 0;
 
 // SDRAM layout 
@@ -743,14 +745,14 @@ always @(posedge clk_sys) begin
    reg [15:0] inj_end;
    reg  [7:0] inj_meminit_data;
    reg        prg_reseting;
-   reg        load_rom_d;
+   reg        rom_loading_d;
 
    old_download <= ioctl_download;
    io_cycleD <= io_cycle;
    cart_hdr_wr <= 0;
 
-   load_rom_d <= (ioctl_download & load_rom);
-   if (load_rom_d && !ioctl_download)
+   rom_loading_d <= rom_loading;
+   if (rom_loading_d && !rom_loading)
       rom_loaded <= 1;
 
    if (~io_cycle & io_cycleD) begin
@@ -1943,14 +1945,15 @@ reg [7:0] info;
 osdinfo osdinfo
 (
    .clk(clk_sys),
-   .reset((~reset_n & ~status[1]) | reset_keys),
+   .reset(RESET),
+   .kbd_reset((~reset_n & ~status[1]) | reset_keys),
+   .cpslk_mode(cfg_cpslk),
 
+   .rom_loaded(rom_loaded),
    .sftlk_sense(sftlk_sense),
    .cpslk_sense(cpslk_sense),
    .d4080_sense(d4080_sense),
    .noscr_sense(noscr_sense),
-
-   .cpslk_mode(cfg_cpslk),
 
    .info_req(info_req),
    .info(info)
