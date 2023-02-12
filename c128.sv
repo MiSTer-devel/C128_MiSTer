@@ -193,14 +193,14 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXX  XXXXXX XXXXXXXXX XX  X  XXXXXXX    XXXXXXXXXXX
+// XXXXXXXXXXXXXXxxXXXXXX XXXXXXXXX XX  X  XXXXXXXx   XXXXXXXXXXX
 
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX    X  XXXXXXXXXX XX                                X 
+// XXXXXXXXXXXX    XX XXXXXXXXXX XX                                X 
 
-// bits  0.. 79 keep in sync with C64 core
+// bits  0.. 79 keep in sync with C64 core (X: identical, x: different use)
 // bits 80..127 C128 core options
 
 `include "build_id.v"
@@ -208,7 +208,7 @@ localparam CONF_STR = {
    "C128;UART9600:2400;",
    // XXXXXXXXXXXXXXXXXXXXXXXXXXXX
 `ifdef VDC_XRAY
-   "HBO[127],VDC XRay,Off,On;",
+   "HAO[127],VDC XRay,Off,On;",
 `else
    "-,/!\\ This in-development core;",
    "-,needs a modified MiSTer main;",
@@ -235,19 +235,16 @@ localparam CONF_STR = {
 	"P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
    "P1-;",
    "P1O[95:94],VIC Jailbars,Off,Low,Medium,High;",
-   "HBP1-;",
-   "HBHAP1O[80],VDC Model,8563R9,8568;",
-   "HBhAP1O[80],VDC Model,8568,8563R9;",
+   "HAP1-;",
+   "HAP1O[81:80],VDC Model,Auto,8563R9,8568;",
 `ifndef REDUCE_VDC_RAM
-   "HBH6P1O[88],VDC memory,16k,64k;",
+   "HAH6P1O[88],VDC memory,16k,64k;",
 `endif
-   "HBP1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
-   "HBh2P1O[90:89],VDC colour,White,Green,Amber,Red;",
+   "HAP1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
+   "HAh2P1O[90:89],VDC colour,White,Green,Amber,Red;",
    "P1-;",
-	"HAP1O[13],Left SID,6581,8580;",
-	"hAP1O[13],Left SID,8580,6581;",
-	"HAP1O[16],Right SID,6581,8580;",
-	"hAP1O[16],Right SID,8580,6581;",
+	"P1O[14:13],Left SID,Auto,6581,8580;",
+	"P1O[16:15],Right SID,Auto,6581,8580;",
 	"D4P1O[66:64],Left Filter,Default,Custom 1,Custom 2,Custom 3,Adjustable;",
 	"D5P1O[69:67],Right Filter,Default,Custom 1,Custom 2,Custom 3,Adjustable;",
 	"D4D8P1O[72:70],Left Fc Offset,0,1,2,3,4,5;",
@@ -262,15 +259,13 @@ localparam CONF_STR = {
    "P2,Hardware;",
 	"P2O[58:57],Enable Drive #8,If Mounted,Always,Never;",
 	"P2O[56:55],Enable Drive #9,If Mounted,Always,Never;",
-   "HBD7P2O[84:83],Drive #8 5.25\" model,1571,1541,1570;",
-   "HBD0P2O[86:85],Drive #9 5.25\" model,1571,1541,1570;",
-   "hBD7P2O[84:83],Drive #8 5.25\" model,1541,1571,1570;",
-   "hBD0P2O[86:85],Drive #9 5.25\" model,1541,1571,1570;",
+   "D7P2O[84:83],Drive #8 5.25\" model,Auto,1541,1571,1570;",
+   "D0P2O[86:85],Drive #9 5.25\" model,Auto,1541,1571,1570;",
 	"P2O[44],Parallel port,Enabled,Disabled;",
 	"P2O[25],External IEC,Disabled,Enabled;",
 	"P2R[6],Reset Disk Drives;",
    "P2-;",
-   "HBP2O[87],Internal memory,128K,256K;",
+   "HAP2O[87],Internal memory,128K,256K;",
 	"P2O[52],GeoRAM,Disabled,4MB;",
 	"P2O[54:53],REU,Disabled,512KB,2MB (512KB wrap),16MB;",
    "P2-;",
@@ -278,8 +273,7 @@ localparam CONF_STR = {
 	"P2O[51],RS232 mode,UP9600,VIC-1011;",
 	"P2O[33],RS232 connection,Internal,External;",
 	"P2O[36],Real-Time Clock,Auto,Disabled;",
-   "HAP2O[45],CIA Model,6526,8521;",
-   "hAP2O[45],CIA Model,8521,6526;",
+   "P2O[46:45],CIA Model,Auto,6526,8521;",
    "P2-;",
 	"P2O[27:26],Pot 1/2,Joy 1 Fire 2/3,Mouse,Paddles 1/2;",
 	"P2O[29:28],Pot 3/4,Joy 2 Fire 2/3,Mouse,Paddles 3/4;",
@@ -310,7 +304,6 @@ localparam CONF_STR = {
    "DEFMRA,/_Computer/C128def.mra;",
    "V,v",`BUILD_DATE
 };
-
 
 wire pll_locked;
 wire clk_sys;
@@ -490,7 +483,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .paddle_3(pd4),
 
    .status(status),
-   .status_menumask({cfg_pure64, cfg_chipset, ~status[69], ~status[66], status[58], vdcVersion, sidVersion[1], sidVersion[0], tap_loaded, status[92], |vcrop, status[56]}),
+   .status_menumask({cfg_pure64, ~status[69], ~status[66], status[58], vdcVersion, sidVersion[1], sidVersion[0], tap_loaded, status[92], |vcrop, status[56]}),
    .buttons(buttons),
    .forced_scandoubler(forced_scandoubler),
    .gamma_bus(gamma_bus),
@@ -526,6 +519,13 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .info_req(info_req),
    .info(info)
 );
+
+function chip_version(input [1:0] st);
+   return |st ? st[1] : cfg_chipset;
+endfunction
+wire       ciaVersion = chip_version(status[46:45]);
+wire [1:0] sidVersion = {chip_version(status[16:15]), chip_version(status[14:13])};
+wire       vdcVersion = chip_version(status[81:80]);
 
 wire load_rom   = ioctl_index == 0;
 wire load_cfg   = ioctl_index == 1;
@@ -1114,9 +1114,6 @@ wire [17:0] audio_l,audio_r;
 
 wire        ntsc = status[2];
 
-wire        ciaVersion = status[45]^cfg_chipset;
-wire  [1:0] sidVersion = {status[16]^cfg_chipset, status[13]^cfg_chipset};
-
 wire        vicHsync, vicVsync;
 wire  [7:0] vicR, vicG, vicB;
 
@@ -1125,7 +1122,6 @@ wire        vdcHsync, vdcVsync;
 wire        vdcHblank, vdcVblank;
 wire        vdcIlace, vdcF1, vdcDisable;
 wire  [7:0] vdcR, vdcG, vdcB;
-wire        vdcVersion = status[80]^cfg_chipset;
 
 wire        c64_iec_atn;
 wire        c64_iec_clk_o;
@@ -1333,24 +1329,13 @@ always @(posedge clk_sys) begin
    if(img_mounted[1]) drive_mounted[1] <= |img_size;
 end
 
-function [1:0] map_drive_model;
-   input [1:0] st;
-begin
-   if (!cfg_pure64)
-      case(st)
-         2'b00: return 2'b10;    // 1571
-         2'b01: return 2'b00;    // 1541
-         2'b10: return 2'b01;    // 1570
-         default: return 2'bXX;  // (unused)
-      endcase
-   else
-      case(st)
-         2'b00: return 2'b00;    // 1541
-         2'b01: return 2'b10;    // 1571
-         2'b10: return 2'b01;    // 1570
-         default: return 2'bXX;  // (unused)
-      endcase
-end
+function [1:0] map_drive_model(input [1:0] st);
+   case(st)
+      2'b00: return (cfg_pure64 ? 2'b00 : 2'b10);  // Auto
+      2'b01: return 2'b00;                         // 1541
+      2'b10: return 2'b10;                         // 1571
+      2'b11: return 2'b01;                         // 1570
+   endcase
 endfunction
 
 wire        drive_rom_req;
