@@ -2,7 +2,7 @@
   <name>C128 DCR Basic 8</name>
   <mratimestamp>20230205</mratimestamp>
   <year>1989</year>
-  <manufacturer>Commodore</manufacturer>
+  <manufacturer>Commodore/Walrusoft Inc.</manufacturer>
   <rbf>C128</rbf>
   <setname>C128</setname>
   <romstruct>
@@ -42,7 +42,7 @@
     <part name="basic.318022-02.bin"/>
     <part name="characters.390059-01.bin"/>
     <part repeat="0x6000">00</part>
-    <part name="basic-8-dst.bin"/>
+    <part name="basic-8-dst.bin" zip="C128Basic8.zip"/>
     <part name="1541-II.355640-01.bin"/> 
     <part name="1541-II.355640-01.bin"/> 
     <part name="1541-II.355640-01.bin"/> 
