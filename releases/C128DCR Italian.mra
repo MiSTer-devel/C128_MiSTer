@@ -40,7 +40,8 @@
     <part name="z80bios.bin"/>
     <part name="kernal.italian.318079-01.bin"/>
     <part name="basic.318022-02.bin"/>
-    <part name="characters.ifb.325167-01.bin"/>
+    <part name="characters.ifb.325167-02.bin" offset="0x1000" length="0x1000"/>
+    <part name="characters.ifb.325167-02.bin" offset="0x0000" length="0x1000"/>
     <part repeat="0xE000">00</part>
     <part name="1541-II.355640-01.bin"/> 
     <part name="1541-II.355640-01.bin"/> 
