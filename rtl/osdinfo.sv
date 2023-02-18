@@ -3,8 +3,9 @@
 // for the C128 MiSTer FPGA core, by Erik Scheffers
 
 module osdinfo #(
-	parameter    ROM_LOAD_DELAY = 32_000_000*3,
-	parameter    STARTUP_DELAY = 4_000_000
+	// delay ticks are approx. 1/32 seconds
+	parameter    ROM_LOAD_DELAY = 255,
+	parameter    STARTUP_DELAY = 7
 ) (
 	input        clk,
 	input        reset,
@@ -24,18 +25,34 @@ module osdinfo #(
 localparam ROM_LOAD_DELAY_BITS = $clog2(ROM_LOAD_DELAY);
 localparam STARTUP_DELAY_BITS = $clog2(STARTUP_DELAY);
 
+reg osd_clk;
+
+always @(posedge clk) begin
+	reg [19:0] count;
+
+	if (reset)
+		count <= '1;
+	else 
+		count <= count - 1'd1;
+	
+	osd_clk <= ~|count;
+end
+
 reg rom_missing;
 
 always @(posedge clk) begin
    reg [ROM_LOAD_DELAY_BITS-1:0] delay;
-   if (reset) begin
+
+   if (reset || rom_loaded) begin
 		rom_missing <= 0;
-      delay <= ROM_LOAD_DELAY;
+      delay <= ROM_LOAD_DELAY_BITS'(ROM_LOAD_DELAY);
 	end
-   else if (|delay)
-      delay <= delay - 1'd1;
+   else if (|delay) begin
+		if (osd_clk)
+   	   delay <= delay - 1'd1;
+	end
    else
-      rom_missing <= ~rom_loaded;
+      rom_missing <= 1;
 end
 
 always @(posedge clk) begin
@@ -56,8 +73,10 @@ always @(posedge clk) begin
 		info_req <= 0;
 		delay <= STARTUP_DELAY_BITS'(STARTUP_DELAY);
 	end
-	else if (|delay)
-		delay <= delay - 1'd1;
+	else if (|delay) begin
+		if (osd_clk)
+			delay <= delay - 1'd1;
+	end
 	else if (rom_missing) begin
 		info <= 8'd1;
 		info_req <= ~info_req;  // keep visible

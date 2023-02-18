@@ -198,7 +198,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX    XX XXXXXXXXXX XX                                X 
+// XXXXXXXXXXXX    XXXXXXXXXXXXX XX                                X
 
 // bits  0.. 79 keep in sync with C64 core (X: identical, x: different use)
 // bits 80..127 C128 core options
@@ -215,7 +215,7 @@ localparam CONF_STR = {
    "-, binary for the disk drives;",
    "-,to function.  See the MiSTer;",
    "-,    forum for details.;",
-`endif   
+`endif
    "-;",
    "H7S0,D64G64D71G71D81T64,Mount #8                    ;",
    "H0S1,D64G64D71G71D81T64,Mount #9                    ;",
@@ -286,12 +286,16 @@ localparam CONF_STR = {
 	"P2O[42],Pause When OSD is Open,No,Yes;",
 	"P2O[39],Tape Autoplay,Yes,No;",
    "P2-;",
+   "P2FC3,ROMBIN,System ROMs                 ;",
+   "P2FC4,ROMBIN,Drive ROMs                  ;",
+   "HAP2FC6,ROMBIN,Internal Function ROM      ;",
    "P2FC5,CRT,Boot Cartridge              ;",
    "-;",
 	"O[3],Swap Joysticks,No,Yes;",
    "-;",
 	"R[0],Reset;",
-	"R[17],Reset & Detach Cartridge;",
+	"hBR[17],Reset & Remove Cartridge;",
+   "HAhCR[82],Reset & Remove Int.Func.ROM;",
    "J,Fire 1,Fire 2,Fire 3,Paddle Btn,Mod1,Mod2;",
    "jn,A,B,Y,X|P,R,L;",
    "jp,A,B,Y,X|P,R,L;",
@@ -394,7 +398,7 @@ always @(posedge clk_sys) begin
 
    reset_n <= ~|reset_counter;
 
-   if (RESET | status[0] | status[17] | buttons[1] | !pll_locked | !rom_loaded) begin
+   if (RESET | status[0] | status[17] | status[82] | buttons[1] | !pll_locked | !rom_loaded) begin
       if(RESET) do_erase <= 1;
       reset_counter <= 100000;
    end
@@ -403,7 +407,7 @@ always @(posedge clk_sys) begin
       reset_wait <= 1;
       reset_counter <= 255;
    end
-   else if (ioctl_download & (load_rom | load_cfg | load_crt) & reset_counter <= 255) begin
+   else if (ioctl_download & (load_rom | load_cfg | load_ifr | load_crt) & reset_counter <= 255) begin
       do_erase <= 1;
       reset_counter <= 255;
    end
@@ -484,7 +488,21 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .paddle_3(pd4),
 
    .status(status),
-   .status_menumask({cfg_pure64, ~status[69], ~status[66], status[58], vdcVersion, sidVersion[1], sidVersion[0], tap_loaded, status[92], |vcrop, status[56]}),
+   .status_menumask({
+      /* C */ |cart_int_rom,
+      /* B */ |cart_ext_rom | cart_attached,
+      /* A */ cfg_pure64,
+      /* 9 */ ~status[69],
+      /* 8 */ ~status[66],
+      /* 7 */ status[58],
+      /* 6 */ vdcVersion,
+      /* 5 */ sidVersion[1],
+      /* 4 */ sidVersion[0],
+      /* 3 */ tap_loaded,
+      /* 2 */ status[92],
+      /* 1 */ |vcrop,
+      /* 0 */ status[56]
+   }),
    .buttons(buttons),
    .forced_scandoubler(forced_scandoubler),
    .gamma_bus(gamma_bus),
@@ -528,14 +546,16 @@ wire       ciaVersion = chip_version(status[46:45]);
 wire [1:0] sidVersion = {chip_version(status[16:15]), chip_version(status[14:13])};
 wire       vdcVersion = chip_version(status[81:80]);
 
-wire load_rom   = ioctl_index == 0;
-wire load_cfg   = ioctl_index == 1;
-wire load_prg   = ioctl_index == 'h02;
-wire load_crt   = ioctl_index == 'h42 || ioctl_index == 5;
-wire load_reu   = ioctl_index == 'h82;
-wire load_tap   = ioctl_index == 'hC2;
-wire load_flt   = ioctl_index == 7;
-// wire load_c15xx = ioctl_index == 11;
+wire bootrom  = ioctl_index[5:0] == 0;
+wire load_rom = ioctl_index == {2'd0, 6'd0} || ioctl_index[5:0] == 3;
+wire load_drv = ioctl_index == {2'd1, 6'd0} || ioctl_index[5:0] == 4;
+wire load_cfg = ioctl_index == {2'd0, 6'd1};
+wire load_prg = ioctl_index == {2'd0, 6'd2};
+wire load_crt = ioctl_index == {2'd1, 6'd2} || ioctl_index[5:0] == 5;
+wire load_reu = ioctl_index == {2'd2, 6'd2};
+wire load_tap = ioctl_index == {2'd3, 6'd2};
+wire load_ifr = ioctl_index[5:0] == 6;
+wire load_flt = ioctl_index[5:0] == 7;
 
 wire sysRom;
 wire [4:0] sysRomBank;
@@ -720,40 +740,51 @@ reg        io_cycle_we;
 reg [24:0] io_cycle_addr;
 reg  [7:0] io_cycle_data;
 
-wire       rom_loading = ioctl_download & load_rom;
-reg        rom_loaded = 0;
+reg        rom_loading, rom_loaded = 0;
+reg        drv_loading, drv_loaded = 0;
 
-// SDRAM layout 
+wire       rom_download = rom_loading & ioctl_download;
+wire       drv_download = drv_loading & ioctl_download;
+
+// SDRAM layout
 // -- all blocks must be aligned on that block's size boundaries, so a 64k block must start at a 64k boundary, etc.
-localparam RAM_ADDR = 25'h0000000;  // System RAM: 256k
-localparam CRM_ADDR = 25'h0040000;  // Cartridge RAM: 64k
-localparam ROM_ADDR = 25'h0060000;  // System ROM: 96k (align on 128k)  \
-localparam IFR_ADDR = 25'h0078000;  // Internal function ROM: 32k        \
-localparam DRV_ADDR = 25'h0080000;  // Drive ROM: 512k                    } loaded from boot.rom or MRA
-localparam CRT_ADDR = 25'h0100000;  // Cartridge: 1M                     /
-localparam TAP_ADDR = 25'h0200000;  // Tape buffer
-localparam GEO_ADDR = 25'h0C00000;  // GeoRAM: 4M
-localparam REU_ADDR = 25'h1000000;  // REU: 16M
+localparam RAM_ADDR = 'h0000000;  // System RAM: 256k
+localparam CRM_ADDR = 'h0040000;  // Cartridge RAM: 64k
+localparam ROM_ADDR = 'h0060000;  // System ROM: 96k (align on 128k)  \
+localparam IFR_ADDR = 'h0078000;  // Internal function ROM: 32k        \
+localparam DRV_ADDR = 'h0080000;  // Drive ROM: 512k                    } loaded from boot.rom or MRA
+localparam CRT_ADDR = 'h0100000;  // Cartridge: 1M                     /
+localparam TAP_ADDR = 'h0200000;  // Tape buffer
+localparam GEO_ADDR = 'h0C00000;  // GeoRAM: 4M
+localparam REU_ADDR = 'h1000000;  // REU: 16M
+
+localparam ROM_SIZE = 'h0011000;  // expected size of boot0.rom
+localparam DRV_SIZE = 'h0040000;  // expected size of boot1.rom
+localparam IFR_SIZE = 'h0008000;  // expected size of internal function rom
 
 always @(posedge clk_sys) begin
    reg  [4:0] erase_to;
    reg        old_download;
    reg        erase_cram;
    reg        io_cycleD;
-   reg        old_st0 = 0;
    reg        old_meminit;
    reg [15:0] inj_end;
    reg  [7:0] inj_meminit_data;
    reg        prg_reseting;
-   reg        rom_loading_d;
+   reg        rom_download_d;
+   reg        drv_download_d;
 
    old_download <= ioctl_download;
    io_cycleD <= io_cycle;
    cart_hdr_wr <= 0;
 
-   rom_loading_d <= rom_loading;
-   if (rom_loading_d && !rom_loading)
-      rom_loaded <= 1;
+   rom_download_d <= rom_download;
+   if (rom_download_d && !rom_download)
+      rom_loading <= 0;
+   
+   drv_download_d <= drv_download;
+   if (drv_download_d && !drv_download)
+      drv_loading <= 0;
 
    if (~io_cycle & io_cycleD) begin
       io_cycle_ce <= 1;
@@ -781,10 +812,29 @@ always @(posedge clk_sys) begin
       if (load_rom) begin
          if (ioctl_addr == 0) begin
             ioctl_load_addr <= ROM_ADDR;
-            cart_ext_rom <= 0;
-            cart_int_rom <= 0;
-            rom_loaded <= 0;
+            if (!bootrom || !rom_loaded) begin
+               rom_loading <= 1;
+               rom_loaded <= 0;
+            end
          end
+
+         if (rom_loading && ioctl_addr == ROM_SIZE-1)
+            rom_loaded <= 1;
+
+         if (ioctl_addr == IFR_ADDR-ROM_ADDR)
+            cart_int_rom <= 0;
+
+         if (ioctl_addr == DRV_ADDR-ROM_ADDR) begin
+            drv_loading <= 1;
+            drv_loaded <= 0;
+         end
+
+         if (ioctl_addr == DRV_ADDR-ROM_ADDR+DRV_SIZE-1)
+            drv_loaded <= 1;
+
+         if (ioctl_addr == CRT_ADDR-ROM_ADDR)
+            cart_ext_rom <= 0;
+
          if (|ioctl_data && ~&ioctl_data) begin
             if (ioctl_addr[24:14] == {10'((IFR_ADDR-ROM_ADDR)>>15), 1'b0})  cart_int_rom[0] <= 1;
             if (ioctl_addr[24:14] == {10'((IFR_ADDR-ROM_ADDR)>>15), 1'b1})  cart_int_rom[1] <= 1;
@@ -792,7 +842,34 @@ always @(posedge clk_sys) begin
             if (ioctl_addr[24:13] == {10'((CRT_ADDR-ROM_ADDR)>>15), 2'b01}) cart_ext_rom[1] <= 1;
             if (ioctl_addr[24:14] == {10'((CRT_ADDR-ROM_ADDR)>>15), 1'b1})  cart_ext_rom[2] <= 1;
          end
-         ioctl_req_wr <= 1; 
+
+         if (!bootrom || !rom_loaded || ioctl_addr >= ROM_SIZE)
+            ioctl_req_wr <= 1;
+      end
+
+      if (load_drv && !(drv_loaded && bootrom)) begin
+         if (ioctl_addr == 0) begin
+            ioctl_load_addr <= DRV_ADDR;
+            drv_loading <= 1;
+            drv_loaded <= 0;
+         end
+
+         if (ioctl_addr == DRV_SIZE-1)
+            drv_loaded <= 1;
+
+         if (ioctl_addr < DRV_SIZE)
+            ioctl_req_wr <= 1;
+      end
+
+      if (load_ifr) begin
+         if (ioctl_addr == 0) begin
+            ioctl_load_addr <= IFR_ADDR;
+            cart_int_rom <= 0;
+         end
+         if (ioctl_addr < IFR_SIZE) begin
+            if (|ioctl_data && ~&ioctl_data) cart_int_rom[ioctl_addr[14]] <= 1;
+            ioctl_req_wr <= 1;
+         end
       end
 
       if (load_cfg) begin
@@ -802,7 +879,7 @@ always @(posedge clk_sys) begin
       if (load_prg) begin
          // PRG header
          // Load address low-byte
-         if (ioctl_addr == 0) 
+         if (ioctl_addr == 0)
             inj_end[7:0] <= ioctl_data;
          // Load address high-byte
          else if (ioctl_addr == 1) begin
@@ -812,10 +889,10 @@ always @(posedge clk_sys) begin
                prg_reset <= 1;
             end
          end
-         else begin 
+         else begin
             if (ioctl_addr == 2) ioctl_load_addr <= inj_end;
-            ioctl_req_wr <= 1; 
-            inj_end <= inj_end + 1'b1; 
+            ioctl_req_wr <= 1;
+            inj_end <= inj_end + 1'b1;
          end
       end
 
@@ -885,7 +962,7 @@ always @(posedge clk_sys) begin
    if (prg_reset && reset_wait) begin
       prg_reset <= 0;
       prg_reseting <= 1;
-   end 
+   end
    if (prg_reseting && !reset_wait) begin
       go64 <= 0;
       prg_reseting <= 0;
@@ -918,19 +995,19 @@ always @(posedge clk_sys) begin
                   // SAVE_START (AC-AD)
                   // Set these two bytes to zero just as they would be on reset (the BASIC LOAD command does not alter these)
                   'hAC, 'hAD: inj_meminit_data <= 'h00;
-                  
+
                   // VAR (2D-2E), ARY (2F-30), STR (31-32), LOAD_END (AE-AF)
                   // Set these just as they would be with the BASIC LOAD command (essentially they are all set to the load end address)
                   'h2D, 'h2F, 'h31, 'hAE: inj_meminit_data <= inj_end[7:0];
                   'h2E, 'h30, 'h32, 'hAF: inj_meminit_data <= inj_end[15:8];
-                  
+
                   default: begin
                      ioctl_req_wr <= 0;
-                     
+
                      // advance the address
                      ioctl_load_addr <= ioctl_load_addr + 1'b1;
                   end
-               endcase            
+               endcase
             else
                // C128 mode
                case(ioctl_load_addr)
@@ -962,10 +1039,13 @@ always @(posedge clk_sys) begin
    old_meminit <= inj_meminit;
    start_strk  <= old_meminit & ~inj_meminit;
 
-   old_st0 <= status[17];
-   if (~old_st0 & status[17]) begin
+   if (status[17]) begin
       cart_attached <= 0;
       cart_ext_rom <= 0;
+   end
+
+   if (status[82]) begin
+      cart_int_rom <= 0;
    end
 
    if (!erasing && force_erase) begin
@@ -1157,7 +1237,7 @@ fpga64_sid_iec #(
    .vdcPalette(status[92:89]),
 `ifdef VDC_XRAY
    .vdcDebug(status[127]),
-`else   
+`else
    .vdcDebug(0),
 `endif
    .turbo_mode(2'b01),
@@ -1321,7 +1401,7 @@ wire       drive_iec_srq_n_i;
 wire       drive_iec_clk_o;
 wire       drive_iec_data_o;
 wire       drive_iec_srq_n_o;
-wire       drive_reset = ~reset_n | status[6];
+wire       drive_reset = ~reset_n | status[6] | drv_loading;
 
 wire [1:0] drive_led;
 
@@ -1387,10 +1467,11 @@ iec_drive iec_drive
    .sd_buff_din(sd_buff_din),
    .sd_buff_wr(sd_buff_wr),
 
-   .rom_req (drive_rom_req),
+   .rom_loading(drv_loading),
+   .rom_req(drive_rom_req),
    .rom_addr(drive_rom_addr),
    .rom_data(sdram_data),
-   .rom_wr  (drive_rom_wr)
+   .rom_wr(drive_rom_wr)
 );
 
 always @(posedge clk_sys) begin
@@ -1400,7 +1481,7 @@ always @(posedge clk_sys) begin
    io_cycleD <= io_cycle;
    drive_rom_wr <= 0;
 
-   if (drive_rom_req && !io_cycleD && io_cycle && !ioctl_req_wr && !tap_io_cycle && rom_loaded)
+   if (drive_rom_req && !io_cycleD && io_cycle && !ioctl_req_wr && !tap_io_cycle && drv_loaded)
       drive_rom_cycle <= 2'd2;
 
    if (drive_rom_cycle) begin
@@ -1949,7 +2030,7 @@ osdinfo osdinfo
    .kbd_reset((~reset_n & ~status[1]) | reset_keys),
    .cpslk_mode(cfg_cpslk),
 
-   .rom_loaded(rom_loaded),
+   .rom_loaded(ioctl_download | rom_loaded),
    .sftlk_sense(sftlk_sense),
    .cpslk_sense(cpslk_sense),
    .d4080_sense(d4080_sense),

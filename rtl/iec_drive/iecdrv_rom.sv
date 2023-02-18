@@ -3,6 +3,7 @@ module iecdrv_rom
    input             clk_sys,
    input             clk,
    input             reset,
+   input             rom_loading,
 
    output reg        empty8k,
    output reg        rom_valid = 0,
@@ -17,10 +18,13 @@ module iecdrv_rom
 	input       [7:0] rom_data
 );
 
-assign rom_req = ~(reset | rom_valid);
+assign rom_req = ~(reset | rom_loading | rom_valid);
 
 always @(posedge clk_sys) begin
    reg [3:0] rom_bank_n = 0;
+
+   if (rom_loading)
+      rom_valid <= 0;
 
    if (reset) begin
       rom_addr <= 0;

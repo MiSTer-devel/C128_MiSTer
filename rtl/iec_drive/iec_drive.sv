@@ -51,6 +51,7 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
    input         sd_buff_wr,
 
    // input  [31:0] rom_file_ext,
+   input         rom_loading,
    output        rom_req,
    output [18:0] rom_addr,
    input   [7:0] rom_data,
@@ -95,6 +96,7 @@ generate
          .clk_sys(clk_sys),
          .clk(clk),
          .reset(reset[i]),
+         .rom_loading(rom_loading),
 
          .empty8k(empty8k[i]),
          .rom_valid(rom_valid[i]),
