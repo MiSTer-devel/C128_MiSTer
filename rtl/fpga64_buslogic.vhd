@@ -17,23 +17,21 @@
 -- Basic, Char and Kernel ROMs are included
 -- Original Kernel replaced by JiffyDos
 -- -----------------------------------------------------------------------
---
 -- Erik Scheffers 2022
 --
--- updated for C128
+-- extended for C128
+-- moved ROM images to SRAM
+-- -----------------------------------------------------------------------
 
 library IEEE;
 USE ieee.std_logic_1164.ALL;
 USE ieee.numeric_std.ALL;
 
 entity fpga64_buslogic is
-	generic (
-    	EXCLUDE_STD_ROMS: integer := 0
-    );
 	port (
 		clk         : in std_logic;
 		reset       : in std_logic;
-		dcr         : in std_logic;
+		pure64      : in std_logic;
 		cpslk_mode  : in std_logic;
 
 		cpuHasBus   : in std_logic;
@@ -42,6 +40,7 @@ entity fpga64_buslogic is
 		z80m1       : in std_logic;
 
 		ramData     : in unsigned(7 downto 0);
+		ramDataFloat: in std_logic;
 
 		--   C64 mode   C128 mode
 		-- 2 CHAREN     1=Disable char rom in VIC
@@ -68,12 +67,6 @@ entity fpga64_buslogic is
 		io_ext      : in std_logic;
 		io_data     : in unsigned(7 downto 0);
 
-		rom_addr    : in std_logic_vector(15 downto 0);
-		rom_data    : in std_logic_vector(7 downto 0);
-		rom14_wr    : in std_logic;
-		rom23_wr    : in std_logic;
-		romF1_wr    : in std_logic;
-
 		cpuWe       : in std_logic;
 		cpuAddr     : in unsigned(15 downto 0);
 		cpuData     : in unsigned(7 downto 0);
@@ -92,7 +85,6 @@ entity fpga64_buslogic is
 		systemWe    : out std_logic;
 		systemAddr  : out unsigned(17 downto 0);
 		dataToCpu   : out unsigned(7 downto 0);
-		dataToVic   : out unsigned(7 downto 0);
 
 		cs_vic      : out std_logic;
 		cs_sid      : out std_logic;
@@ -104,41 +96,28 @@ entity fpga64_buslogic is
 		cs_cia2     : out std_logic;
 		cs_ram      : out std_logic;
 
-		-- To catridge port
+		-- To cartridge port
 		cs_ioE      : out std_logic;
 		cs_ioF      : out std_logic;
 		cs_romL     : out std_logic;
 		cs_romH     : out std_logic;
+		cs_romFL    : out std_logic;
+		cs_romFH    : out std_logic;
 		cs_UMAXromH : out std_logic;
 
 		-- Others
-		colorA10    : out std_logic
+		colorA10    : out std_logic;
+
+		-- System ROMs
+		cs_sysRom   : out std_logic;
+		sysRomBank  : out unsigned(4 downto 0)
 	);
 end fpga64_buslogic;
 
 -- -----------------------------------------------------------------------
 
 architecture rtl of fpga64_buslogic is
-	signal charData       : std_logic_vector(7 downto 0);
-
-	signal rom1Data       : std_logic_vector(7 downto 0);
-	signal rom23Data      : std_logic_vector(7 downto 0);
-	signal rom23Data_std  : std_logic_vector(7 downto 0);
-	signal rom23Data_dcr  : std_logic_vector(7 downto 0);
-	signal rom4Data       : std_logic_vector(7 downto 0);
-	signal rom4Data_std   : std_logic_vector(7 downto 0);
-	signal rom4Data_dcr   : std_logic_vector(7 downto 0);
-	signal romF1Data      : std_logic_vector(7 downto 0);
-
-	signal dcr_ena        : std_logic := '0';
-
-	signal cs_CharLoc     : std_logic;
-	signal cs_rom1Loc     : std_logic;
-	signal cs_rom23Loc    : std_logic;
-	signal cs_rom4Loc     : std_logic;
-	signal cs_romF1Loc    : std_logic;
-	signal vicCharLoc     : std_logic;
-
+	signal cs_sysRomLoc   : std_logic;
 	signal cs_ramLoc      : std_logic;
 	signal cs_vicLoc      : std_logic;
 	signal cs_sidLoc      : std_logic;
@@ -152,164 +131,26 @@ architecture rtl of fpga64_buslogic is
 	signal cs_ioFLoc      : std_logic;
 	signal cs_romLLoc     : std_logic;
 	signal cs_romHLoc     : std_logic;
+	signal cs_romFLLoc    : std_logic;
+	signal cs_romFHLoc    : std_logic;
 	signal cs_UMAXromHLoc : std_logic;
 	signal cs_UMAXnomapLoc: std_logic;
-	signal charset_a12    : std_logic;
-	signal rom23_a14      : std_logic;
+	signal rom1Bank       : unsigned(4 downto 0);
+	signal rom23Bank      : unsigned(4 downto 0);
+	signal rom4Bank       : unsigned(4 downto 0);
+	signal romCBank       : unsigned(4 downto 0);
 	signal ultimax        : std_logic;
 
 	signal currentAddr    : unsigned(17 downto 0);
-	
 
 begin
-	-- character rom
+	rom1Bank  <= "000" & (cpuAddr(14) and cpuAddr(13)) & cpuAddr(12);
+	rom4Bank  <= "001" & cpuAddr(13) & tAddr(12);
+	rom23Bank <= "01"  & not cpuAddr(14) & cpuAddr(13) & cpuAddr(12);
+	romCBank  <= "1000" & not ((not cpslk_mode and c128_n) or (cpslk_mode and cpslk_sense));
 
-	charset_a12 <= (not c128_n) when cpslk_mode = '0' else cpslk_sense;
-
-	chargen: entity work.dprom
-	generic map ("rtl/roms/chargen.mif", 13)
-	port map
-	(
-		wrclock => clk,
-		rdclock => clk,
-
-		wren => rom14_wr and rom_addr(15) and not rom_addr(14) and not rom_addr(13),
-		data => rom_data,
-		wraddress => rom_addr(12 downto 0),
-
-		rdaddress => std_logic_vector(charset_a12 & currentAddr(11 downto 0)),
-		q => charData
-	);
-
-	-- ROM1 (U32): c64 basic+kernal rom 16K
-	-- rom loc -> mem loc  contents
-	-- 0000    -> A000     C64 Basic
-	-- 2000    -> E000     C64 Kernal
-	rom1_std: entity work.dprom
-	generic map ("rtl/roms/std_C64.mif", 14)
-	port map
-	(
-		wrclock => clk,
-		rdclock => clk,
-
-		wren => rom14_wr and not rom_addr(15) and not rom_addr(14),
-		data => rom_data,
-		wraddress => rom_addr(13 downto 0),
-
-		rdaddress => std_logic_vector((cpuAddr(13) and cpuAddr(14)) & cpuAddr(12 downto 0)),
-		q => rom1Data
-	);
-
-	-- ROM2+3: (U33/34) c128 basic rom 32K
-	-- rom loc -> mem loc  contents
-	-- 0000    -> 4000     C128 Basic Low (rom2)
-	-- 4000    -> 8000     C128 Basic High (rom3)
-
-	rom23_dcr: entity work.dprom
-	generic map ("rtl/roms/dcr_basic_C128.mif", 15)
-	port map
-	(
-		wrclock => clk,
-		rdclock => clk,
-
-		wren => rom23_wr,
-		data => rom_data,
-		wraddress => rom_addr(14 downto 0),
-
-		rdaddress => std_logic_vector(not cpuAddr(14) & cpuAddr(13 downto 0)),
-		q => rom23Data_dcr
-	);
-
-	rom23_std_inc: if EXCLUDE_STD_ROMS = 0 generate
-		rom23_std: entity work.dprom
-		generic map ("rtl/roms/std_basic_C128.mif", 15)
-		port map
-		(
-			wrclock => clk,
-			rdclock => clk,
-	
-			rdaddress => std_logic_vector(not cpuAddr(14) & cpuAddr(13 downto 0)),
-			q => rom23Data_std
-		);
-	
-		rom23Data <= rom23Data_dcr when dcr_ena = '1' else rom23Data_std;
-	end generate;
-
-	rom23_std_exc: if EXCLUDE_STD_ROMS = 1 generate
-		rom23Data <= rom23Data_dcr;
-	end generate;
-
-	-- ROM4: U35 16K
-	-- rom loc -> mem loc  contents
-	-- 0000    -> C000     editor
-	-- 1000    -> 0000     z80 bios     (MMU sets tAddr(12) to 1 in Z80 mode when reading from $0xxx)
-	-- 2000    -> E000     c128 kernal
-	-- 3000    -> F000     c128 kernal
-
-	rom4_dcr: entity work.dprom
-	generic map ("rtl/roms/dcr_kernal_C128.mif", 14)
-	port map
-	(
-		wrclock => clk,
-		rdclock => clk,
-
-		wren => rom14_wr and not rom_addr(15) and rom_addr(14),
-		data => rom_data,
-		wraddress => rom_addr(13 downto 0),
-
-		rdaddress => std_logic_vector(cpuAddr(13) & tAddr(12) & cpuAddr(11 downto 0)),
-		q => rom4Data_dcr
-	);
-
-	rom4_std_inc: if EXCLUDE_STD_ROMS = 0 generate
-		rom4_std: entity work.dprom
-		generic map ("rtl/roms/std_kernal_C128.mif", 14)
-		port map
-		(
-			wrclock => clk,
-			rdclock => clk,
-
-			rdaddress => std_logic_vector(cpuAddr(13) & tAddr(12) & cpuAddr(11 downto 0)),
-			q => rom4Data_std
-		);
-
-		rom4Data <= rom4Data_dcr when dcr_ena = '1' else rom4Data_std;
-	end generate;
-
-	rom4_std_exc: if EXCLUDE_STD_ROMS = 1 generate
-		rom4Data <= rom4Data_dcr;
-	end generate;
-
-	-- romF1: entity work.dprom
-	-- -- generic map ("rtl/roms/function.mif", 14)
-	-- port map
-	-- (
-	-- 	wrclock => clk,
-	-- 	rdclock => clk,
-	--
-	-- 	wren => romF1_wr,
-	-- 	data => rom_data,
-	-- 	wraddress => rom_addr(13 downto 0),
-	--
-	-- 	rdaddress => std_logic_vector(cpuAddr(13 downto 0)),
-	-- 	q => romF1Data
-	-- );
-	romF1Data <= (others => '0');
-
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			if reset = '1' then
-				dcr_ena <= dcr;
-			end if;
-		end if;
-	end process;
-
-	--
-	--begin
-	process(ramData, vicData, sidData, mmuData, vdcData, colorData,
-		     cia1Data, cia2Data, charData, rom1Data, rom23Data, rom4Data, romF1Data,
-			  cs_romHLoc, cs_romLLoc, cs_rom1Loc, cs_rom23Loc, cs_rom4Loc, cs_CharLoc, cs_romF1Loc,
+	process(ramData, ramDataFloat, vicData, sidData, mmuData, vdcData, colorData,
+		     cia1Data, cia2Data, cs_sysRomLoc, cs_romFLLoc, cs_romFHLoc, cs_romHLoc, cs_romLLoc,
 			  cs_ramLoc, cs_vicLoc, cs_sidLoc, cs_colorLoc, cs_mmuLLoc, cs_mmuHLoc, cs_vdcLoc,
 			  cs_cia1Loc, cs_cia2Loc, lastVicData,
 			  cs_ioELoc, cs_ioFLoc,
@@ -318,16 +159,8 @@ begin
 		-- If no hardware is addressed the bus is floating.
 		-- It will contain the last data read by the VIC. (if a C64 is shielded correctly)
 		dataToCpu <= lastVicData;
-		if cs_CharLoc = '1' then
-			dataToCpu <= unsigned(charData);
-		elsif cs_rom1Loc = '1' then
-			dataToCpu <= unsigned(rom1Data);
-		elsif cs_rom23Loc = '1' then
-			dataToCpu <= unsigned(rom23Data);
-		elsif cs_rom4Loc = '1' then
-			dataToCpu <= unsigned(rom4Data);
-		elsif cs_romF1Loc = '1' then
-			dataToCpu <= unsigned(romF1Data);
+		if cs_sysRomLoc = '1' then
+			dataToCpu <= ramData;
 		elsif cs_ramLoc = '1' then
 			dataToCpu <= ramData;
 		elsif cs_vicLoc = '1' then
@@ -344,13 +177,17 @@ begin
 			dataToCpu <= cia1Data;
 		elsif cs_cia2Loc = '1' then
 			dataToCpu <= cia2Data;
-		elsif cs_romLLoc = '1' then
+		elsif cs_romLLoc = '1' and ramDataFloat = '0' then
 			dataToCpu <= ramData;
-		elsif cs_romHLoc = '1' then
+		elsif cs_romHLoc = '1' and ramDataFloat = '0' then
 			dataToCpu <= ramData;
-		elsif cs_ioELoc = '1' and io_rom = '1' then
+		elsif cs_romFLLoc = '1' and ramDataFloat = '0' then
 			dataToCpu <= ramData;
-		elsif cs_ioFLoc = '1' and io_rom = '1' then
+		elsif cs_romFHLoc = '1' and ramDataFloat = '0' then
+			dataToCpu <= ramData;
+		elsif cs_ioELoc = '1' and io_rom = '1' and ramDataFloat = '0' then
+			dataToCpu <= ramData;
+		elsif cs_ioFLoc = '1' and io_rom = '1' and ramDataFloat = '0' then
 			dataToCpu <= ramData;
 		elsif cs_ioELoc = '1' and io_ext = '1' then
 			dataToCpu <= io_data;
@@ -363,18 +200,15 @@ begin
 
 	process(
 		cpuHasBus, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
-		c128_n, z80_n, z80io, z80m1, mmu_rombank, mmu_iosel, cpuBank, vicBank
+		pure64, c128_n, z80_n, z80io, z80m1, mmu_rombank, mmu_iosel, cpuBank, vicBank,
+      rom1Bank, rom23Bank, rom4Bank, romCBank
 	)
 	begin
 		currentAddr <= (others => '1');
 		colorA10 <= '0';
 		systemWe <= '0';
-		vicCharLoc <= '0';
-		cs_CharLoc <= '0';
-		cs_rom1Loc <= '0';  -- rom1: c64 basic/kernal
-		cs_rom23Loc <= '0'; -- rom23: c128 basic
-		cs_rom4Loc <= '0';  -- rom4: c128 editor, z80 bios, c128 kernal
-		cs_romF1Loc <= '0'; -- internal function rom
+		cs_sysRomLoc <= '0';
+		sysRomBank <= (others => '0');
 		cs_ramLoc <= '0';
 		cs_vicLoc <= '0';
 		cs_sidLoc <= '0';
@@ -388,6 +222,8 @@ begin
 		cs_ioFLoc <= '0';
 		cs_romLLoc <= '0'; -- external rom L
 		cs_romHLoc <= '0'; -- external rom H
+		cs_romFLLoc <= '0'; -- internal function rom L
+		cs_romFHLoc <= '0'; -- internal function rom H
 		cs_UMAXromHLoc <= '0';		-- Ultimax flag for the VIC access - LCA
 		cs_UMAXnomapLoc <= '0';
 
@@ -405,9 +241,10 @@ begin
 					elsif cpuWe = '0' then
 						case mmu_rombank is
 							when B"00" =>
-								cs_rom4Loc <= '1';
+								cs_sysRomLoc <= '1';
+								sysRomBank <= rom4Bank;
 							when B"01" =>
-								cs_romF1Loc <= '1';
+							   cs_romFHLoc <= '1';
 							when B"10" =>
 								cs_romHLoc <= '1';
 							when B"11" =>
@@ -446,12 +283,13 @@ begin
 						case mmu_rombank is
 							when B"00" =>
 								if z80_n = '1' then
-									cs_charLoc <= '1';
+									cs_sysRomLoc <= '1';
+									sysRomBank <= romCBank;
 								else
 									cs_ramLoc <= '1';
 								end if;
 							when B"01" =>
-								cs_romF1Loc <= '1';
+								cs_romFHLoc <= '1';
 							when B"10" =>
 								cs_romHLoc <= '1';
 							when B"11" =>
@@ -464,9 +302,10 @@ begin
 					if cpuWe = '0' then
 						case mmu_rombank is
 							when B"00" =>
-								cs_rom23Loc <= '1';
+								cs_sysRomLoc <= '1';
+								sysRomBank <= rom23Bank;
 							when B"01" =>
-								cs_romF1Loc <= '1';
+								cs_romFLLoc <= '1';
 							when B"10" =>
 								cs_romLLoc <= '1';
 							when B"11" =>
@@ -483,11 +322,11 @@ begin
 					end if;
 				when X"0" =>
 					if z80_n = '0' and z80io = '0' and mmu_rombank = B"00" and cpuWe = '0' then
-						cs_rom4Loc <= '1';
+						cs_sysRomLoc <= '1';
+						sysRomBank <= rom4Bank;
 					else
 						cs_ramLoc <= '1';
 					end if;
-
 				when others =>
 					cs_ramLoc <= '1';
 				end case;
@@ -505,7 +344,8 @@ begin
 						cs_UMAXnomapLoc <= '1';
 					elsif cpuWe = '0' and bankSwitch(1) = '1' then
 						-- Read kernal
-						cs_rom1Loc <= '1';
+						cs_sysRomLoc <= '1';
+						sysRomBank <= rom1Bank;
 					else
 						-- 64Kbyte RAM layout
 						cs_ramLoc <= '1';
@@ -521,7 +361,10 @@ begin
 							when X"4" =>
 								cs_sidLoc <= not z80m1;
 							when X"6" =>
-								cs_vdcLoc <= not z80m1;
+								cs_vdcLoc <= not pure64 and not z80m1;
+								cs_sidLoc <= pure64 and not z80m1;
+							when X"5" | X"7" =>
+								cs_sidLoc <= pure64 and not z80m1;
 							when X"8" | X"9" | X"A" | X"B" =>
 								cs_colorLoc <= '1';
 							when X"C" =>
@@ -538,7 +381,8 @@ begin
 					else
 						-- I/O space turned off. Read from charrom or write to RAM.
 						if cpuWe = '0' then
-							cs_CharLoc <= '1';
+							cs_sysRomLoc <= '1';
+							sysRomBank <= romCBank;
 						else
 							cs_ramLoc <= '1';
 						end if;
@@ -552,7 +396,8 @@ begin
 					elsif ultimax = '0' and cpuWe = '0' and bankSwitch(1) = '1' and bankSwitch(0) = '1' then
 						-- Access basic rom
 						-- May need turning off if kernal banked out LCA
-						cs_rom1Loc <= '1';
+						cs_sysRomLoc <= '1';
+						sysRomBank <= rom1Bank;
 					else
 						cs_ramLoc <= '1';
 					end if;
@@ -579,7 +424,6 @@ begin
 
 				systemWe <= cpuWe;
 			end if;
-
 		else
 			-- The VIC-II has the bus, but only when aec is asserted
 			if aec = '1' then
@@ -589,7 +433,9 @@ begin
 			end if;
 
 			if ultimax = '0' and vicAddr(13 downto 12)="01" and ((c128_n = '0' and bankSwitch(2) = '0') or (c128_n = '1' and vicAddr(14) = '0')) then
-				vicCharLoc <= '1';
+				-- vicCharLoc <= '1';
+				cs_sysRomLoc <= '1';
+				sysRomBank <= romCBank;
 			elsif ultimax = '1' and vicAddr(13 downto 12)="11" then
 				-- ultimax mode changes vic addressing - LCA
 				cs_UMAXromHLoc <= '1';
@@ -607,7 +453,7 @@ begin
 		end if;
 	end process;
 
-	cs_ram <= cs_ramLoc or cs_romLLoc or cs_romHLoc or cs_UMAXromHLoc or cs_UMAXnomapLoc or cs_CharLoc or cs_rom1Loc or cs_rom23Loc or cs_rom4Loc or cs_romF1Loc;
+	cs_ram <= cs_ramLoc or cs_romLLoc or cs_romHLoc or cs_romFLLoc or cs_romFHLoc or cs_UMAXromHLoc or cs_UMAXnomapLoc or cs_sysRomLoc;
 	cs_vic <= cs_vicLoc and io_enable;
 	cs_sid <= cs_sidLoc and io_enable;
 	cs_mmuH <= cs_mmuHLoc and io_enable;
@@ -620,8 +466,10 @@ begin
 	cs_ioF <= cs_ioFLoc and io_enable;
 	cs_romL <= cs_romLLoc;
 	cs_romH <= cs_romHLoc;
+	cs_romFL <= cs_romFLLoc;
+	cs_romFH <= cs_romFHLoc;
 	cs_UMAXromH <= cs_UMAXromHLoc;
+	cs_sysRom <= cs_sysRomLoc;
 
-	dataToVic  <= unsigned(charData) when vicCharLoc = '1' else ramData;
 	systemAddr <= currentAddr;
 end architecture;

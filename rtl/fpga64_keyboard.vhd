@@ -39,6 +39,7 @@ entity fpga64_keyboard is
 	port (
 		clk         : in std_logic;
 		reset       : in std_logic;
+		pure64      : in std_logic;
     
 		go64        : in std_logic;
 		ps2_key     : in std_logic_vector(10 downto 0);
@@ -218,9 +219,11 @@ begin
 	capslock_toggle: process(clk)
 	begin
 		if rising_edge(clk) then
-			if reset = '1' then
+			if pure64 = '1' then
 				capslock_0 <= '0';
 				capslock_state <= '1';
+			elsif reset = '1' then
+				capslock_0 <= '0';
 			else
 				capslock_0 <= capslock;
 				if (capslock = '1' and capslock_0 = '0') then
@@ -234,7 +237,10 @@ begin
 	disp4080_toggle: process(clk)
 	begin
 		if rising_edge(clk) then
-			if reset = '1' then
+			if pure64 = '1' then
+				disp4080_0 <= '0';
+				disp4080_state <= '1';
+			elsif reset = '1' then
 				disp4080_0 <= '0';
 			else
 				disp4080_0 <= disp4080;
@@ -245,7 +251,7 @@ begin
 		end if;
 	end process;
 
-	shift_lock <= key_fn and (key_shiftl or key_shiftr);
+	shift_lock <= (key_fn and (key_shiftl or key_shiftr)) or (pure64 and key_capslock);
 	shift_lock_toggle: process(clk)
 	begin
 		if rising_edge(clk) then
@@ -508,9 +514,9 @@ begin
 					when X"0A" => key_F8 <= pressed;
 					when X"01" => key_arrowup <= pressed; -- F9
 					when X"09" => key_equal <= pressed; -- F10
-					when X"0D" => key_tab <= pressed;
+					when X"0D" => if pure64 = '0' then key_tab <= pressed; end if;
 					when X"0E" => key_arrowleft <= pressed;
-					when X"11" => if extended then key_fn <= pressed; else key_alt <= pressed; end if; -- AltGr / Alt
+					when X"11" => if pure64 = '0' then if extended then key_fn <= pressed; else key_alt <= pressed; end if; end if; -- AltGr / Alt
 					when X"12" => key_shiftl <= pressed;
 					when X"14" => key_ctrl <= pressed; -- Ctrl (left+right)
 					when X"15" => key_Q <= pressed;
@@ -572,17 +578,17 @@ begin
 					when X"5B" => key_star <= pressed;
 					when X"5D" => key_pound <= pressed;
 					when X"66" => key_del <= pressed;
-					when X"69" => if extended then key_runstop <= pressed; else key_num1   <= pressed; end if;
-					when X"6B" => if extended then key_left    <= pressed; else key_num4   <= pressed; end if;
-					when X"6C" => if extended then key_home    <= pressed; else key_num7   <= pressed; end if;
-					when X"70" => if extended then key_inst    <= pressed; else key_num0   <= pressed; end if;
-					when X"71" => if extended then key_del     <= pressed; else key_numdot <= pressed; end if;
-					when X"72" => if extended then key_down    <= pressed; else key_num2   <= pressed; end if;
-					when X"73" => key_num5 <= pressed;
-					when X"74" => if extended then key_right   <= pressed; else key_num6   <= pressed; end if;
-					when X"75" => if extended then key_up      <= pressed; else key_num8   <= pressed; end if;
-					when X"76" => key_esc <= pressed;
-					when X"77" => if extended and pressed = '1' and ps2_key /= last_key then 
+					when X"69" => if extended then key_runstop <= pressed; else if pure64 = '0' then key_num1   <= pressed; end if; end if;
+					when X"6B" => if extended then key_left    <= pressed; else if pure64 = '0' then key_num4   <= pressed; end if; end if;
+					when X"6C" => if extended then key_home    <= pressed; else if pure64 = '0' then key_num7   <= pressed; end if; end if;
+					when X"70" => if extended then key_inst    <= pressed; else if pure64 = '0' then key_num0   <= pressed; end if; end if;
+					when X"71" => if extended then key_del     <= pressed; else if pure64 = '0' then key_numdot <= pressed; end if; end if;
+					when X"72" => if extended then key_down    <= pressed; else if pure64 = '0' then key_num2   <= pressed; end if; end if;
+					when X"73" => if pure64 = '0' then key_num5 <= pressed; end if;
+					when X"74" => if extended then key_right   <= pressed; else if pure64 = '0' then key_num6   <= pressed; end if; end if;
+					when X"75" => if extended then key_up      <= pressed; else if pure64 = '0' then key_num8   <= pressed; end if; end if;
+					when X"76" => if pure64 = '0' then key_esc <= pressed; else key_runstop <= pressed; end if;
+					when X"77" => if extended and pressed = '1' and pure64 = '0' and ps2_key /= last_key then 
 						if noscroll_lock = '1' then
 							noscroll_lock <= '0';
 							key_noscroll <= '0'; 
@@ -596,11 +602,11 @@ begin
 						noscroll_delay <= C_NOSCROLL_DELAY; 
 					end if;
 					when X"78" => restore_key <= pressed;
-					when X"79" => key_numplus <= pressed;
-					when X"7A" => if extended then key_linefd  <= pressed; else key_num3   <= pressed; end if;
-					when X"7B" => key_numminus <= pressed;
-					when X"7C" => if extended then key_d4080   <= pressed; else key_help   <= pressed; end if;
-					when X"7D" => if extended then tape_play   <= pressed; else key_num9   <= pressed; end if;
+					when X"79" => if pure64 = '0' then key_numplus <= pressed; end if;
+					when X"7A" => if pure64 = '0' then if extended then key_linefd <= pressed; else key_num3 <= pressed; end if; end if; 
+					when X"7B" => if pure64 = '0' then key_numminus <= pressed; end if;
+					when X"7C" => if pure64 = '0' then if extended then key_d4080 <= pressed; else key_help <= pressed; end if; end if;
+					when X"7D" => if extended then tape_play <= pressed; else if pure64 = '0' then key_num9 <= pressed; end if; end if;
 					when others => null;
 				end case;
 			end if;

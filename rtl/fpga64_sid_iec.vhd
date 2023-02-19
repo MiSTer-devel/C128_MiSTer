@@ -46,14 +46,11 @@ use IEEE.numeric_std.all;
 
 entity fpga64_sid_iec is
 generic (
-   EXCLUDE_STD_ROMS : integer := 0;
-   VDC_ADDR_BITS    : integer := 16
+   VDC_ADDR_BITS : integer := 16
 );
 port(
    clk32       : in  std_logic;
    reset_n     : in  std_logic;
-   dcr         : in  std_logic;
-   cpslk_mode  : in  std_logic;
 
    pause       : in  std_logic := '0';
    pause_out   : out std_logic;
@@ -62,6 +59,7 @@ port(
    ps2_key     : in  std_logic_vector(10 downto 0);
    kbd_reset   : in  std_logic := '0';
    shift_mod   : in  std_logic_vector(1 downto 0);
+   cpslk_mode  : in  std_logic;
    sftlk_sense : out std_logic;
    cpslk_sense : out std_logic;
    d4080_sense : out std_logic;
@@ -71,6 +69,7 @@ port(
    -- external memory
    ramAddr     : out unsigned(17 downto 0);
    ramDin      : in  unsigned(7 downto 0);
+   ramDinFloat : in  std_logic;
    ramDout     : out unsigned(7 downto 0);
    ramCE       : out std_logic;
    ramWE       : out std_logic;
@@ -116,6 +115,8 @@ port(
    irq_n       : in  std_logic;
    nmi_n       : in  std_logic;
    nmi_ack     : out std_logic;
+   romFL       : out std_logic;
+   romFH       : out std_logic;
    romL        : out std_logic;
    romH        : out std_logic;
    UMAXromH 	: out std_logic;
@@ -124,6 +125,10 @@ port(
    freeze_key  : out std_logic;
    mod_key     : out std_logic;
    tape_play   : out std_logic;
+
+   -- system ROMs
+   sysRom      : out std_logic;
+   sysRomBank  : out unsigned(4 downto 0);
 
    -- dma access
    dma_req     : in  std_logic := '0';
@@ -181,19 +186,13 @@ port(
    iec_srq_n_i : in  std_logic;
    iec_atn_o	: out std_logic;
 
-   rom_addr    : in  std_logic_vector(15 downto 0);
-   rom_data    : in  std_logic_vector(7 downto 0);
-   rom14_wr    : in  std_logic;
-   rom23_wr    : in  std_logic;
-   romF1_wr    : in  std_logic;
-
    cass_motor  : out std_logic;
    cass_write  : out std_logic;
    cass_sense  : in  std_logic;
    cass_read   : in  std_logic;
 
    -- VDC
-   vdcVersion  : in  unsigned(1 downto 0);
+   vdcVersion  : in  std_logic;
    vdc64k      : in  std_logic;
    vdcInitRam  : in  std_logic;
    vdcPalette  : in  unsigned(3 downto 0);
@@ -203,6 +202,7 @@ port(
    sys256k     : in  std_logic;
 
    -- System mode
+   pure64      : in  std_logic;
    c128_n      : out std_logic;
    z80_n       : out std_logic
 );
@@ -448,7 +448,7 @@ component vdc_top
       RAM_ADDR_BITS : integer
    );
    port (
-      version       : in  unsigned(1 downto 0);
+      version       : in  std_logic;
       ram64k        : in  std_logic;
       initRam       : in  std_logic;
       ntsc          : in  std_logic;
@@ -621,6 +621,8 @@ port map (
    cs_io => cs_mmuL,
    cs_lr => cs_mmuH,
 
+   osmode => pure64,
+   cpumode => pure64,
    sys256k => sys256k, -- "1" for 256K system memory
 
    we => mmu_we,
@@ -656,13 +658,10 @@ mmu_we <= pulseWr when cs_mmuH = '1' else pulseWr_io;
 -- PLA and bus-switches
 -- -----------------------------------------------------------------------
 buslogic: entity work.fpga64_buslogic
-generic map (
-   EXCLUDE_STD_ROMS => EXCLUDE_STD_ROMS
-)
 port map (
    clk => clk32,
    reset => reset,
-   dcr => dcr,
+   pure64 => pure64,
    cpslk_mode => cpslk_mode,
 
    cpuHasBus => cpuHasBus,
@@ -687,6 +686,7 @@ port map (
    io_data => io_data_i,
 
    ramData => ramDin,
+   ramDataFloat => ramDinFloat,
 
    cpuWe => cpuWe,
    cpuAddr => cpuAddr,
@@ -704,7 +704,7 @@ port map (
    systemWe => systemWe,
    systemAddr => systemAddr,
    dataToCpu => cpuDi,
-   dataToVic => vicDi,
+   -- dataToVic => vicDi,
    colorA10  => colorA10,
 
    io_enable => io_enable,
@@ -720,15 +720,13 @@ port map (
    cs_ram => cs_ram,
    cs_ioE => ioe_i,
    cs_ioF => iof_i,
+   cs_romFL => romFL,
+   cs_romFH => romFH,
    cs_romL => romL,
    cs_romH => romH,
    cs_UMAXromH => UMAXromH,
-
-   rom_addr => rom_addr,
-   rom_data => rom_data,
-   rom14_wr => rom14_wr,
-   rom23_wr => rom23_wr,
-   romF1_wr => romF1_wr
+   cs_sysRom => sysRom,
+   sysRomBank => sysRomBank
 );
 
 IOE <= ioe_i;
@@ -767,6 +765,7 @@ begin
    end if;
 end process;
 
+vicDi <= ramDin;
 -- In the first three cycles after BA went low, the VIC reads
 -- $ff as character pointers and
 -- as color information the lower 4 bits of the opcode after the access to $d011.
@@ -791,13 +790,13 @@ port map (
    ba => baLoc,
    ba_dma => ba_dma,
 
-   mode6569 => '0',
-   mode6567old => '0',
-   mode6567R8 => '0',
-   mode6572 => '0',
+	mode6569 => pure64 and (not ntscMode),
+	mode6567old => '0',
+	mode6567R8 => pure64 and ntscMode,
+	mode6572 => '0',
 
-   mode8564 => ntscMode,
-   mode8566 => (not ntscMode),
+   mode8564 => not pure64 and ntscMode,
+   mode8566 => not pure64 and (not ntscMode),
    mode8569 => '0',
 
    turbo_en => turbo_en,
@@ -905,7 +904,7 @@ port map (
    debug => vdcDebug,
 
    clk => clk32,
-   reset => reset,
+   reset => reset or pure64,
    init => '0',
 
    enableBus => enableVdc,
@@ -1113,6 +1112,8 @@ cpuIrq_n <= irq_cia1 and irq_vic and irq_n and irq_ext_n;
 
 cpu_6510: entity work.cpu_6510
 port map (
+   mode => not pure64,
+
    clk => clk32,
    reset => reset,
    enable => cpuactT65 and cpucycT65 and not dma_active,
@@ -1130,14 +1131,14 @@ port map (
    doIO => cpuPO
 );
 
-cpslk_sense_cpu <= cpuPO(6);
+cpslk_sense_cpu <= cpuPO(6) or pure64;
 cass_motor <= cpuPO(5);
 cass_write <= cpuPO(3);
 
 cpu_z80: entity work.cpu_z80
 port map (
    clk => clk32,
-   reset => reset,
+   reset => reset or pure64,
    enable => cpucycT80 and not dma_active,
    busrq_n => baLoc and cpuactT80,
    busak_n => cpuBusAk_T80_n,
@@ -1195,7 +1196,7 @@ begin
 
       -- CPU selection
       if (sysCycle = sysCycleDef'pred(CYCLE_CPU0)) then
-         cpuactT65 <= mmu_z80_n and not cpuBusAk_T80_n;
+         cpuactT65 <= mmu_z80_n and (not cpuBusAk_T80_n or pure64);
          cpuactT80 <= not mmu_z80_n;
       end if;
 
@@ -1246,6 +1247,7 @@ Keyboard: entity work.fpga64_keyboard
 port map (
    clk => clk32,
    reset => kbd_reset,
+   pure64 => pure64,
 
    ps2_key => ps2_key,
    go64 => go64,

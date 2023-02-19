@@ -50,10 +50,13 @@ module c1581_multi #(parameter PARPORT=1,DRIVES=2)
 	output  [7:0] sd_buff_din[NDR],
 	input         sd_buff_wr,
 
-	input  [14:0] rom_addr,
-	input   [7:0] rom_data,
-	input         rom_wr,
-	input         rom_std
+	// input  [14:0] rom_addr,
+	// input   [7:0] rom_data,
+	// input         rom_wr,
+	// input         rom_std
+
+	output [14:0] mem_a[NDR],
+	input   [7:0] rom_do[NDR]
 );
 
 localparam NDR = (DRIVES < 1) ? 1 : (DRIVES > 4) ? 4 : DRIVES;
@@ -89,37 +92,37 @@ always @(posedge clk) begin
 	end
 end
 
-wire [7:0] rom_do;
-iecdrv_mem #(8,15,"rtl/iec_drive/c1581_rom.mif") rom
-(
-	.clock_a(clk_sys),
-	.address_a(rom_addr),
-	.data_a(rom_data),
-	.wren_a(rom_wr),
+// wire [7:0] rom_do;
+// iecdrv_mem #(8,15,"rtl/iec_drive/c1581_rom.mif") rom
+// (
+// 	// .clock_a(clk_sys),
+// 	// .address_a(rom_addr),
+// 	// .data_a(rom_data),
+// 	// .wren_a(rom_wr),
 
-	.clock_b(clk),
-	.address_b(mem_a),
-	.q_b(rom_do)
-);
+// 	.clock_b(clk),
+// 	.address_b(mem_a),
+// 	.q_b(rom_do)
+// );
 
-reg  [14:0] mem_a;
-wire [14:0] drv_addr[NDR];
-reg   [7:0] drv_data[4];
-always @(posedge clk) begin
-	reg [2:0] state;
-	reg [14:0] mem_d;
+// reg  [14:0] mem_a;
+// wire [14:0] drv_addr[NDR];
+// reg   [7:0] drv_data[4];
+// always @(posedge clk) begin
+// 	reg [2:0] state;
+// 	reg [14:0] mem_d;
 	
-	if(~&state) state <= state + 1'd1;
-	if(ph2_f)   state <= 0;
+// 	if(~&state) state <= state + 1'd1;
+// 	if(ph2_f)   state <= 0;
 
-	case(state)
-		0,1,2,3: mem_a <= drv_addr[state[1:0]];
-	endcase
+// 	case(state)
+// 		0,1,2,3: mem_a <= drv_addr[state[1:0]];
+// 	endcase
 	
-	case(state)
-		3,4,5,6: drv_data[state[1:0] - 2'd3] <= rom_do;
-	endcase
-end
+// 	case(state)
+// 		3,4,5,6: drv_data[state[1:0] - 2'd3] <= rom_do;
+// 	endcase
+// end
 
 wire [N:0] iec_data_d, iec_clk_d, iec_fclk_d;
 iecdrv_reset_filter #(NDR) rst_flt_clk  (clk, reset_drv, iec_clk_d, iec_clk_o);
@@ -172,8 +175,8 @@ generate
 			.par_data_o(par_data_d[i]),
 			.par_stb_o(par_stb_d[i]),
 
-			.rom_addr(drv_addr[i]),
-			.rom_data(drv_data[i]),
+			.rom_addr(mem_a[i]),
+			.rom_data(rom_do[i]),
 
 			.clk_sys(clk_sys),
 

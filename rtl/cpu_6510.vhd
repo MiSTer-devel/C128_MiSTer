@@ -22,6 +22,7 @@ use ieee.numeric_std.ALL;
 
 entity cpu_6510 is
 	port (
+		mode    : in  std_logic; -- 0=6510, 1=8502
 		clk     : in  std_logic;
 		enable  : in  std_logic;
 		reset   : in  std_logic;
@@ -51,6 +52,7 @@ architecture rtl of cpu_6510 is
 	signal currentIO : std_logic_vector(7 downto 0);
 	signal ioDir : std_logic_vector(7 downto 0);
 	signal ioData : std_logic_vector(7 downto 0);
+	signal ioMask : std_logic_vector(7 downto 0);
 	
 	signal accessIO : std_logic;
 begin
@@ -94,7 +96,7 @@ begin
 			if reset = '1' then
 				ioDir <= (others => '0');
 				ioData <= (others => '1');
-				currentIO <= (others => '1');
+				currentIO <= mode & mode & "111111";
 			end if;
 		end if;
 	end process;

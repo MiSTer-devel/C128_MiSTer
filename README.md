@@ -20,17 +20,10 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - 1570/1571 drive, .d71/.g71 images, including MFM format
 - Automatic detection of C64/C128 .PRG files to reset to the appropriate mode.
 
-### Implemented but untested
-
-The following features should work but have not been tested. If you have an opportunity to test this, please let me know the result by creating an issue on GitHub (for both success and failures)
-
-- Parallel disk I/O on the 1571 (Dolphin DOS)
-
 ### C128 features not (yet/fully) implemented
 
 - VIC register $D030 video manipulation tricks (eg. used by RfO part 1)
 - VDC non-standard high resolution modes (eg. VGA-like modes)
-- Internal function ROM
 - 1571DCR drive model option for the full _128DCR experience_. This model uses a custom MFM en/decoding chip which seems to be completely undocumented.
 
 ### Other TODOs and known issues
@@ -41,46 +34,47 @@ The following features should work but have not been tested. If you have an oppo
 
 ## Usage
 
+### System and drive ROMs
+
+This core does not contain built-in system or drive ROMs. The ROM images will be loaded by the MiSTer on start up of the core.
+
+There are two ways to provide the ROMs for the core: using boot ROM files, or using MRA files. Some features of the core are only available when using MRA files.
+
+#### Using boot ROM files
+
+To boot using rom files, a `boot0.rom` and `boot1.rom` file need to be placed in the `games/C128` directory:
+
+* `boot0.rom` containing the system ROMs in this order:
+  * C64 ROM (ROM1, 16k)
+  * C128 Kernal (ROM4, 16k)
+  * C128 Basic (ROM2+3, 32k)
+  * Character ROM (8k)
+* `boot1.rom` containing the drive ROMs in this order:
+  * 2x 1541 DRIVE ROM (64k total) (repeat 4x if it's a 16k ROM image)
+  * 2x 1570 DRIVE ROM (64k total)
+  * 2x 1571 DRIVE ROM (64k total)
+  * 2x 1581 DRIVE ROM (64k total)
+
+In `boot1.rom`, each drive's ROM is repeated twice, the first ROM is used for drive 8, the second for drive 9. This makes it possible to use different ROMs in the two drives. The standard 1541 ROM images are 16k and need to be repeated 4 times to fill the 64k space.
+
+#### Using MRA files
+
+MRA files make it possible to create multiple ROM configurations and easily switch between them using the MiSTer interface. Each configuration will show as a separate item in the Computer cores menu. MRA files were designed for use with the arcade cores, but they also work with computer cores. 
+
+The MRA file configures all system and drive roms as well as (optionally) the internal and external function ROMs. It also contains a configuration parameter that configures the "auto" choice of the CIA, SID and VDC chips and how the Caps Lock key is configured, making it possible to quickly switch between a 1985 flat C128 and a C128DCR hardware setup, and the multitude of international language versions of the C128, and even a "pure" C64 mode.
+
+Using MRA files is the more convenient way to create multiple ROM configurations with the C128 core, but requires the user to make manual changes to the MiSTer file layout as currently the `update_all` script does not support MRA files for computer cores.
+
+The following changes need to be made on the MiSTer SD-CARD or USB drive to use the MRA files:
+
+* Move the core's `C128_XXXXXXXX.rbf` file from the `/_Computer/` folder to a (new) `/_Computer/cores/` folder,
+* Download (some of) the `*.mra` files from the [mra directory](mra/) and place them in the `/_Computer/` folder,
+* Download [C128rom.zip](mra/C128rom.zip) and place that in the `/games/mame/` folder,
+
 ### Internal memory
 
 In the OSD->Hardware menu, internal memory size can be selected as 128K or 256K. The latter activates RAM in banks 2 and 3. C128 basic does not detect this memory however, so it will
 still show 122365 bytes free.
-
-### ROM set
-
-The ROM set option in the OSD->Hardware menu lets you switch between standard C128 and C128DCR roms.
-
-### Char switch
-
-The Char switch option in the OSD->Hardware menu lets you select how the two character ROM banks are switched.
-
-English versions of the C128 switch character set depending on C128 or C64 mode, whereas international versions of the C128 have an "ASCII/DIN" key that replaces the "CAPS LOCK" key to 
-manually switch character sets. 
-
-### Loadable ROM
-
-External ROMs can be loaded to replace the standard ROMs in OSD->Hardware.
-
-**ROM 1/4**: Expects a 16kB, 32kB or 40kb file. First 16 kB contains C64 basic and kernal (a.k.a ROM1), next 16 kB contains the C128 kernal
-(a.k.a ROM4), and the last 8 kB is loaded as the character rom. This makes it possible to load international versions of the C128 OS as a single file.
-
-It's possible to only change the C64 ROM by loading a 16 kB ROM image, or the contents of both ROM1 and 4 without updating the character rom by loading a 32 kB image.
-
-*Note*: some C64 ROM files created for the C64 MiSTer core are bigger than 16kB and include the disk ROM as well, for example the Dolphin DOS ROM.
-These ROM files will *not* work with this core as they will overwrite the C128 kernal parts. To use these ROMs the C64 and drive ROM parts must be loaded separately.
-
-**ROM 2/3**: Expects a 32kB file containing the complete C128 basic ROM. C128 kernal and C128 basic ROM versions must match to function correctly.
-
-**Function rom**: Loads the internal function ROM. Not implemented yet.
-
-**Drive rom**: Loads the ROM for the disk drive. The file extension determines to which drive model the ROM image is applied to:
-
- * `.R41`: ROM for the 1541 drive
- * `.R70`: ROM for the 1570 drive
- * `.R71`: ROM for the 1571 drive
- * `.R81`: ROM for the 1581 drive
-
-For example, to load a Dolphin DOS ROM for the 1541, the filename must end with `.R41`, e.g. `DOLPHIN.R41`
 
 ### VDC/80 column mode
 
@@ -113,7 +107,7 @@ The <kbd>AltGr</kbd> key (right <kbd>Alt</kbd>) is used to access alternative fu
 * <kbd>AltGr</kbd>+<kbd>F1</kbd> - <kbd>Esc</kbd>
 * <kbd>AltGr</kbd>+<kbd>F2</kbd> - <kbd>Alt</kbd>
 * <kbd>AltGr</kbd>+<kbd>F3</kbd> - <kbd>Tab</kbd>
-* <kbd>AltGr</kbd>+<kbd>F4</kbd> - <kbd>Caps Lock</kbd>
+* <kbd>AltGr</kbd>+<kbd>F4</kbd> - <kbd>Caps Lock</kbd> or <kbd>ASCII/DIN</kbd>
 * <kbd>AltGr</kbd>+<kbd>F5</kbd> - <kbd>Help</kbd>
 * <kbd>AltGr</kbd>+<kbd>F6</kbd> - <kbd>Line feed</kbd>
 * <kbd>AltGr</kbd>+<kbd>F7</kbd> - <kbd>40/80 display</kbd>
