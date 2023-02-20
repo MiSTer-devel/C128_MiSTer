@@ -408,7 +408,7 @@ always @(posedge clk_sys) begin
       reset_wait <= 1;
       reset_counter <= 255;
    end
-   else if (ioctl_download & (load_rom | load_cfg | load_ifr | load_crt) & reset_counter <= 255) begin
+   else if (ioctl_download & (load_rom | load_cfg | load_ifr | load_efr | load_crt) & reset_counter <= 255) begin
       do_erase <= 1;
       reset_counter <= 255;
    end
@@ -547,16 +547,17 @@ wire       ciaVersion = chip_version(status[46:45]);
 wire [1:0] sidVersion = {chip_version(status[16:15]), chip_version(status[14:13])};
 wire       vdcVersion = chip_version(status[81:80]);
 
-wire bootrom  = ioctl_index[5:0] == 0;
-wire load_rom = ioctl_index == {2'd0, 6'd0} || ioctl_index[5:0] == 3;
-wire load_drv = ioctl_index == {2'd1, 6'd0} || ioctl_index[5:0] == 4;
-wire load_cfg = ioctl_index == {2'd0, 6'd1};
-wire load_prg = ioctl_index == {2'd0, 6'd2};
-wire load_crt = ioctl_index == {2'd1, 6'd2} || ioctl_index[5:0] == 5;
-wire load_reu = ioctl_index == {2'd2, 6'd2};
-wire load_tap = ioctl_index == {2'd3, 6'd2};
-wire load_ifr = ioctl_index[5:0] == 6;
-wire load_flt = ioctl_index[5:0] == 7;
+wire bootrom  = ioctl_index[5:0] == 0;                                 // MRA index 0 or any boot*.rom
+wire load_rom = ioctl_index == {2'd0, 6'd0} || ioctl_index[5:0] == 3;  // MRA index 0, boot0.rom or OSD "load system ROMs"
+wire load_drv = ioctl_index == {2'd1, 6'd0} || ioctl_index[5:0] == 4;  // boot1.rom or OSD "load drive ROMs"
+wire load_ifr = ioctl_index == {2'd2, 6'd0} || ioctl_index[5:0] == 6;  // boot2.rom or OSD "load Internal Function ROM"
+wire load_efr = ioctl_index == {2'd3, 6'd0};                           // boot3.rom
+wire load_cfg = ioctl_index == {2'd0, 6'd1};                           // MRA index 1
+wire load_prg = ioctl_index == {2'd0, 6'd2};                           // OSD "load *.PRG"
+wire load_crt = ioctl_index == {2'd1, 6'd2} || ioctl_index[5:0] == 5;  // OSD "load *.CRT" or "Boot Cartridge"
+wire load_reu = ioctl_index == {2'd2, 6'd2};                           // OSD "load *.REU" 
+wire load_tap = ioctl_index == {2'd3, 6'd2};                           // OSD "load *.TAP"
+wire load_flt = ioctl_index[5:0] == 7;                                 // OSD "load Custom Filters"
 
 wire sysRom;
 wire [4:0] sysRomBank;
@@ -752,16 +753,16 @@ wire       drv_download = drv_loading & ioctl_download;
 localparam RAM_ADDR = 'h0000000;  // System RAM: 256k
 localparam CRM_ADDR = 'h0040000;  // Cartridge RAM: 64k
 localparam ROM_ADDR = 'h0060000;  // System ROM: 96k (align on 128k)       loaded from boot0.rom or MRA (required)
-localparam IFR_ADDR = 'h0078000;  // Internal function ROM: 32k            can be loaded from boot0.rom or MRA (optional)
+localparam IFR_ADDR = 'h0078000;  // Internal function ROM: 32k            can be loaded from boot0.rom, boot2.rom or MRA (optional)
 localparam DRV_ADDR = 'h0080000;  // Drive ROM: 512k                       loaded from boot0.rom, boot1.rom or MRA (required)
-localparam CRT_ADDR = 'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom or MRA (first 32k, optional)
+localparam CRT_ADDR = 'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
 localparam TAP_ADDR = 'h0200000;  // Tape buffer
 localparam GEO_ADDR = 'h0C00000;  // GeoRAM: 4M
 localparam REU_ADDR = 'h1000000;  // REU: 16M
 
 localparam ROM_SIZE = 'h0011000;  // min size of boot0.rom
 localparam DRV_SIZE = 'h0030000;  // exact size of boot1.rom
-localparam IFR_SIZE = 'h0008000;  // max size of internal function rom
+localparam FRM_SIZE = 'h0008000;  // max size of function roms
 
 always @(posedge clk_sys) begin
    reg  [4:0] erase_to;
@@ -867,8 +868,23 @@ always @(posedge clk_sys) begin
             ioctl_load_addr <= IFR_ADDR;
             cart_int_rom <= 0;
          end
-         if (ioctl_addr < IFR_SIZE) begin
+         if (ioctl_addr < FRM_SIZE) begin
             if (|ioctl_data && ~&ioctl_data) cart_int_rom[ioctl_addr[14]] <= 1;
+            ioctl_req_wr <= 1;
+         end
+      end
+
+      if (load_efr) begin
+         if (ioctl_addr == 0) begin
+            ioctl_load_addr <= CRT_ADDR;
+            cart_ext_rom <= 0;
+         end
+         if (ioctl_addr < FRM_SIZE) begin
+            if (|ioctl_data && ~&ioctl_data) begin
+               if (ioctl_addr[14:13] == 2'b00) cart_ext_rom[0] <= 1;
+               if (ioctl_addr[14:13] == 2'b01) cart_ext_rom[1] <= 1;
+               if (ioctl_addr[14]    == 1'b1)  cart_ext_rom[2] <= 1;
+            end
             ioctl_req_wr <= 1;
          end
       end

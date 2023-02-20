@@ -54,6 +54,10 @@ To boot using rom files, a `boot0.rom` and `boot1.rom` file need to be placed in
 
 Each drive's ROM is repeated twice in `boot1.rom`. The first ROM is used for drive 8, the second for drive 9. This makes it possible to use different ROMs in the two drives. The 1541 ROM is 16k and needs to be repeated 4 times to fill the 64k space.
 
+There are two optional boot roms:
+* `boot2.rom` for the optional Internal Function ROM (16 or 32k)
+* `boot3.rom` for the optional External Function ROM (16 or 32k)
+
 #### Using MRA files
 MRA files make it possible to create multiple ROM configurations and easily switch between them using the MiSTer interface. Each configuration will show as a separate item in the Computer cores menu. MRA files were designed for use with the arcade cores, but they also work with computer cores. 
 
@@ -68,7 +72,9 @@ The following changes need to be made on the MiSTer SD-CARD or USB drive to use 
 * Download [C128rom.zip](mra/C128rom.zip) and place that in the `/games/mame/` folder,
 
 #### Loadable ROM
-ROMs can also be loaded from the OSD: Hardware->System ROMs and Hardware->Drive ROMs menu options. These expect a ROM file with the same layout as `boot0.rom` and `boot1.rom` as described above respectively.
+ROMs can also be loaded from the OSD via Hardware->System ROMs and Hardware->Drive ROMs menu options. These expect a ROM file with the same layout as `boot0.rom` and `boot1.rom` as described above respectively.
+
+The Internal Function ROM can also be loaded from the OSD via Hardware->Internal Function ROM and this is similar to using the optional `boot2.rom`.
 
 ### Keyboard
 * <kbd>End</kbd> - <kbd>Run stop</kbd>
