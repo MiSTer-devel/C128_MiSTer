@@ -22,10 +22,9 @@
         18000 - 1FFFF: Internal function ROM (optional, fill with '00' if not present)
       20000 - 9FFFF: Drive ROMs
         20000 - 2FFFF: 1541 (two copies of each drive rom, separate roms for devices 8 and 9 -- if the ROM is 16k repeat it twice per device)
-        30000 - 3FFFF: 1570
-        40000 - 4FFFF: 1571
-        50000 - 5FFFF: 1581
-        60000 - 9FFFF: unused
+        30000 - 3FFFF: 1571
+        40000 - 4FFFF: 1581
+        50000 - 9FFFF: unused
       A0000 -  A7FFF: External function ROM (optional)
 
     Index 1: Variant options
@@ -33,7 +32,7 @@
       bit 1: Operating mode: 0=C128 1="Pure" C64 (disables Z80/MMU/VDC)
       bit 2: Caps lock key: 0=Caps Lock 1=ASCII/DIN
   </romstruct>
-  <rom index="0" zip="C128rom.zip" md5="fb48851d29efbe5a58ffeec67372401c">
+  <rom index="0" zip="C128rom.zip" md5="c0d5d3e9a542214a3813c54d43788d4c">
     <part name="c64-basic.901226-01.bin"/>
     <part name="c64-kernal.901227-03.bin"/>
     <part name="editor.french.unknown.bin"/>
@@ -47,8 +46,6 @@
     <part name="1541-II.355640-01.bin"/> 
     <part name="1541-II.355640-01.bin"/> 
     <part name="1541-II.355640-01.bin"/> 
-    <part name="1570.315090-01.bin"/>
-    <part name="1570.315090-01.bin"/>
     <part name="1571.310654-05.bin"/>
     <part name="1571.310654-05.bin"/>
     <part name="1581.318045-02.bin"/>

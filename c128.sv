@@ -259,8 +259,8 @@ localparam CONF_STR = {
    "P2,Hardware;",
 	"P2O[58:57],Enable Drive #8,If Mounted,Always,Never;",
 	"P2O[56:55],Enable Drive #9,If Mounted,Always,Never;",
-   "D7P2O[84:83],Drive #8 5.25\" model,Auto,1541,1571,1570;",
-   "D0P2O[86:85],Drive #9 5.25\" model,Auto,1541,1571,1570;",
+   "D7P2O[84:83],Drive #8 5.25\" model,Auto,1541,1571;",
+   "D0P2O[86:85],Drive #9 5.25\" model,Auto,1541,1571;",
 	"P2O[44],Parallel port,Enabled,Disabled;",
 	"P2O[25],External IEC,Disabled,Enabled;",
 	"P2R[6],Reset Disk Drives;",
@@ -1413,10 +1413,10 @@ end
 
 function [1:0] map_drive_model(input [1:0] st);
    case(st)
-      2'b00: return (cfg_pure64 ? 2'b00 : 2'b10);  // Auto
-      2'b01: return 2'b00;                         // 1541
-      2'b10: return 2'b10;                         // 1571
-      2'b11: return 2'b01;                         // 1570
+      2'b00  : return (cfg_pure64 ? 2'b00 : 2'b10);  // Auto
+      2'b01  : return 2'b00;                         // 1541
+      2'b10  : return 2'b10;                         // 1571
+      default: return 2'bXX;
    endcase
 endfunction
 

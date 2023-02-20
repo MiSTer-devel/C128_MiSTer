@@ -51,8 +51,8 @@ module c157x_logic #(DRIVE)
 	output       mode,          // GCR mode (0=write, 1=read)
 	output       wgate,         // MFM wgate (0=read, 1=write)
 	output       fdc_busy,      // WD1770 busy
-	output [1:0] stp,			// stepper motor control
-	output       mtr,			// drive motor on/off
+	output [1:0] stp,			 	 // stepper motor control
+	output       mtr,			 	 // drive motor on/off
 	output [1:0] freq,		    // motor frequency
 	input        tr00_sense,    // track 0 sense
 	input        index_sense,   // index pulse

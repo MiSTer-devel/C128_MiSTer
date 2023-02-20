@@ -71,7 +71,12 @@ always @(posedge clk_sys)
       if(img_mounted[i] && img_size)
          {img_hd[i], img_mfm[i], img_gcr[i], img_ds[i]} = img_type;
 
-      rom_bank[i] = 4'((img_hd[i] ? 3'd3 : drv_mode[i]) * NDR + i);
+      if (img_hd[i])
+         rom_bank[i] = 4'((2*NDR)+i);  // 1581 ROM
+      else if (drv_mode[i] == 2'b00)
+         rom_bank[i] = 4'((0*NDR)+i);  // 1541 ROM
+      else 
+         rom_bank[i] = 4'((1*NDR)+i);  // 1571 ROM
    end
 
 wire  [14:0] mem_a[NDR], rom_addr_d[NDR];

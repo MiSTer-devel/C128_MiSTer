@@ -17,20 +17,19 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - Automatic detection of .CRT files: C64 cartridges boot in C64 mode, C128 cartridges boot in C128 mode. C128 .CRT files must contain a [C128 CARTRIDGE](https://vice-emu.sourceforge.io/vice_17.html#SEC392) header to be detected.
 - Loading of .PRG files to the correct memory location in C128 mode.
 - Fast serial (external) IEC
-- 1570/1571 drive, .d71/.g71 images, including MFM format
+- 1571 drive, .d71/.g71 images, including MFM format
 - Automatic detection of C64/C128 .PRG files to reset to the appropriate mode.
 
 ### C128 features not (yet/fully) implemented
 
 - VIC register $D030 video manipulation tricks (eg. used by RfO part 1)
 - VDC non-standard high resolution modes (eg. VGA-like modes)
-- 1571DCR drive model option for the full _128DCR experience_. This model uses a custom MFM en/decoding chip which seems to be completely undocumented.
 
 ### Other TODOs and known issues
 
 - Re-enable 3x and 4x turbo modes for 8502
 - Turbo mode for Z80
-- Unable to format disks in D81 format (Issue [#9](https://github.com/eriks5/C128_MiSTer/issues/9) -- inherited from C64 core, should probably be fixed there)
+- Other known issues: See [GitHub](https://github.com/eriks5/C128_MiSTer/issues/)
 
 ## Usage
 
@@ -50,12 +49,11 @@ To boot using rom files, a `boot0.rom` and `boot1.rom` file need to be placed in
   * C128 Basic (ROM2+3, 32k)
   * Character ROM (8k)
 * `boot1.rom` containing the drive ROMs in this order:
-  * 2x 1541 DRIVE ROM (64k total) (repeat 4x if it's a 16k ROM image)
-  * 2x 1570 DRIVE ROM (64k total)
-  * 2x 1571 DRIVE ROM (64k total)
-  * 2x 1581 DRIVE ROM (64k total)
+  * 2x 1541 drive ROM (64k total) (repeat 4x if it's a 16k ROM image)
+  * 2x 1571 drive ROM (64k total)
+  * 2x 1581 drive ROM (64k total)
 
-In `boot1.rom`, each drive's ROM is repeated twice, the first ROM is used for drive 8, the second for drive 9. This makes it possible to use different ROMs in the two drives. The standard 1541 ROM images are 16k and need to be repeated 4 times to fill the 64k space.
+Each drive's ROM is repeated twice in `boot1.rom`. The first ROM is used for drive 8, the second for drive 9. This makes it possible to use different ROMs in the two drives. The 1541 ROM is 16k and needs to be repeated 4 times to fill the 64k space.
 
 #### Using MRA files
 
