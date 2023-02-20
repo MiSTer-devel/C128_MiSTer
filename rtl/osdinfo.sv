@@ -12,7 +12,7 @@ module osdinfo #(
 	input        kbd_reset,
 	input        cpslk_mode,
 
-	input        rom_loaded,
+	input  [1:0] rom_loaded,
 	input        sftlk_sense,
 	input        cpslk_sense,
 	input        d4080_sense,
@@ -38,13 +38,13 @@ always @(posedge clk) begin
 	osd_clk <= ~|count;
 end
 
-reg rom_missing;
+reg [1:0] missing_rom;
 
 always @(posedge clk) begin
    reg [ROM_LOAD_DELAY_BITS-1:0] delay;
 
-   if (reset || rom_loaded) begin
-		rom_missing <= 0;
+   if (reset || &rom_loaded) begin
+		missing_rom <= 0;
       delay <= ROM_LOAD_DELAY_BITS'(ROM_LOAD_DELAY);
 	end
    else if (|delay) begin
@@ -52,7 +52,7 @@ always @(posedge clk) begin
    	   delay <= delay - 1'd1;
 	end
    else
-      rom_missing <= 1;
+      missing_rom <= rom_loaded[0] ? 2'd2 : 2'd1;
 end
 
 always @(posedge clk) begin
@@ -77,30 +77,30 @@ always @(posedge clk) begin
 		if (osd_clk)
 			delay <= delay - 1'd1;
 	end
-	else if (rom_missing) begin
-		info <= 8'd1;
+	else if (missing_rom) begin
+		info <= missing_rom;
 		info_req <= ~info_req;  // keep visible
 	end		
 	else begin
 		info_req <= 0;
 
 		if (sftlk_sense != sftlk_sense0) begin
-			info <= sftlk_sense ? 8'd3 : 8'd2;
+			info <= sftlk_sense ? 8'd4 : 8'd3;
 			info_req <= 1;
 		end
 
 		if (cpslk_sense != cpslk_sense0) begin
-			info <= cpslk_mode ? (cpslk_sense ? 8'd7 : 8'd6) : (cpslk_sense ? 8'd5 : 8'd4);
+			info <= cpslk_mode ? (cpslk_sense ? 8'd8 : 8'd7) : (cpslk_sense ? 8'd6 : 8'd5);
 			info_req <= 1;
 		end
 
 		if (d4080_sense != d4080_sense0) begin
-			info <= d4080_sense ? 8'd9 : 8'd8;
+			info <= d4080_sense ? 8'd10 : 8'd9;
 			info_req <= 1;
 		end
 
 		if (noscr_sense != noscr_sense0) begin
-			info <= noscr_sense ? 8'd11 : 8'd10;
+			info <= noscr_sense ? 8'd12 : 8'd11;
 			info_req <= 1;
 		end
 	end

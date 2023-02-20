@@ -300,12 +300,13 @@ localparam CONF_STR = {
    "jn,A,B,Y,X|P,R,L;",
    "jp,A,B,Y,X|P,R,L;",
    "I,",
-   "Missing/invalid boot.rom or MRA file,",
-   "SHIFT LOCK: Off,SHIFT LOCK: On,",
-   "CAPS LOCK: On,CAPS LOCK: Off,",
-   "ASCII/DIN: DIN,ASCII/DIN: ASCII,",
-   "40/80 DISPLAY: 80,40/80 DISPLAY: 40,",
-   "NO SCROLL LOCK: Off,NO SCROLL LOCK: On;",
+   "Missing/invalid boot0.rom/MRA,",          // 1
+   "Missing/invalid boot1.rom/MRA,",          // 2
+   "SHIFT LOCK: Off,SHIFT LOCK: On,",         // 3/4
+   "CAPS LOCK: On,CAPS LOCK: Off,",           // 5/6
+   "ASCII/DIN: DIN,ASCII/DIN: ASCII,",        // 7/8
+   "40/80 DISPLAY: 80,40/80 DISPLAY: 40,",    // 9/10
+   "NO SCROLL LOCK: Off,NO SCROLL LOCK: On;", // 11/12
    "DEFMRA,/_Computer/C128def.mra;",
    "V,v",`BUILD_DATE
 };
@@ -750,17 +751,17 @@ wire       drv_download = drv_loading & ioctl_download;
 // -- all blocks must be aligned on that block's size boundaries, so a 64k block must start at a 64k boundary, etc.
 localparam RAM_ADDR = 'h0000000;  // System RAM: 256k
 localparam CRM_ADDR = 'h0040000;  // Cartridge RAM: 64k
-localparam ROM_ADDR = 'h0060000;  // System ROM: 96k (align on 128k)  \
-localparam IFR_ADDR = 'h0078000;  // Internal function ROM: 32k        \
-localparam DRV_ADDR = 'h0080000;  // Drive ROM: 512k                    } loaded from boot.rom or MRA
-localparam CRT_ADDR = 'h0100000;  // Cartridge: 1M                     /
+localparam ROM_ADDR = 'h0060000;  // System ROM: 96k (align on 128k)       loaded from boot0.rom or MRA (required)
+localparam IFR_ADDR = 'h0078000;  // Internal function ROM: 32k            can be loaded from boot0.rom or MRA (optional)
+localparam DRV_ADDR = 'h0080000;  // Drive ROM: 512k                       loaded from boot0.rom, boot1.rom or MRA (required)
+localparam CRT_ADDR = 'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom or MRA (first 32k, optional)
 localparam TAP_ADDR = 'h0200000;  // Tape buffer
 localparam GEO_ADDR = 'h0C00000;  // GeoRAM: 4M
 localparam REU_ADDR = 'h1000000;  // REU: 16M
 
-localparam ROM_SIZE = 'h0011000;  // expected size of boot0.rom
-localparam DRV_SIZE = 'h0040000;  // expected size of boot1.rom
-localparam IFR_SIZE = 'h0008000;  // expected size of internal function rom
+localparam ROM_SIZE = 'h0011000;  // min size of boot0.rom
+localparam DRV_SIZE = 'h0030000;  // exact size of boot1.rom
+localparam IFR_SIZE = 'h0008000;  // max size of internal function rom
 
 always @(posedge clk_sys) begin
    reg  [4:0] erase_to;
@@ -2030,7 +2031,7 @@ osdinfo osdinfo
    .kbd_reset((~reset_n & ~status[1]) | reset_keys),
    .cpslk_mode(cfg_cpslk),
 
-   .rom_loaded(ioctl_download | rom_loaded),
+   .rom_loaded(ioctl_download ? 2'b11 : {drv_loaded, rom_loaded}),
    .sftlk_sense(sftlk_sense),
    .cpslk_sense(cpslk_sense),
    .d4080_sense(d4080_sense),

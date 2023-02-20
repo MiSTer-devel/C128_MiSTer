@@ -32,13 +32,15 @@
       bit 1: Operating mode: 0=C128 1="Pure" C64 (disables Z80/MMU/VDC)
       bit 2: Caps lock key: 0=Caps Lock 1=ASCII/DIN
   </romstruct>
-  <rom index="0" zip="C128rom.zip" md5="59feca501192ec706ec3adac9268ee62">
+  <rom index="0" zip="C128rom.zip" md5="1f373a92d9da62fad6b07c063e7712d6">
     <part name="c64-basic.901226-01.bin"/>
     <part name="JiffyDOS_C64.bin" zip="C128JiffyDOS.zip"/>
     <part name="JiffyDOS_C128.bin" zip="C128JiffyDOS.zip"/>
     <part name="basic.318022-02.bin"/>
     <part name="characters.390059-01.bin"/>
     <part repeat="0xE000">00</part>
+    <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/> 
+    <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/> 
     <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/> 
     <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/> 
     <part name="JiffyDOS_1571_repl310654.bin" zip="C128JiffyDOS.zip"/>
