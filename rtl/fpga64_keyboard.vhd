@@ -77,7 +77,6 @@ architecture rtl of fpga64_keyboard is
 
 	signal extended: boolean;
 	signal pressed: std_logic := '0';
-	signal reset_0 : std_logic := '0';
 
 	signal key_del: std_logic := '0';
 	signal key_return: std_logic := '0';
@@ -212,7 +211,6 @@ architecture rtl of fpga64_keyboard is
 	signal key_fn_crsr : std_logic;
 
 begin
-	reset_0 <= reset;
 	delay_end <= '1' when delay_cnt = 0 else '0';
 
 	capslock <= key_capslock or (key_F4 and key_fn);
@@ -222,8 +220,6 @@ begin
 			if pure64 = '1' then
 				capslock_0 <= '0';
 				capslock_state <= '1';
-			elsif reset = '1' then
-				capslock_0 <= '0';
 			else
 				capslock_0 <= capslock;
 				if (capslock = '1' and capslock_0 = '0') then
@@ -240,8 +236,6 @@ begin
 			if pure64 = '1' then
 				disp4080_0 <= '0';
 				disp4080_state <= '1';
-			elsif reset = '1' then
-				disp4080_0 <= '0';
 			else
 				disp4080_0 <= disp4080;
 				if (disp4080 = '1' and disp4080_0 = '0') then
@@ -255,14 +249,9 @@ begin
 	shift_lock_toggle: process(clk)
 	begin
 		if rising_edge(clk) then
-			if reset = '1' then
-				shift_lock_0 <= '0';
-				shift_lock_state <= '0';
-			else
-				shift_lock_0 <= shift_lock;
-				if (shift_lock = '1' and shift_lock_0 = '0') then
-					shift_lock_state <= not shift_lock_state;
-				end if;
+			shift_lock_0 <= shift_lock;
+			if (shift_lock = '1' and shift_lock_0 = '0') then
+				shift_lock_state <= not shift_lock_state;
 			end if;
 		end if;
 	end process;
@@ -611,7 +600,7 @@ begin
 				end case;
 			end if;
 
-			if reset = '1' and reset_0 = '0' then
+			if reset = '1' then
 					key_F1        <= '0';
 					key_F2        <= '0';
 					key_F3        <= '0';

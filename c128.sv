@@ -689,10 +689,10 @@ always @(posedge clk_sys) ext_cycle_d <= ext_cycle;
 wire reu_ram_ce = ~ext_cycle_d & ext_cycle & dma_req;
 
 // rearrange joystick contacts for c64
-wire [6:0] joyA_int = joy[8] ? 7'd0 : {joyA[6:4], joyA[0], joyA[1], joyA[2], joyA[3]};
-wire [6:0] joyB_int = joy[8] ? 7'd0 : {joyB[6:4], joyB[0], joyB[1], joyB[2], joyB[3]};
-wire [6:0] joyC_c64 = joy[8] ? 7'd0 : {joyC[6:4], joyC[0], joyC[1], joyC[2], joyC[3]};
-wire [6:0] joyD_c64 = joy[8] ? 7'd0 : {joyD[6:4], joyD[0], joyD[1], joyD[2], joyD[3]};
+wire [6:0] joyA_int = joy[9:8] ? 7'd0 : {joyA[6:4], joyA[0], joyA[1], joyA[2], joyA[3]};
+wire [6:0] joyB_int = joy[9:8] ? 7'd0 : {joyB[6:4], joyB[0], joyB[1], joyB[2], joyB[3]};
+wire [6:0] joyC_c64 = joy[9:8] ? 7'd0 : {joyC[6:4], joyC[0], joyC[1], joyC[2], joyC[3]};
+wire [6:0] joyD_c64 = joy[9:8] ? 7'd0 : {joyD[6:4], joyD[0], joyD[1], joyD[2], joyD[3]};
 
 // swap joysticks if requested
 wire [6:0] joyA_c64 = status[3] ? joyB_int : joyA_int;
@@ -703,10 +703,10 @@ wire [7:0] paddle_2 = status[3] ? pd4 : pd2;
 wire [7:0] paddle_3 = status[3] ? pd1 : pd3;
 wire [7:0] paddle_4 = status[3] ? pd2 : pd4;
 
-wire       paddle_1_btn = ~joy[8] & (status[3] ? joyC[7] : joyA[7]);
-wire       paddle_2_btn = ~joy[8] & (status[3] ? joyD[7] : joyB[7]);
-wire       paddle_3_btn = ~joy[8] & (status[3] ? joyA[7] : joyC[7]);
-wire       paddle_4_btn = ~joy[8] & (status[3] ? joyB[7] : joyD[7]);
+wire       paddle_1_btn = ~|joy[9:8] & (status[3] ? joyC[7] : joyA[7]);
+wire       paddle_2_btn = ~|joy[9:8] & (status[3] ? joyD[7] : joyB[7]);
+wire       paddle_3_btn = ~|joy[9:8] & (status[3] ? joyA[7] : joyC[7]);
+wire       paddle_4_btn = ~|joy[9:8] & (status[3] ? joyB[7] : joyD[7]);
 
 wire [1:0] pd12_mode = status[27:26];
 wire [1:0] pd34_mode = status[29:28];
@@ -1085,7 +1085,7 @@ always @(posedge clk_sys) begin
             (joy[0] ? 18'h016 : joy[1] ? 18'h01E : joy[2] ? 18'h026 : joy[3] ? 18'h025  :
              joy[4] ? 18'h02E : joy[5] ? 18'h045 : joy[6] ? 18'h035 : joy[7] ? 18'h031  : 18'h0):
             (joy[0] ? 18'h174 : joy[1] ? 18'h16B : joy[2] ? 18'h172 : joy[3] ? 18'h175  :
-             joy[4] ? 18'h05A : joy[5] ? 18'h029 : joy[6] ? 18'h076 : joy[7] ? 18'h2276 : 18'h0);
+             joy[4] ? 18'h05A : joy[5] ? 18'h029 : joy[6] ? 18'h169 : joy[7] ? {9'h012, 9'h169} : 18'h0);
 
    if(~reset_n) {joy_finish, act} <= 0;
 
