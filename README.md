@@ -5,15 +5,19 @@ Based on [C64_MiSTer](https://github.com/MiSTer-devel/C64_MiSTer) by sorgelig.
 Based on FPGA64 by Peter Wendrich with heavy later modifications by different people.
 
 ## Features
-- C128, C64 and CP/M modes.
-- Optional "pure" C64 mode (disables C128 extensions)
-- C1541 read/write/format support in raw GCR mode (*.D64, *.G64).
-- C1571 read/write/format support in raw GCR or MFM mode (*.D64, *.G64, *.D71, *.G71)
-- C1581 read/write support (*.D81).
+- **C128, C64 and CP/M modes**.
+- **Chipset versions selectable from original C128 flat and newer C128 DCR**.
+- **Supports international versions of the C128**.
+- **Optional "pure" C64 mode (disables C128 extensions)**.
+- C1541 read/write/format support in raw GCR mode (\*.D64, \*.G64).
+- **C1571 read/write/format support in raw GCR or MFM mode (\*.D64, \*.G64, \*.D71, \*.G71)**.
+- C1581 read/write support (\*.D81).
 - Parallel IEC port for faster (~20x) loading time.
-- External IEC through USER_IO port, including Fast Serial.
-- Almost all C64 cartridge formats (*.CRT)
-- Direct file injection (*.PRG) with detection of C128 or C64 mode.
+- External IEC through USER_IO port, **including Fast Serial**.
+- **VIC jailbars**.
+- **VDC with 16k or 64k RAM and multiple colour palettes**.
+- Almost all C64 cartridge formats (\*.CRT)
+- Direct file injection (\*.PRG) **with detection of C128 or C64 mode**.
 - Dual SID with several degree of mixing 6581/8580 from stereo to mono.
 - Similar to 6581 and 8580 SID filters.
 - REU 16MB and GeoRAM 4MB memory expanders.
@@ -23,9 +27,10 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - RS232 with VIC-1011 and UP9600 modes either internal or through USER_IO.
 - Loadable Kernal/drive ROMs.
 - Special reduced border mode for 16:9 display.
-- Real-time clock
-- VIC jailbars
-- Selectable colour palettes for the VDC
+- Real-time clock.
+- **Support for easy configuration of ROMs and hardware options using MRA files**.
+
+Features marked in bold are unique to the C128 core, the other features are inherited from the C64 core.
 
 ### C128 features not (fully) implemented
 
@@ -44,9 +49,9 @@ There are two ways to provide the ROMs for the core: using boot ROM files, or us
 To boot using rom files, a `boot0.rom` and `boot1.rom` file need to be placed in the `games/C128` directory:
 
 * `boot0.rom` containing the system ROMs in this order:
-  * C64 ROM (ROM1, 16k)
-  * C128 Kernal (ROM4, 16k)
-  * C128 Basic (ROM2+3, 32k)
+  * ROM1: C64 Basic+C64 Kernal (16k total)
+  * ROM4: C128 Editor+Z80 bios+C128 Kernal (16k total)
+  * ROM2+3: C128 Basic (32k total)
   * Character ROM (8k)
 * `boot1.rom` containing the drive ROMs in this order:
   * 2x 1541 drive ROM (64k total) (repeat 4x if it's a 16k ROM image)
