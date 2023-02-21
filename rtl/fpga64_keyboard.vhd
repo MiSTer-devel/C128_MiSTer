@@ -75,7 +75,6 @@ end fpga64_keyboard;
 architecture rtl of fpga64_keyboard is
 	constant C_NOSCROLL_DELAY : integer := 6_000_000;  -- 32_000_000 is 1 second
 
-	signal extended: boolean;
 	signal pressed: std_logic := '0';
 
 	signal key_del: std_logic := '0';
@@ -260,7 +259,6 @@ begin
 	key_fn_crsr <= key_fn xor alt_crsr;
 
 	pressed <= ps2_key(9);
-	extended<= ps2_key(8) = '1';
 	matrix: process(clk)
 	begin
 		if rising_edge(clk) then
@@ -492,92 +490,111 @@ begin
 				(ki(2) or not (key_noscroll or noscroll_lock or (key_F8 and key_fn)));
 
 			if ps2_key(10) /= ps2_stb then
-				case ps2_key(7 downto 0) is
-					when X"05" => key_F1 <= pressed;
-					when X"06" => key_F2 <= pressed;
-					when X"04" => key_F3 <= pressed;
-					when X"0C" => key_F4 <= pressed;
-					when X"03" => key_F5 <= pressed;
-					when X"0B" => key_F6 <= pressed;
-					when X"83" => key_F7 <= pressed;
-					when X"0A" => key_F8 <= pressed;
-					when X"01" => key_arrowup <= pressed; -- F9
-					when X"09" => key_equal <= pressed; -- F10
-					when X"0D" => if pure64 = '0' then key_tab <= pressed; end if;
-					when X"0E" => key_arrowleft <= pressed;
-					when X"11" => if pure64 = '0' then if extended then key_fn <= pressed; else key_alt <= pressed; end if; end if; -- AltGr / Alt
-					when X"12" => key_shiftl <= pressed;
-					when X"14" => key_ctrl <= pressed; -- Ctrl (left+right)
-					when X"15" => key_Q <= pressed;
-					when X"16" => key_1 <= pressed;
-					when X"1A" => key_Z <= pressed;
-					when X"1B" => key_S <= pressed;
-					when X"1C" => key_A <= pressed;
-					when X"1D" => key_W <= pressed;
-					when X"1E" => key_2 <= pressed;
-					when X"1F" => key_commodore <= pressed; -- Meta (left)
-					when X"21" => key_C <= pressed;
-					when X"22" => key_X <= pressed;
-					when X"23" => key_D <= pressed;
-					when X"24" => key_E <= pressed;
-					when X"25" => key_4 <= pressed;
-					when X"26" => key_3 <= pressed;
-					when X"27" => key_commodore <= pressed; -- Meta (right)
-					when X"29" => key_space <= pressed;
-					when X"2A" => key_V <= pressed;
-					when X"2B" => key_F <= pressed;
-					when X"2C" => key_T <= pressed;
-					when X"2D" => key_R <= pressed;
-					when X"2E" => key_5 <= pressed;
-					when X"31" => key_N <= pressed;
-					when X"32" => key_B <= pressed;
-					when X"33" => key_H <= pressed;
-					when X"34" => key_G <= pressed;
-					when X"35" => key_Y <= pressed;
-					when X"36" => key_7 <= pressed and     key_shift;
-									  key_6 <= pressed and not key_shift;
-					when X"3A" => key_M <= pressed;
-					when X"3B" => key_J <= pressed;
-					when X"3C" => key_U <= pressed;
-					when X"3D" => key_6 <= pressed and     key_shift;
-									  key_7 <= pressed and not key_shift;
-					when X"3E" => key_8s <= pressed and    key_shift;
-									  key_8 <= pressed and not key_shift;
-									  delay_cnt <= 300000;
-					when X"41" => key_comma <= pressed;
-					when X"42" => key_K <= pressed;
-					when X"43" => key_I <= pressed;
-					when X"44" => key_O <= pressed;
-					when X"45" => key_9 <= pressed and     key_shift;
-									  key_0 <= pressed and not key_shift;
-					when X"46" => key_8 <= pressed and     key_shift;
-									  key_9 <= pressed and not key_shift;
-					when X"49" => key_dot <= pressed;
-					when X"4A" => if not extended then key_slash <= pressed; end if;
-					when X"4B" => key_L <= pressed;
-					when X"4C" => key_colon <= pressed;
-					when X"4D" => key_P <= pressed;
-					when X"4E" => key_minus <= pressed;
-					when X"52" => key_semicolon <= pressed;
-					when X"54" => key_at <= pressed;
-					when X"55" => key_plus <= pressed;
-					when X"58" => key_capslock <= pressed;
-					when X"59" => key_shiftr <= pressed;
-					when X"5A" => if extended then key_enter   <= pressed; else key_return <= pressed; end if;
-					when X"5B" => key_star <= pressed;
-					when X"5D" => key_pound <= pressed;
-					when X"66" => key_del <= pressed;
-					when X"69" => if extended then key_runstop <= pressed; else if pure64 = '0' then key_num1   <= pressed; end if; end if;
-					when X"6B" => if extended then key_left    <= pressed; else if pure64 = '0' then key_num4   <= pressed; end if; end if;
-					when X"6C" => if extended then key_home    <= pressed; else if pure64 = '0' then key_num7   <= pressed; end if; end if;
-					when X"70" => if extended then key_inst    <= pressed; else if pure64 = '0' then key_num0   <= pressed; end if; end if;
-					when X"71" => if extended then key_del     <= pressed; else if pure64 = '0' then key_numdot <= pressed; end if; end if;
-					when X"72" => if extended then key_down    <= pressed; else if pure64 = '0' then key_num2   <= pressed; end if; end if;
-					when X"73" => if pure64 = '0' then key_num5 <= pressed; end if;
-					when X"74" => if extended then key_right   <= pressed; else if pure64 = '0' then key_num6   <= pressed; end if; end if;
-					when X"75" => if extended then key_up      <= pressed; else if pure64 = '0' then key_num8   <= pressed; end if; end if;
-					when X"76" => if pure64 = '0' then key_esc <= pressed; else key_runstop <= pressed; end if;
-					when X"77" => if extended and pressed = '1' and pure64 = '0' and ps2_key /= last_key then 
+				case ps2_key(8 downto 0) is
+					when "0" & X"01" => key_arrowup <= pressed; -- F9
+					when "0" & X"03" => key_F5 <= pressed;
+					when "0" & X"04" => key_F3 <= pressed;
+					when "0" & X"05" => key_F1 <= pressed;
+					when "0" & X"06" => key_F2 <= pressed;
+					when "0" & X"09" => key_equal <= pressed; -- F10
+					when "0" & X"0A" => key_F8 <= pressed;
+					when "0" & X"0B" => key_F6 <= pressed;
+					when "0" & X"0C" => key_F4 <= pressed;
+					when "0" & X"0D" => if pure64 = '0' then key_tab <= pressed; else key_commodore <= pressed; end if;
+					when "0" & X"0E" => key_arrowleft <= pressed;
+					when "0" & X"11" => if pure64 = '0' then key_alt <= pressed; end if; -- Alt (left)
+					when "0" & X"12" => key_shiftl <= pressed;
+					when "0" & X"14" => key_ctrl <= pressed; -- Ctrl (left)
+					when "0" & X"15" => key_Q <= pressed;
+					when "0" & X"16" => key_1 <= pressed;
+					when "0" & X"1A" => key_Z <= pressed;
+					when "0" & X"1B" => key_S <= pressed;
+					when "0" & X"1C" => key_A <= pressed;
+					when "0" & X"1D" => key_W <= pressed;
+					when "0" & X"1E" => key_2 <= pressed;
+					when "0" & X"21" => key_C <= pressed;
+					when "0" & X"22" => key_X <= pressed;
+					when "0" & X"23" => key_D <= pressed;
+					when "0" & X"24" => key_E <= pressed;
+					when "0" & X"25" => key_4 <= pressed;
+					when "0" & X"26" => key_3 <= pressed;
+					when "0" & X"29" => key_space <= pressed;
+					when "0" & X"2A" => key_V <= pressed;
+					when "0" & X"2B" => key_F <= pressed;
+					when "0" & X"2C" => key_T <= pressed;
+					when "0" & X"2D" => key_R <= pressed;
+					when "0" & X"2E" => key_5 <= pressed;
+					when "0" & X"31" => key_N <= pressed;
+					when "0" & X"32" => key_B <= pressed;
+					when "0" & X"33" => key_H <= pressed;
+					when "0" & X"34" => key_G <= pressed;
+					when "0" & X"35" => key_Y <= pressed;
+					when "0" & X"36" => key_7 <= pressed and     key_shift;
+							 		        key_6 <= pressed and not key_shift;
+					when "0" & X"3A" => key_M <= pressed;
+					when "0" & X"3B" => key_J <= pressed;
+					when "0" & X"3C" => key_U <= pressed;
+					when "0" & X"3D" => key_6 <= pressed and     key_shift;
+									        key_7 <= pressed and not key_shift;
+					when "0" & X"3E" => key_8s <= pressed and    key_shift;
+									        key_8 <= pressed and not key_shift;
+									        delay_cnt <= 300000;
+					when "0" & X"41" => key_comma <= pressed;
+					when "0" & X"42" => key_K <= pressed;
+					when "0" & X"43" => key_I <= pressed;
+					when "0" & X"44" => key_O <= pressed;
+					when "0" & X"45" => key_9 <= pressed and     key_shift;
+											  key_0 <= pressed and not key_shift;
+					when "0" & X"46" => key_8 <= pressed and     key_shift;
+									  		  key_9 <= pressed and not key_shift;
+					when "0" & X"49" => key_dot <= pressed;
+					when "0" & X"4A" => key_slash <= pressed;
+					when "0" & X"4B" => key_L <= pressed;
+					when "0" & X"4C" => key_colon <= pressed;
+					when "0" & X"4D" => key_P <= pressed;
+					when "0" & X"4E" => key_minus <= pressed;
+					when "0" & X"52" => key_semicolon <= pressed;
+					when "0" & X"54" => key_at <= pressed;
+					when "0" & X"55" => key_plus <= pressed;
+					when "0" & X"58" => key_capslock <= pressed;
+					when "0" & X"59" => key_shiftr <= pressed;
+					when "0" & X"5A" => key_return <= pressed;
+					when "0" & X"5B" => key_star <= pressed;
+					when "0" & X"5D" => key_pound <= pressed;
+					when "0" & X"66" => key_del <= pressed;
+					when "0" & X"69" => if pure64 = '0' then key_num1     <= pressed; else key_1       <= pressed; end if;
+					when "0" & X"6B" => if pure64 = '0' then key_num4     <= pressed; else key_4       <= pressed; end if;
+					when "0" & X"6C" => if pure64 = '0' then key_num7     <= pressed; else key_7       <= pressed; end if;
+					when "0" & X"70" => if pure64 = '0' then key_num0     <= pressed; else key_0       <= pressed; end if;
+					when "0" & X"71" => if pure64 = '0' then key_numdot   <= pressed; else key_dot     <= pressed; end if;
+					when "0" & X"72" => if pure64 = '0' then key_num2     <= pressed; else key_2       <= pressed; end if;
+					when "0" & X"73" => if pure64 = '0' then key_num5     <= pressed; else key_5       <= pressed; end if;
+					when "0" & X"74" => if pure64 = '0' then key_num6     <= pressed; else key_6       <= pressed; end if;
+					when "0" & X"75" => if pure64 = '0' then key_num8     <= pressed; else key_8       <= pressed; end if;
+					when "0" & X"76" => if pure64 = '0' then key_esc      <= pressed; else key_runstop <= pressed; end if;
+					when "0" & X"78" => restore_key <= pressed;
+					when "0" & X"79" => if pure64 = '0' then key_numplus  <= pressed; else key_plus    <= pressed; end if;
+					when "0" & X"7A" => if pure64 = '0' then key_num3     <= pressed; else key_3       <= pressed; end if;
+					when "0" & X"7B" => if pure64 = '0' then key_numminus <= pressed; else key_minus   <= pressed; end if;
+					when "0" & X"7C" => if pure64 = '0' then key_help     <= pressed; else key_star    <= pressed; end if;
+					when "0" & X"7D" => if pure64 = '0' then key_num9     <= pressed; else key_9       <= pressed; end if;
+					when "0" & X"83" => key_F7 <= pressed;
+
+					when "1" & X"11" => if pure64 = '0' then key_fn       <= pressed; end if; -- AltGr (right)
+					when "1" & X"14" => key_ctrl <= pressed; -- Ctrl (right)
+					when "1" & X"1F" => key_commodore <= pressed; -- Meta (left)
+					when "1" & X"27" => key_commodore <= pressed; -- Meta (right)
+					when "1" & X"4A" => if pure64 = '0' then null                   ; else key_slash   <= pressed; end if;
+					when "1" & X"5A" => if pure64 = '0' then key_enter    <= pressed; else key_return  <= pressed; end if;
+					when "1" & X"69" => key_runstop <= pressed;
+					when "1" & X"6B" => key_left <= pressed;
+					when "1" & X"6C" => key_home <= pressed;
+					when "1" & X"70" => key_inst <= pressed;
+					when "1" & X"71" => key_del <= pressed;
+					when "1" & X"72" => key_down <= pressed;
+					when "1" & X"74" => key_right <= pressed;
+					when "1" & X"75" => key_up <= pressed;
+					when "1" & X"77" => if pure64 = '0' and pressed = '1' and ps2_key /= last_key then 
 						if noscroll_lock = '1' then
 							noscroll_lock <= '0';
 							key_noscroll <= '0'; 
@@ -590,12 +607,9 @@ begin
 						end if;
 						noscroll_delay <= C_NOSCROLL_DELAY; 
 					end if;
-					when X"78" => restore_key <= pressed;
-					when X"79" => if pure64 = '0' then key_numplus <= pressed; end if;
-					when X"7A" => if pure64 = '0' then if extended then key_linefd <= pressed; else key_num3 <= pressed; end if; end if; 
-					when X"7B" => if pure64 = '0' then key_numminus <= pressed; end if;
-					when X"7C" => if pure64 = '0' then if extended then key_d4080 <= pressed; else key_help <= pressed; end if; end if;
-					when X"7D" => if extended then tape_play <= pressed; else if pure64 = '0' then key_num9 <= pressed; end if; end if;
+					when "1" & X"7A" => if pure64 = '0' then key_linefd <= pressed; else key_arrowup <= pressed; end if;
+					when "1" & X"7C" => key_d4080 <= pressed;
+					when "1" & X"7D" => tape_play <= pressed;
 					when others => null;
 				end case;
 			end if;

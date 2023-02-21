@@ -202,6 +202,7 @@ port(
    sys256k     : in  std_logic;
 
    -- System mode
+   force64     : in  std_logic;
    pure64      : in  std_logic;
    c128_n      : out std_logic;
    z80_n       : out std_logic
@@ -243,7 +244,7 @@ signal cpucycT65    : std_logic;
 signal cpucycT80    : std_logic;
 signal enableVic    : std_logic;
 signal enableVdc    : std_logic;
-signal enaPixel     : std_logic;
+signal enablePixel  : std_logic;
 signal enableSid    : std_logic;
 signal enable8502   : std_logic;
 signal enableZ80    : std_logic;
@@ -621,8 +622,8 @@ port map (
    cs_io => cs_mmuL,
    cs_lr => cs_mmuH,
 
-   osmode => pure64,
-   cpumode => pure64,
+   osmode => force64,
+   cpumode => force64,
    sys256k => sys256k, -- "1" for 256K system memory
 
    we => mmu_we,
@@ -782,7 +783,7 @@ generic map (
 port map (
    clk => clk32,
    reset => reset,
-   enaPixel => enaPixel,
+	enaPixel => enablePixel,
    enaData => enableVic,
    phi => phi0_cpu,
 
@@ -858,33 +859,40 @@ begin
 end process;
 
 -- VIC bank to address lines
--- (C128 does not have glitch that C64C has)
+-- 
+-- The glue logic on a C64C will generate a glitch during 10 <-> 01
+-- generating 00 (in other words, bank 3) for one cycle.
+--
+-- When using the data direction register to change a single bit 0->1
+-- (in other words, decreasing the video bank number by 1 or 2),
+-- the bank change is delayed by one cycle. This effect is unstable.
 process(clk32)
 begin
    if rising_edge(clk32) then
       if phi0_cpu = '0' and enableVic = '1' then
-         vicAddr(15 downto 14) <= not cia2_pao(1 downto 0);
+			vicAddr1514 <= not cia2_pao(1 downto 0);
       end if;
    end if;
 end process;
+
+-- emulate only the first glitch (enough for Undead from Emulamer)
+vicAddr(15 downto 14) <= "11" when (pure64 = '1' and (vicAddr1514 xor not cia2_pao(1 downto 0)) = "11") and (cia2_pao(0) /= cia2_pao(1)) else not unsigned(cia2_pao(1 downto 0));
 
 -- Pixel timing
 process(clk32)
 begin
    if rising_edge(clk32) then
-      enaPixel <= '0';
-
-      case sysCycle is
-      when CYCLE_EXT2 => enaPixel <= '1';
-      when CYCLE_DMA2 => enaPixel <= '1';
-      when CYCLE_EXT6 => enaPixel <= '1';
-      when CYCLE_VIC2 => enaPixel <= '1';
-      when CYCLE_CPU2 => enaPixel <= '1';
-      when CYCLE_CPU6 => enaPixel <= '1';
-      when CYCLE_CPUA => enaPixel <= '1';
-      when CYCLE_CPUE => enaPixel <= '1';
-      when others     => null;
-      end case;
+		enablePixel <= '0';
+		if sysCycle = CYCLE_VIC2
+		or sysCycle = CYCLE_EXT2
+		or sysCycle = CYCLE_DMA2
+		or sysCycle = CYCLE_EXT6
+		or sysCycle = CYCLE_CPU2
+		or sysCycle = CYCLE_CPU6
+		or sysCycle = CYCLE_CPUA
+		or sysCycle = CYCLE_CPUE then
+			enablePixel <= '1';
+		end if;
    end if;
 end process;
 
@@ -1138,9 +1146,9 @@ cass_write <= cpuPO(3);
 cpu_z80: entity work.cpu_z80
 port map (
    clk => clk32,
-   reset => reset or pure64,
+   reset => reset,
    enable => cpucycT80 and not dma_active,
-   busrq_n => baLoc and cpuactT80,
+   busrq_n => not pure64 and baLoc and cpuactT80,
    busak_n => cpuBusAk_T80_n,
    irq_n => cpuIrq_n,
 
@@ -1196,7 +1204,7 @@ begin
 
       -- CPU selection
       if (sysCycle = sysCycleDef'pred(CYCLE_CPU0)) then
-         cpuactT65 <= mmu_z80_n and (not cpuBusAk_T80_n or pure64);
+         cpuactT65 <= mmu_z80_n and not cpuBusAk_T80_n;
          cpuactT80 <= not mmu_z80_n;
       end if;
 

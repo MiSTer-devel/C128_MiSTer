@@ -198,7 +198,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX    XXXXXXXXXXXXX XX                                X
+// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX                                X
 
 // bits  0.. 79 keep in sync with C64 core (X: identical, x: different use)
 // bits 80..127 C128 core options
@@ -209,14 +209,15 @@ localparam CONF_STR = {
    // XXXXXXXXXXXXXXXXXXXXXXXXXXXX
 `ifdef VDC_XRAY
    "HAO[127],VDC XRay,Off,On;",
+   "HA-;",
 `else
    "-,/!\\ This in-development core;",
    "-,needs a modified MiSTer main;",
    "-, binary for the disk drives;",
    "-,to function.  See the MiSTer;",
    "-,    forum for details.;",
-`endif
    "-;",
+`endif
    "H7S0,D64G64D71G71D81T64,Mount #8                    ;",
    "H0S1,D64G64D71G71D81T64,Mount #9                    ;",
    "-;",
@@ -257,6 +258,8 @@ localparam CONF_STR = {
 	"P1O[19:18],Stereo Mix,None,25%,50%,100%;",
 
    "P2,Hardware;",
+   "HAP2O[93],C64 mode,C128 extensions,Pure C64;",
+   "HAP2-;",
 	"P2O[58:57],Enable Drive #8,If Mounted,Always,Never;",
 	"P2O[56:55],Enable Drive #9,If Mounted,Always,Never;",
    "D7P2O[84:83],Drive #8 5.25\" model,Auto,1541,1571;",
@@ -440,7 +443,7 @@ wire         ioctl_download;
 
 reg    [2:0] sysconfig=3'b001;
 wire         cfg_chipset=sysconfig[0];
-wire         cfg_pure64=sysconfig[1];
+wire         cfg_force64=sysconfig[1];
 wire         cfg_cpslk=sysconfig[2];
 
 wire  [31:0] sd_lba[2];
@@ -458,7 +461,7 @@ wire         img_readonly;
 
 wire  [24:0] ps2_mouse;
 wire  [10:0] ps2_key;
-wire   [2:0] ps2_kbd_led_status = {2'b00, ~cpslk_sense};
+wire   [2:0] ps2_kbd_led_status = {2'b00, (pure64 ? sftlk_sense : ~cpslk_sense)};
 wire   [2:0] ps2_kbd_led_use = 3'b001;
 
 wire        sftlk_sense;
@@ -492,7 +495,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .status_menumask({
       /* C */ |cart_int_rom,
       /* B */ |cart_ext_rom | cart_attached,
-      /* A */ cfg_pure64,
+      /* A */ cfg_force64,
       /* 9 */ ~status[69],
       /* 8 */ ~status[66],
       /* 7 */ status[58],
@@ -546,6 +549,8 @@ endfunction
 wire       ciaVersion = chip_version(status[46:45]);
 wire [1:0] sidVersion = {chip_version(status[16:15]), chip_version(status[14:13])};
 wire       vdcVersion = chip_version(status[81:80]);
+
+wire       pure64 = cfg_force64 | (c128_n & status[93]);
 
 wire bootrom  = ioctl_index[5:0] == 0;                                 // MRA index 0 or any boot*.rom
 wire load_rom = ioctl_index == {2'd0, 6'd0} || ioctl_index[5:0] == 3;  // MRA index 0, boot0.rom or OSD "load system ROMs"
@@ -902,7 +907,7 @@ always @(posedge clk_sys) begin
          else if (ioctl_addr == 1) begin
             inj_end[15:8] <= ioctl_data;
             if (~status[50]) begin
-               go64 <= ~(cfg_pure64 | ioctl_data[4]);
+               go64 <= ~(cfg_force64 | ioctl_data[4]);
                prg_reset <= 1;
             end
          end
@@ -1242,7 +1247,8 @@ fpga64_sid_iec #(
    .pause(freeze),
    .pause_out(c64_pause),
 
-   .pure64(cfg_pure64),
+   .force64(cfg_force64),
+   .pure64(pure64),
    .sys256k(status[87]),
    .vdcVersion(vdcVersion),
 `ifdef REDUCE_VDC_RAM
@@ -1430,9 +1436,9 @@ end
 
 function [1:0] map_drive_model(input [1:0] st);
    case(st)
-      2'b00  : return (cfg_pure64 ? 2'b00 : 2'b10);  // Auto
-      2'b01  : return 2'b00;                         // 1541
-      2'b10  : return 2'b10;                         // 1571
+      2'b00  : return (pure64 ? 2'b00 : 2'b10);  // Auto
+      2'b01  : return 2'b00;                     // 1541
+      2'b10  : return 2'b10;                     // 1571
       default: return 2'bXX;
    endcase
 endfunction

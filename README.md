@@ -6,6 +6,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 
 ## Features
 - C128, C64 and CP/M modes.
+- Optional "pure" C64 mode (disables C128 extensions)
 - C1541 read/write/format support in raw GCR mode (*.D64, *.G64).
 - C1571 read/write/format support in raw GCR or MFM mode (*.D64, *.G64, *.D71, *.G71)
 - C1581 read/write support (*.D81).
