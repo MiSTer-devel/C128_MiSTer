@@ -990,7 +990,7 @@ wire cmd_stop_imm = cmd_stop && cmd[3];
 
 wire [1:0] cmd_flag_r = cmd[1:0];
 wire       cmd_flag_a = cmd[0];
-wire       cmd_flag_p = cmd[1];
+// wire    cmd_flag_p = cmd[1];
 wire       cmd_flag_v = cmd[2];
 wire       cmd_flag_e = cmd[2];
 wire       cmd_flag_h = cmd[3];

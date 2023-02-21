@@ -43,8 +43,8 @@ reg       hviscol;
 assign hblank   = |hbCount;
 assign hVisible = hviscol & hdispen;
 
-wire [7:0] deb = (reg_deb>=7 && reg_deb<reg_hd+7) ? reg_deb+2 : reg_deb+1;
-wire [7:0] dee = (reg_dee>=7 && reg_dee<reg_hd+7) ? reg_dee+2 : reg_dee+1;
+wire [7:0] deb = (reg_deb>=7 && reg_deb<reg_hd+7) ? reg_deb+8'd2 : reg_deb+8'd1;
+wire [7:0] dee = (reg_dee>=7 && reg_dee<reg_hd+7) ? reg_dee+8'd2 : reg_dee+8'd1;
 
 always @(posedge clk) begin
 	if (reset) begin

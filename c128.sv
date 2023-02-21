@@ -755,19 +755,19 @@ wire       drv_download = drv_loading & ioctl_download;
 
 // SDRAM layout
 // -- all blocks must be aligned on that block's size boundaries, so a 64k block must start at a 64k boundary, etc.
-localparam RAM_ADDR = 'h0000000;  // System RAM: 256k
-localparam CRM_ADDR = 'h0040000;  // Cartridge RAM: 64k
-localparam ROM_ADDR = 'h0060000;  // System ROM: 96k (align on 128k)       loaded from boot0.rom or MRA (required)
-localparam IFR_ADDR = 'h0078000;  // Internal function ROM: 32k            can be loaded from boot0.rom, boot2.rom or MRA (optional)
-localparam DRV_ADDR = 'h0080000;  // Drive ROM: 512k                       loaded from boot0.rom, boot1.rom or MRA (required)
-localparam CRT_ADDR = 'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
-localparam TAP_ADDR = 'h0200000;  // Tape buffer
-localparam GEO_ADDR = 'h0C00000;  // GeoRAM: 4M
-localparam REU_ADDR = 'h1000000;  // REU: 16M
+localparam RAM_ADDR = 25'h0000000;  // System RAM: 256k
+localparam CRM_ADDR = 25'h0040000;  // Cartridge RAM: 64k
+localparam ROM_ADDR = 25'h0060000;  // System ROM: 96k (align on 128k)       loaded from boot0.rom or MRA (required)
+localparam IFR_ADDR = 25'h0078000;  // Internal function ROM: 32k            can be loaded from boot0.rom, boot2.rom or MRA (optional)
+localparam DRV_ADDR = 25'h0080000;  // Drive ROM: 512k                       loaded from boot0.rom, boot1.rom or MRA (required)
+localparam CRT_ADDR = 25'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
+localparam TAP_ADDR = 25'h0200000;  // Tape buffer
+localparam GEO_ADDR = 25'h0C00000;  // GeoRAM: 4M
+localparam REU_ADDR = 25'h1000000;  // REU: 16M
 
-localparam ROM_SIZE = 'h0011000;  // min size of boot0.rom
-localparam DRV_SIZE = 'h0030000;  // exact size of boot1.rom
-localparam FRM_SIZE = 'h0008000;  // max size of function roms
+localparam ROM_SIZE = 25'h0011000;  // min size of boot0.rom
+localparam DRV_SIZE = 25'h0030000;  // exact size of boot1.rom
+localparam FRM_SIZE = 25'h0008000;  // max size of function roms
 
 always @(posedge clk_sys) begin
    reg  [4:0] erase_to;
@@ -1654,12 +1654,12 @@ always @(posedge CLK_VIDEO) begin
       ce_pix <= 0;
    end
    else if (video_out) begin
-      div <= div + 1'b1;
-      if (&div) lores <= lores + 1'b1;
+      div <= div + 1'd1;
+      if (&div) lores <= lores + 1'd1;
       ce_pix <= (~|lores | ~hq2x160) && (~lores[0] | ~hq2x320) && !div;
    end
    else begin
-      div <= vdcPixClk ? div + 1'b1 : 0;
+      div <= vdcPixClk ? div + 1'd1 : 1'd0;
       ce_pix <= !div[0] && vdcPixClk;
    end
 end
