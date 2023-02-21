@@ -198,7 +198,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX XX                             X
+// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX XXXXX                          X
 
 // bits  0.. 79 keep in sync with C64 core (X: identical, x: different use)
 // bits 80..127 C128 core options
@@ -218,6 +218,9 @@ localparam CONF_STR = {
    "-,    forum for details.;",
    "-;",
 `endif
+   "HAO[100:99],Video out,Follow 40/80,VIC,VDC;",
+   "HAO[98],40/80 Display,40 col,80 col;",
+   "HA-;",
    "H7S0,D64G64D71G71D81T64,Mount #8                    ;",
    "H0S1,D64G64D71G71D81T64,Mount #9                    ;",
    "-;",
@@ -433,7 +436,11 @@ end
 wire  [15:0] joyA,joyB,joyC,joyD;
 wire  [15:0] joy = joyA | joyB | joyC | joyD;
 
+reg          status_set;
+reg          status_in_98;
+wire [127:0] status_in = {status[127:99], status_in_98, status[97:0]};
 wire [127:0] status;
+
 wire         forced_scandoubler;
 
 wire         ioctl_wr;
@@ -465,17 +472,17 @@ wire  [10:0] ps2_key;
 wire   [2:0] ps2_kbd_led_status = {2'b00, (pure64 ? sftlk_sense : ~cpslk_sense)};
 wire   [2:0] ps2_kbd_led_use = 3'b001;
 
-wire        sftlk_sense;
-wire        cpslk_sense;
-wire        d4080_sense;
-wire        noscr_sense;
+wire         sftlk_sense;
+wire         cpslk_sense;
+wire         d4080_sense;
+wire         noscr_sense;
 
-wire  [1:0] buttons;
-wire [21:0] gamma_bus;
+wire   [1:0] buttons;
+wire  [21:0] gamma_bus;
 
-wire  [7:0] pd1,pd2,pd3,pd4;
+wire   [7:0] pd1,pd2,pd3,pd4;
 
-wire [64:0] RTC;
+wire  [64:0] RTC;
 
 hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 (
@@ -508,6 +515,8 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
       /* 1 */ |vcrop,
       /* 0 */ status[56]
    }),
+   .status_in(status_in),
+   .status_set(status_set),
    .buttons(buttons),
    .forced_scandoubler(forced_scandoubler),
    .gamma_bus(gamma_bus),
@@ -555,7 +564,29 @@ wire       ciaVersion = auto_config(status[46:45], cfg_chipset);
 wire [1:0] sidVersion = {auto_config(status[16:15], cfg_chipset), auto_config(status[14:13], cfg_chipset)};
 wire       vdcVersion = auto_config(status[81:80], cfg_chipset);
 wire       cpslk_mode = auto_config(status[97:96], cfg_cpslk);
+wire       video_out  = ~auto_config(status[100:99], status[98]);
 wire       pure64     = cfg_force64 | (c128_n & status[93]);
+
+always @(posedge clk_sys) begin
+   reg d4080_sense_d;
+
+   d4080_sense_d <= d4080_sense;
+   if (RESET) begin
+      status_in_98 <= status[98];
+      status_set <= 0;
+   end
+   else if (status_set) begin
+      if (status_in_98 == status[98])
+         status_set <= 0;
+   end
+   else if (d4080_sense != d4080_sense_d) begin
+      status_in_98 <= ~status[98];
+      status_set <= 1;
+   end
+   else if (status_in_98 != status[98]) begin
+      status_in_98 <= status[98];
+   end
+end
 
 wire bootrom  = ioctl_index[5:0] == 0;                                 // MRA index 0 or any boot*.rom
 wire load_rom = ioctl_index == {2'd0, 6'd0} || ioctl_index[5:0] == 3;  // MRA index 0, boot0.rom or OSD "load system ROMs"
@@ -1254,6 +1285,7 @@ fpga64_sid_iec #(
 
    .force64(cfg_force64),
    .pure64(pure64),
+   .d4080_sel(~status[98]),
    .sys256k(status[87]),
    .vdcVersion(vdcVersion),
 `ifdef REDUCE_VDC_RAM
@@ -1619,8 +1651,6 @@ video_sync vicSync
    .hblank(vicHblank),
    .vblank(vicVblank)
 );
-
-wire		  video_out   = d4080_sense;  // 1=40 col, 0=80 col
 
 wire       hsync_out   = video_out ? vicHsync_out : vdcHsync;
 wire       vsync_out   = video_out ? vicVsync_out : vdcVsync;
@@ -2061,7 +2091,7 @@ osdinfo osdinfo
    .rom_loaded(ioctl_download ? 2'b11 : {drv_loaded, rom_loaded}),
    .sftlk_sense(sftlk_sense),
    .cpslk_sense(cpslk_sense),
-   .d4080_sense(d4080_sense),
+   .d4080_sense(~status[98]),
    .noscr_sense(noscr_sense),
 
    .info_req(info_req),

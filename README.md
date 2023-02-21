@@ -134,10 +134,12 @@ Considering default button maps RLDU,Fire1,Fire2,Fire3,Paddle Btn, following key
 ### Internal memory
 In the OSD->Hardware menu, internal memory size can be selected as 128K or 256K. The latter activates RAM in banks 2 and 3. C128 basic does not detect or use this memory however, so it will still show 122365 bytes free.
 
-### VDC/80 column mode
-Video output can be selected using the keyboard. Pressing <kbd>Print screen</kbd> or <kbd>AltGr</kbd>+<kbd>F7</kbd> emulates the <kbd>40/80 display</kbd> toggle switch on the C128 keyboard.
-This will also switch which video output is shown on the video output of the MiSTer.
+### Video mode
+On a C128, the <kbd>40/80 Display</kbd> switch on the keyboard selects which video mode the system will boot on, or switch to when pressing the <kbd>Run stop</kbd>+<kbd>Restore</kbd> key combination. 
 
+Since the MiSTer has a single video output, the video mode being shown needs to be selectable. The video output can be selected from the OSD menu or using the keyboard. Use the OSD->Video Output option to either make the video output follow the <kbd>40/80 Display</kbd> state, or select the VIC or VDC video outputs independent of the state of the <kbd>40/80 Display</kbd> switch.
+
+### VDC/80 column mode
 In OSD->Audio&Video the VDC version, memory size and colour palette can be selected.
 
 There are four colour palettes selectable for the VDC:

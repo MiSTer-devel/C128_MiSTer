@@ -204,6 +204,7 @@ port(
    -- System mode
    force64     : in  std_logic;
    pure64      : in  std_logic;
+   d4080_sel   : in  std_logic;
    c128_n      : out std_logic;
    z80_n       : out std_logic
 );
@@ -376,7 +377,6 @@ signal fsdir_n      : std_logic;
 -- Keyboard signals
 signal cpslk_sense_kb  : std_logic;
 signal cpslk_sense_cpu : std_logic;
-signal d4080_sense_kb  : std_logic;
 
 component sid_top
    port (
@@ -636,7 +636,7 @@ port map (
    cpubank => cpubank,
    vicbank => vicbank,
 
-   d4080i => d4080_sense_kb,
+   d4080i => d4080_sel,
 
    exromi => exrom,
    exromo => mmu_exrom,
@@ -1249,7 +1249,6 @@ game_mmu <= mmu_game;
 -- Keyboard
 -- -----------------------------------------------------------------------
 cpslk_sense <= cpslk_sense_kb;
-d4080_sense <= d4080_sense_kb;
 
 Keyboard: entity work.fpga64_keyboard
 port map (
@@ -1277,7 +1276,7 @@ port map (
 
    sftlk_sense => sftlk_sense,
    cpslk_sense => cpslk_sense_kb,
-   d4080_sense => d4080_sense_kb,
+   d4080_sense => d4080_sense,
    noscr_sense => noscr_sense,
 
    backwardsReadingEnabled => '1'
