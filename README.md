@@ -30,7 +30,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - Real-time clock.
 - **Support for easy configuration of ROMs and hardware options using MRA files**.
 
-Features marked in bold are unique to the C128 core, the other features are inherited from the C64 core.
+Features marked in **bold** are unique to the C128 core, the other features are inherited from the C64 core.
 
 ### C128 features not (fully) implemented
 
@@ -43,7 +43,7 @@ Features marked in bold are unique to the C128 core, the other features are inhe
 ### System and drive ROMs
 ROM files need to be provided. The ROM images will be loaded by the MiSTer on start up of the core.
 
-There are two ways to provide the ROMs for the core: using boot ROM files, or using MRA files. Some features of the core are only available when using MRA files.
+There are two ways to provide the ROMs for the core: using boot ROM files, or using MRA files.
 
 #### Using boot ROM files
 To boot using rom files, a `boot0.rom` and `boot1.rom` file need to be placed in the `games/C128` directory:
@@ -52,7 +52,7 @@ To boot using rom files, a `boot0.rom` and `boot1.rom` file need to be placed in
   * ROM1: C64 Basic+C64 Kernal (16k total)
   * ROM4: C128 Editor+Z80 bios+C128 Kernal (16k total)
   * ROM2+3: C128 Basic (32k total)
-  * Character ROM (8k)
+  * Character ROM: C64+C128 or ASCII+DIN (8k)
 * `boot1.rom` containing the drive ROMs in this order:
   * 2x 1541 drive ROM (64k total) (repeat 4x if it's a 16k ROM image)
   * 2x 1571 drive ROM (64k total)

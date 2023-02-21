@@ -198,7 +198,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX                                X
+// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX XX                             X
 
 // bits  0.. 79 keep in sync with C64 core (X: identical, x: different use)
 // bits 80..127 C128 core options
@@ -282,6 +282,7 @@ localparam CONF_STR = {
 	"P2O[29:28],Pot 3/4,Joy 2 Fire 2/3,Mouse,Paddles 3/4;",
 	"P2-;",
 	"P2O[60:59],Key modifier,L+R Shift,L Shift,R Shift;",
+   "HAP2O[97:96],Caps Lock mode,Auto,Caps Lock,ASCII/DIN;",
 	"P2-;",
 	"P2O[1],Release Keys on Reset,Yes,No;",
 	"P2O[24],Clear RAM on Reset,Yes,No;",
@@ -543,14 +544,18 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .info(info)
 );
 
-function chip_version(input [1:0] st);
-   return |st ? st[1] : cfg_chipset;
+function auto_config;
+   input [1:0] st; 
+   input       cfg;
+   begin
+      return |st ? st[1] : cfg;
+   end
 endfunction
-wire       ciaVersion = chip_version(status[46:45]);
-wire [1:0] sidVersion = {chip_version(status[16:15]), chip_version(status[14:13])};
-wire       vdcVersion = chip_version(status[81:80]);
-
-wire       pure64 = cfg_force64 | (c128_n & status[93]);
+wire       ciaVersion = auto_config(status[46:45], cfg_chipset);
+wire [1:0] sidVersion = {auto_config(status[16:15], cfg_chipset), auto_config(status[14:13], cfg_chipset)};
+wire       vdcVersion = auto_config(status[81:80], cfg_chipset);
+wire       cpslk_mode = auto_config(status[97:96], cfg_cpslk);
+wire       pure64     = cfg_force64 | (c128_n & status[93]);
 
 wire bootrom  = ioctl_index[5:0] == 0;                                 // MRA index 0 or any boot*.rom
 wire load_rom = ioctl_index == {2'd0, 6'd0} || ioctl_index[5:0] == 3;  // MRA index 0, boot0.rom or OSD "load system ROMs"
@@ -1270,7 +1275,7 @@ fpga64_sid_iec #(
    .ps2_key(key),
    .kbd_reset((~reset_n & ~status[1]) | reset_keys),
 	.shift_mod(~status[60:59]),
-   .cpslk_mode(cfg_cpslk),
+   .cpslk_mode(cpslk_mode),
    .sftlk_sense(sftlk_sense),
    .cpslk_sense(cpslk_sense),
    .d4080_sense(d4080_sense),
@@ -2051,7 +2056,7 @@ osdinfo osdinfo
    .clk(clk_sys),
    .reset(RESET),
    .kbd_reset((~reset_n & ~status[1]) | reset_keys),
-   .cpslk_mode(cfg_cpslk),
+   .cpslk_mode(cpslk_mode),
 
    .rom_loaded(ioctl_download ? 2'b11 : {drv_loaded, rom_loaded}),
    .sftlk_sense(sftlk_sense),
