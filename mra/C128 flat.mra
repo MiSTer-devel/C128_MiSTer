@@ -8,10 +8,12 @@
   <romstruct>
     Index 0: ROMs
       00000 - 1FFFF: System ROMs
-        00000 - 03FFF: ROM1 (C64)
+        00000 - 03FFF: ROM1
+          00000: C64 Basic
+          02000: C64 Kernal
         04000 - 07FFF: ROM4
-          04000: Editor
-          05000: Z80 bios
+          04000: C128 Editor
+          05000: C128 Z80 bios
           06000: C128 kernal
         08000 - 07FFF: ROM2 (C128 Basic lo)
         0C000 - 0FFFF: ROM3 (C128 Basic hi)
