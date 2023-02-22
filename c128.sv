@@ -801,7 +801,7 @@ localparam TAP_ADDR = 25'h0200000;  // Tape buffer
 localparam GEO_ADDR = 25'h0C00000;  // GeoRAM: 4M
 localparam REU_ADDR = 25'h1000000;  // REU: 16M
 
-localparam ROM_SIZE = 25'h0011000;  // min size of boot0.rom
+localparam ROM_SIZE = 25'h0012000;  // min size of boot0.rom
 localparam DRV_SIZE = 25'h0030000;  // exact size of boot1.rom
 localparam FRM_SIZE = 25'h0008000;  // max size of function roms
 
@@ -853,12 +853,9 @@ always @(posedge clk_sys) begin
 
    if (ioctl_wr) begin
       if (load_rom) begin
-         if (ioctl_addr == 0) begin
-            ioctl_load_addr <= ROM_ADDR;
-            if (!bootrom || !rom_loaded) begin
-               rom_loading <= 1;
-               rom_loaded <= 0;
-            end
+         if (ioctl_addr == 0 && !(bootrom && rom_loaded)) begin
+            rom_loading <= 1;
+            rom_loaded <= 0;
          end
 
          if (rom_loading && ioctl_addr == ROM_SIZE-1)
@@ -886,8 +883,10 @@ always @(posedge clk_sys) begin
             if (ioctl_addr[24:14] == {10'((CRT_ADDR-ROM_ADDR)>>15), 1'b1})  cart_ext_rom[2] <= 1;
          end
 
-         if (!bootrom || !rom_loaded || ioctl_addr >= ROM_SIZE)
+         if (!bootrom || !rom_loaded || ioctl_addr >= ROM_SIZE) begin
+            ioctl_load_addr <= ioctl_addr + ROM_ADDR;
             ioctl_req_wr <= 1;
+         end
       end
 
       if (load_drv && !(drv_loaded && bootrom)) begin
