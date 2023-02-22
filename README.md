@@ -16,7 +16,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - External IEC through USER_IO port, **including Fast Serial**.
 - **VIC jailbars**.
 - **VDC with 16k or 64k RAM and multiple colour palettes**.
-- Almost all C64 cartridge formats (\*.CRT)
+- Almost all C64 cartridge formats (\*.CRT).
 - Direct file injection (\*.PRG) **with detection of C128 or C64 mode**.
 - Dual SID with several degree of mixing 6581/8580 from stereo to mono.
 - Similar to 6581 and 8580 SID filters.
@@ -34,8 +34,8 @@ Features marked in **bold** are unique to the C128 core, the other features are 
 
 ### C128 features not (fully) implemented
 
-- VIC register $D030 video manipulation tricks (eg. used by RfO part 1)
-- VDC non-standard high resolution modes (eg. VGA-like modes)
+- VIC register $D030 video manipulation tricks (used in some demos, e.g. RfO part 1)
+- VDC non-standard high resolution modes (e.g. VGA-like modes)
 - C128 specific CRT formats
 
 ## Usage
@@ -62,14 +62,15 @@ Each drive's ROM is repeated twice in `boot1.rom`. The first ROM is used for dri
 
 There are two optional boot roms:
 * `boot2.rom` for the optional Internal Function ROM (16 or 32k)
-* `boot3.rom` for the optional External Function ROM (16 or 32k)
+* `boot3.rom` for the optional External Function ROM (16 or 32k) 
+  * This is different from a cartridge (`.CRT`) file, it should be a plain ROM image without the cartridge headers
 
 #### Using MRA files
 MRA files make it possible to create multiple ROM configurations and easily switch between them using the MiSTer interface. Each configuration will show as a separate item in the Computer cores menu. MRA files were designed for use with the arcade cores, but they also work with computer cores. 
 
-The MRA file configures all system and drive roms as well as (optionally) the internal and external function ROMs. It also contains a configuration parameter that configures the "auto" choice of the CIA, SID and VDC chips and how the Caps Lock key is configured, making it possible to quickly switch between a 1985 flat C128 and a C128DCR hardware setup, and the multitude of international language versions of the C128, and even a "pure" C64 mode.
+The MRA file configures all system and drive roms as well as (optionally) the internal and external function ROMs. It also contains a configuration parameter that configures the "auto" choice of the CIA, SID and VDC chips and how the Caps Lock key is configured, making it possible to quickly switch between a 1985 flat C128 and a C128DCR hardware setup, the multitude of international language versions of the C128, and even a "pure" C64 mode.
 
-Using MRA files is the more convenient way to create multiple ROM configurations with the C128 core, but requires the user to make manual changes to the MiSTer file layout as currently the `update_all` script does not support MRA files for computer cores.
+Using MRA files is the more convenient way to use multiple ROM configurations with the C128 core, but requires the user to make manual changes to the MiSTer file layout as currently the `update_all` script does not support MRA files for computer cores.
 
 The following changes need to be made on the MiSTer SD-CARD or USB drive to use the MRA files:
 
@@ -78,9 +79,9 @@ The following changes need to be made on the MiSTer SD-CARD or USB drive to use 
 * Download [C128rom.zip](mra/C128rom.zip) and place that in the `/games/mame/` folder,
 
 #### Loadable ROM
-ROMs can also be loaded from the OSD via Hardware->System ROMs and Hardware->Drive ROMs menu options. These expect a ROM file with the same layout as `boot0.rom` and `boot1.rom` as described above respectively.
+ROMs can also be loaded from the OSD via *Hardware*->*System ROMs* and *Hardware*->*Drive ROMs* menu options. These expect a ROM file with the same layout as `boot0.rom` and `boot1.rom` as described above respectively.
 
-The Internal Function ROM can also be loaded from the OSD via Hardware->Internal Function ROM and this is similar to using the optional `boot2.rom`.
+The Internal Function ROM can also be loaded from the OSD via *Hardware*->*Internal* Function ROM and this is similar to using the optional `boot2.rom`.
 
 ### Keyboard
 * <kbd>End</kbd> - <kbd>Run stop</kbd>
@@ -126,21 +127,21 @@ Keys marked in blue are the keys sent when combined with <kbd>AltGr</kbd>.
 #### Using without keyboard
 If your joystick/gamepad has more than 4 buttons then you can have some limited usage of keyboard.
 Joystick buttons **Mod1** and **Mod2** adds 12 frequently used keys to skip the intros and start the game.
-Considering default button maps RLDU,Fire1,Fire2,Fire3,Paddle Btn, following keys are possible to enter:
-* With holding **Mod1**: Cursor RLDU, Enter, Space, End, Shift+End (DLOAD"*" then RUN)
-* With holding **Mod2**: 1,2,3,4,5,0,Y,N
-* With holding **Mod1+Mod2**: F1,F2,F3,F4,F5,F6,F7,F8
+Considering default button maps **RLDU**, **Fire1**, **Fire2**,**Fire3**, **Paddle Btn**, following keys are possible to enter:
+* With holding **Mod1**: Cursor RLDU, <kbd>Enter</kbd>, <kbd>Space</kbd>, <kbd>End</kbd> (Run stop), <kbd>Shift</kbd>+<kbd>End</kbd> (`DLOAD"*"` then `RUN`)
+* With holding **Mod2**: <kbd>1</kbd>, <kbd>2</kbd>, <kbd>3</kbd>, <kbd>4</kbd>, <kbd>5</kbd>, <kbd>0</kbd>, <kbd>Y</kbd>, <kbd>N</kbd>
+* With holding **Mod1**+**Mod2**: <kbd>F1</kbd>, <kbd>F2</kbd>, <kbd>F3</kbd>, <kbd>F4</kbd>, <kbd>F5</kbd>, <kbd>F6</kbd>, <kbd>F7</kbd>, <kbd>F8</kbd>
 
 ### Internal memory
-In the OSD->Hardware menu, internal memory size can be selected as 128K or 256K. The latter activates RAM in banks 2 and 3. C128 basic does not detect or use this memory however, so it will still show 122365 bytes free.
+In the *OSD*->*Hardware* menu, internal memory size can be selected as 128K or 256K. The latter activates RAM in banks 2 and 3. C128 basic does not detect or use this memory however, so it will still show 122365 bytes free.
 
 ### Video mode
 On a C128, the <kbd>40/80 Display</kbd> switch on the keyboard selects which video mode the system will boot on, or switch to when pressing the <kbd>Run stop</kbd>+<kbd>Restore</kbd> key combination. 
 
-Since the MiSTer has a single video output, the video mode being shown needs to be selectable. The video output can be selected from the OSD menu or using the keyboard. Use the OSD->Video Output option to either make the video output follow the <kbd>40/80 Display</kbd> state, or select the VIC or VDC video outputs independent of the state of the <kbd>40/80 Display</kbd> switch.
+Since the MiSTer has a single video output, the video mode being shown needs to be selectable. The video output can be selected from the OSD menu or using the keyboard. Use the *OSD*->*Video Output* option to either make the video output follow the <kbd>40/80 Display</kbd> state, or select the VIC or VDC video outputs independent of the state of the <kbd>40/80 Display</kbd> switch.
 
 ### VDC/80 column mode
-In OSD->Audio&Video the VDC version, memory size and colour palette can be selected.
+In *OSD*->*Audio & Video* the VDC version, memory size and colour palette can be selected.
 
 There are four colour palettes selectable for the VDC:
 
@@ -149,12 +150,12 @@ There are four colour palettes selectable for the VDC:
 * **Monochrome**: TTL monochrome monitor, with two levels of intensity
 * **Composite**: the black and white image on the composite pin of the DB9 TTL RGBI connector
 
-The C128's VDC has a very programmable video timing signal generator, unlike the VIC, where the video signal timing is fixed in hardware. It makes it a very flexible video chip that can generate many video modes, but it has drawbacks too. For one, it means the video output will most likely not be centered on the generated MiSTer video output, and will change depending on the video mode. This is an artifact of how the VDC works and not easily fixable in the MiSTer.
+The C128's VDC has a very programmable video timing signal generator, unlike the VIC, where the video signal timing is fixed in hardware. It makes it a very flexible video chip that can generate many video modes, but it has drawbacks too. For one, it means the video output will most likely not be centered on the generated MiSTer video output, and the position can change depending on the video mode. This is an artifact of how the VDC works and not easily fixable in the MiSTer.
 
 Another known issue is that the VDC can generate video modes that the  MiSTer video scaler does not correctly process. These modes can cause the scaler to stop working (it will usually recover when switching video output to the VIC) or produce extreme flickering on the video output. Be careful with VDC programs using unofficial video modes if you are sensitive to that!
 
 ## Cartridges
-To load a cartridge - "External function ROM" in C128 terms - it must be in .CRT format. C64 and C128 cartridges will be detected based on the CRT header and the core will start in the correct mode. 
+To load a cartridge from the OSD menu it must be in .CRT format. C64 and C128 cartridges will be detected based on the CRT header and the core will start in the correct mode. 
 
 To convert a binary ROM image into a .CRT, the [cartconv](https://vice-emu.sourceforge.io/vice_15.html) tool from Vice can be used, usually like this:
 
@@ -165,7 +166,7 @@ The `-t c128` option is needed for C128 cartridges to add the header indicating 
 The `-l 0x8000` option is needed to indicate the image should be located at address $8000. Some external ROMs might need to be located at $C000, in that case `-l 0xC000` should be used.
 
 #### Autoload a Cartridge or Internal Function ROM
-In OSD->Hardware page you can choose Boot Cartridge or Internal Function ROM, so everytime core loaded, this cartridge or ROM will be loaded too. 
+In *OSD*->*Hardware* page you can choose *Boot Cartridge* or *Internal Function* ROM, so everytime the core is loaded, this cartridge or ROM will be loaded too. 
 
 ### RS232
 
@@ -196,7 +197,7 @@ GeoRAM and REU don't conflict each other and can be both enabled.
 
 All signals are 3.3V LVTTL and must be properly converted to required levels!
 
-The IEC /SRQ (USER_IO6) line is required for IEC fast serial operation with an external 157x or 1581 drive. You will need a MiSTer user port adapter that connects the /SRQ line. Assume a MiSTer user port to IEC adapter for does not connect this line unless it is explicitly stated that it supports the C128 fast serial protocol.
+The IEC /SRQ (USER_IO6) line is required for IEC fast serial operation with an external 1571 or 1581 drive. You will need a MiSTer user port adapter that connects the /SRQ line. Assume a MiSTer user port to IEC adapter for does not connect this line unless it is explicitly stated that it supports the C128 fast serial protocol.
 
 ### Real-time clock
 
