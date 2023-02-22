@@ -149,6 +149,10 @@ There are four colour palettes selectable for the VDC:
 * **Monochrome**: TTL monochrome monitor, with two levels of intensity
 * **Composite**: the black and white image on the composite pin of the DB9 TTL RGBI connector
 
+The C128's VDC has a very programmable video timing signal generator, unlike the VIC, where the video signal timing is fixed in hardware. It makes it a very flexible video chip that can generate many video modes, but it has drawbacks too. For one, it means the video output will most likely not be centered on the generated MiSTer video output, and will change depending on the video mode. This is an artifact of how the VDC works and not easily fixable in the MiSTer.
+
+Another known issue is that the VDC can generate video modes that the  MiSTer video scaler does not correctly process. These modes can cause the scaler to stop working (it will usually recover when switching video output to the VIC) or produce extreme flickering on the video output. Be careful with VDC programs using unofficial video modes if you are sensitive to that!
+
 ## Cartridges
 To load a cartridge - "External function ROM" in C128 terms - it must be in .CRT format. C64 and C128 cartridges will be detected based on the CRT header and the core will start in the correct mode. 
 
