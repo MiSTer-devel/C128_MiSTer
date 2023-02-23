@@ -210,13 +210,6 @@ localparam CONF_STR = {
 `ifdef VDC_XRAY
    "HAO[127],VDC XRay,Off,On;",
    "HA-;",
-`else
-   "-,/!\\ This in-development core;",
-   "-,needs a modified MiSTer main;",
-   "-, binary for the disk drives;",
-   "-,to function.  See the MiSTer;",
-   "-,    forum for details.;",
-   "-;",
 `endif
    "HAO[100:99],Video out,Follow 40/80,VIC,VDC;",
    "HAO[98],40/80 Display,40 col,80 col;",

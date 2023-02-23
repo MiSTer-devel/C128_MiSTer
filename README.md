@@ -75,8 +75,8 @@ Using MRA files is the more convenient way to use multiple ROM configurations wi
 The following changes need to be made on the MiSTer SD-CARD or USB drive to use the MRA files:
 
 * Move the core's `C128_XXXXXXXX.rbf` file from the `/_Computer/` folder to a (new) `/_Computer/cores/` folder,
-* Download (some of) the `*.mra` files from the [mra directory](mra/) and place them in the `/_Computer/` folder,
-* Download [C128rom.zip](mra/C128rom.zip) and place that in the `/games/mame/` folder,
+* Download (some of) the `*.mra` files from the [mra directory](https://github.com/mister-devel/C128_MiSTer/tree/master/mra) and place them in the `/_Computer/` folder,
+* Download [C128rom.zip](https://github.com/mister-devel/C128_MiSTer/blob/master/mra/C128rom.zip) and place that in the `/games/mame/` folder,
 
 #### Loadable ROM
 ROMs can also be loaded from the OSD via *Hardware*->*System ROMs* and *Hardware*->*Drive ROMs* menu options. These expect a ROM file with the same layout as `boot0.rom` and `boot1.rom` as described above respectively.
@@ -116,7 +116,7 @@ It is possible to access the C128 top-row cursor keys, and the numpad keys on a 
 
 <kbd>Shift lock</kbd> can be activated by pressing <kbd>AltGr</kbd>+<kbd>Shift</kbd>. This is a toggle, to release <kbd>Shift lock</kbd>, press the <kbd>AltGr</kbd>+<kbd>Shift</kbd> combination again.
 
-![keyboard-mapping](keymap.gif)
+![keyboard-mapping](https://github.com/mister-devel/C128_MiSTer/blob/master/keymap.gif)
 
 Keys marked in blue are the keys sent when combined with <kbd>AltGr</kbd>.
 
@@ -202,10 +202,9 @@ The IEC /SRQ (USER_IO6) line is required for IEC fast serial operation with an e
 ### Real-time clock
 
 RTC is PCF8583 connected to tape port.
-To get real time in GEOS, copy CP-CLOCK64-1.3 from supplied [disk](https://github.com/mister-devel/C64_MiSTer/blob/master/releases/CP-ClockF83_1.3.D64) to GEOS system disk.
+To get real time in GEOS, copy CP-CLOCK64-1.3 from supplied [disk](https://github.com/mister-devel/C128_MiSTer/blob/master/releases/CP-ClockF83_1.3.D64) to GEOS system disk.
 
 ### Raw GCR mode
 
 C1541/C1571 implementation works in raw GCR mode (D64/D71 format is converted to GCR and then back when saved), so some non-standard tracks are supported if G64/G71 file format is used. Support formatting and some copiers using raw track copy. Speed zones aren't supported (yet), but system follows the speed setting, so variable speed within a track should work.
 Protected disk in most cases won't work yet and still require further tuning of access times to comply with different protections.
-
