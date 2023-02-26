@@ -185,66 +185,57 @@ begin
 			c128_n <= reg_os;
 			z80_n <= reg_cpu;
 
-			if reg_os = '0' then
-				-- C128/Z80 mode
-				vicBank <= reg_vicbank and systemMask;
+			vicBank <= reg_vicbank and systemMask;
 
-				case reg_commonSz is
-				when "00" => commonPageMask := "11111100"; -- 00..03 / FC..FF = 1k
-				when "01" => commonPageMask := "11110000"; -- 00..0F / F0..FF = 4k
-				when "10" => commonPageMask := "11100000"; -- 00..1F / E0..FF = 8k
-				when "11" => commonPageMask := "11000000"; -- 00..3F / C0..FF =16k
-				end case;
+			case reg_commonSz is
+			when "00" => commonPageMask := "11111100"; -- 00..03 / FC..FF = 1k
+			when "01" => commonPageMask := "11110000"; -- 00..0F / F0..FF = 4k
+			when "10" => commonPageMask := "11100000"; -- 00..1F / E0..FF = 8k
+			when "11" => commonPageMask := "11000000"; -- 00..3F / C0..FF =16k
+			end case;
 
-				commonPage := page and commonPageMask;
-				if (reg_commonH = '1' and commonPage = commonPageMask) or (reg_commonL = '1' and commonPage = "00000000") then
-					cpuMask := "00";
-					crBank := "0000";
-				else
-					cpuMask := systemMask;
-					crBank := "00" & reg_cr(7 downto 6) and systemMask;
-				end if;
-
-				bank := "00";
-				if crBank = B"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
-					-- When reading from $00xxx in Z80 mode, always read from $0Dxxx. Buslogic will enable ROM4
-					tPage := X"D" & addr(11 downto 8);
-				elsif page = X"01" then
-					bank := reg_p1h(1 downto 0) and cpuMask;
-					tPage := reg_p1l;
-				elsif page = X"00" then
-					bank := reg_p0h(1 downto 0) and cpuMask;
-					tPage := reg_p0l;
-				elsif crBank = reg_p1h and page = reg_p1l then
-					bank := reg_p1h(1 downto 0) and cpuMask;
-					tPage := X"01";
-				elsif crBank = reg_p0h and page = reg_p0l then
-					bank := reg_p0h(1 downto 0) and cpuMask;
-					tPage := X"00";
-				else
-					bank := crBank(1 downto 0);
-					tPage := page;
-				end if;
-
-				cpuBank <= bank;
-				case addr(15 downto 14) is
-				when "11" => rombank <= reg_cr(5 downto 4);
-				when "10" => rombank <= reg_cr(3 downto 2);
-				when "01" => rombank <= reg_cr(1) & reg_cr(1);
-				when "00" => rombank <= bank;
-				end case;
-				iosel <= reg_cr(0);
-
-				tAddr <= tPage & addr(7 downto 0);
+			commonPage := page and commonPageMask;
+			if (reg_commonH = '1' and commonPage = commonPageMask) or (reg_commonL = '1' and commonPage = "00000000") then
+				cpuMask := "00";
+				crBank := "0000";
 			else
-				-- C64 mode
-				vicBank <= "00";
-				cpuBank <= "00";
-				rombank <= "00";
-				iosel <= '0';
-
-				tAddr <= addr;
+				cpuMask := systemMask;
+				crBank := "00" & reg_cr(7 downto 6) and systemMask;
 			end if;
+
+			bank := "00";
+			if crBank = B"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
+				-- When reading from $00xxx in Z80 mode, always read from $0Dxxx. Buslogic will enable ROM4
+				tPage := X"D" & addr(11 downto 8);
+			elsif page = X"01" then
+				bank := reg_p1h(1 downto 0) and cpuMask;
+				tPage := reg_p1l;
+			elsif page = X"00" then
+				bank := reg_p0h(1 downto 0) and cpuMask;
+				tPage := reg_p0l;
+			elsif crBank = reg_p1h and page = reg_p1l then
+				bank := reg_p1h(1 downto 0) and cpuMask;
+				tPage := X"01";
+			elsif crBank = reg_p0h and page = reg_p0l then
+				bank := reg_p0h(1 downto 0) and cpuMask;
+				tPage := X"00";
+			else
+				bank := crBank(1 downto 0);
+				tPage := page;
+			end if;
+
+			cpuBank <= bank;
+
+			case addr(15 downto 14) is
+			when "11" => rombank <= reg_cr(5 downto 4);
+			when "10" => rombank <= reg_cr(3 downto 2);
+			when "01" => rombank <= reg_cr(1) & reg_cr(1);
+			when "00" => rombank <= bank;
+			end case;
+			
+			iosel <= reg_cr(0);
+
+			tAddr <= tPage & addr(7 downto 0);
 		end if;
 	end process;
 
