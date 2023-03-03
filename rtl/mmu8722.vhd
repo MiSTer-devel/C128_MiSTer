@@ -207,10 +207,10 @@ begin
 			if crBank = B"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
 				-- When reading from $00xxx in Z80 mode, always read from $0Dxxx. Buslogic will enable ROM4
 				tPage := X"D" & addr(11 downto 8);
-			elsif page = X"01" then
+			elsif page = X"01" and reg_os = '0' then
 				bank := reg_p1h(1 downto 0) and cpuMask;
 				tPage := reg_p1l;
-			elsif page = X"00" then
+			elsif page = X"00" and reg_os = '0' then
 				bank := reg_p0h(1 downto 0) and cpuMask;
 				tPage := reg_p0l;
 			elsif crBank = reg_p1h and page = reg_p1l then
