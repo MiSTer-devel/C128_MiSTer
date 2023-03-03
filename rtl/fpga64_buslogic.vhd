@@ -230,7 +230,46 @@ begin
 		if (cpuHasBus = '1') then
 			currentAddr <= cpuBank & tAddr;
 
-			if c128_n = '0' then
+			if z80io = '1' then
+				-- Z80 I/O 
+
+				case cpuAddr(15 downto 12) is
+				when X"D" =>
+					case cpuAddr(11 downto 8) is
+						when X"0" | X"1" | X"2" | X"3" =>
+							cs_vicLoc <= '1';
+						when X"4" =>
+							cs_sidLoc <= not z80m1;
+						when X"5" => 
+							if c128_n = '0' then
+								cs_mmuLLoc <= '1';
+							end if;
+						when X"6" =>
+							cs_vdcLoc <= not z80m1;
+						when X"8" | X"9" | X"A" | X"B" =>
+							cs_colorLoc <= '1';
+						when X"C" =>
+							cs_cia1Loc <= not z80m1;
+						when X"D" =>
+							cs_cia2Loc <= not z80m1;
+						when X"E" =>
+							cs_ioELoc <= not z80m1;
+						when X"F" =>
+							cs_ioFLoc <= not z80m1;
+						when others =>
+							null;
+					end case;
+				when X"1" => 
+					if cpuAddr(11 downto 10) = B"00" and mmu_iosel = '0' then
+						cs_colorLoc <= '1';
+					else
+						cs_ramLoc <= '1';
+					end if;
+				when others =>
+					cs_ramLoc <= '1';
+				end case;
+	
+			elsif c128_n = '0' then
 				-- C128
 
 				-- Using untranslated address
@@ -254,16 +293,14 @@ begin
 						cs_ramLoc <= '1';
 					end if;
 				when X"D" =>
-					if ((z80_n = '1' and mmu_iosel = '0') or (z80_n = '0' and z80io = '1')) then
+					if (z80_n = '1' and mmu_iosel = '0') then
 						case cpuAddr(11 downto 8) is
 							when X"0" | X"1" | X"2" | X"3" =>
 								cs_vicLoc <= '1';
 							when X"4" =>
 								cs_sidLoc <= not z80m1;
 							when X"5" => 
-								if mmu_iosel = '0' then
-									cs_mmuLLoc <= '1';
-								end if;
+								cs_mmuLLoc <= '1';
 							when X"6" =>
 								cs_vdcLoc <= not z80m1;
 							when X"8" | X"9" | X"A" | X"B" =>
@@ -321,9 +358,13 @@ begin
 						cs_ramLoc <= '1';
 					end if;
 				when X"0" =>
-					if z80_n = '0' and z80io = '0' and mmu_rombank = B"00" and cpuWe = '0' then
+					if z80_n = '0' and mmu_rombank = B"00" and cpuWe = '0' then
 						cs_sysRomLoc <= '1';
-						sysRomBank <= rom4Bank;
+						if c128_n = '0' then
+							sysRomBank <= rom4Bank;
+						else
+							sysRomBank <= rom1Bank;
+						end if;
 					else
 						cs_ramLoc <= '1';
 					end if;
@@ -408,6 +449,12 @@ begin
 					elsif exrom = '0' and bankSwitch(1) = '1' and bankSwitch(0) = '1' then
 						-- this case should write to both C64 RAM and Cart RAM (if RAM is connected)
 						cs_romLLoc <= '1';
+					else
+						cs_ramLoc <= '1';
+					end if;
+				when X"1" => 
+					if cpuAddr(11 downto 10) = B"00" and z80_n = '0' and mmu_iosel = '0' then
+						cs_colorLoc <= '1';
 					else
 						cs_ramLoc <= '1';
 					end if;
