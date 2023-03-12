@@ -282,7 +282,9 @@ signal cpuDi_T80    : unsigned(7 downto 0);
 signal cpuDo        : unsigned(7 downto 0);
 signal cpuDo_nd     : unsigned(7 downto 0);
 signal cpuDo_T65    : unsigned(7 downto 0);
+signal cpuDo_T65_o  : unsigned(7 downto 0);
 signal cpuDo_T80    : unsigned(7 downto 0);
+signal cpuPacc      : std_logic;
 signal cpuPO        : unsigned(7 downto 0);
 signal cpuIO_T80    : std_logic;
 signal cpuM1_T80    : std_logic;
@@ -1132,9 +1134,10 @@ port map (
 
    di => cpuDi,
    addr => cpuAddr_T65,
-   do => cpuDo_T65,
+   do => cpuDo_T65_o,
    we => cpuWe_T65,
 
+   IOacc => cpuPacc,
    diIO => cpuPO(7) & cpslk_sense_kb & cpuPO(5) & cass_sense & cpuPO(3) & "111",
    doIO => cpuPO
 );
@@ -1226,6 +1229,9 @@ begin
       end if;
    end if;
 end process;
+
+-- When 6510 accesses internal I/O port, databus floats
+cpuDo_T65  <= cpuDo_T65_o when cpuPacc = '0' else vicDi;
 
 cpuAddr_nd <= cpuAddr_T65 when cpuactT65 = '1' else cpuAddr_T80;
 cpuDo_nd   <= cpuDo_T65   when cpuactT65 = '1' else cpuDo_T80;

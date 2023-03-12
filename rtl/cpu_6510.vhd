@@ -36,6 +36,7 @@ entity cpu_6510 is
 		addr    : out unsigned(15 downto 0);
 		we      : out std_logic;
 
+		IOacc   : out std_logic;
 		diIO    : in  unsigned(7 downto 0);
 		doIO    : out unsigned(7 downto 0)
 	);
@@ -105,5 +106,6 @@ begin
 	addr <= unsigned(localA(15 downto 0));
 	do <= unsigned(localDo);
 	we <= not localWe;
+	IOacc <= accessIO;
 	doIO <= unsigned(currentIO);
 end architecture;
