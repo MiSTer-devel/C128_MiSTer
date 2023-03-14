@@ -53,17 +53,10 @@
 -- v2.3: Output last used Address during non-bus MCycle seems more correct.
 --
 
-
-
 library IEEE;
---library altera; 
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 use work.T80_Pack.all;
---use altera.altera_primitives_components.all;
-
-
-
 
 entity T80pa is
     generic(
@@ -99,49 +92,20 @@ end T80pa;
 
 architecture rtl of T80pa is
 
-    attribute syn_keep : boolean;
     signal IntCycle_n       : std_logic;
     signal IntCycleD_n  : std_logic_vector(1 downto 0);
-    attribute syn_keep of IntCycleD_n : signal is true;
     signal IORQ             : std_logic;
     signal NoRead           : std_logic;
-    attribute syn_keep of NoRead : signal is true;
-    signal Write2           : std_logic;
-    attribute syn_keep of Write2 : signal is true;
+    signal Write            : std_logic;
     signal BUSAK            : std_logic;
     signal DI_Reg           : std_logic_vector (7 downto 0);    -- Input synchroniser
     signal MCycle           : std_logic_vector(2 downto 0);
-    attribute syn_keep of MCycle : signal is true;
     signal TState           : std_logic_vector(2 downto 0);
-    attribute syn_keep of TState : signal is true;
     signal CEN_pol          : std_logic;
-    attribute syn_keep of CEN_pol : signal is true;
     signal CEN              : std_logic;
---	 signal CEN_cell         : std_logic;
---	 component lcell
---
---    port (
---
---        a_in : in std_logic;
---
---        a_out : out std_logic);
---
---	end component; 
 begin
 
-
-
-    --CEN_cell <= CEN_p and not CEN_pol;
-	 CEN <= CEN_p and not CEN_pol;
-	 
-	 
-
-	-- Instantiating LCELL
---		cen_lcell : LCELL
---		port map (a_in => CEN_cell, a_out => CEN);
-
-			
-			
+    CEN <= CEN_p and not CEN_pol;
     BUSAK_n <= BUSAK;
 
     u0 : T80
@@ -154,7 +118,7 @@ begin
             M1_n    => M1_n,
             IORQ    => IORQ,
             NoRead  => NoRead,
-            Write   => Write2,
+            Write   => Write,
             RFSH_n  => RFSH_n,
             HALT_n  => HALT_n,
             WAIT_n  => '1',
@@ -199,8 +163,8 @@ begin
                     end if;
                 else
                     if TState = "001" and IORQ = '1' then
-                        WR_n   <= not Write2;
-                        RD_n   <= Write2;
+                        WR_n   <= not Write;
+                        RD_n   <= Write;
                         IORQ_n <= '0';
                     end if;
                 end if;
@@ -231,12 +195,12 @@ begin
                 else
                     if NoRead = '0' and IORQ = '0' then
                         if TState = "001" then
-                            RD_n   <= Write2;
+                            RD_n   <= Write;
                             MREQ_n <= '0';
                         end if;
                     end if;
                     if TState = "010" then
-                        WR_n   <= not Write2;
+                        WR_n   <= not Write;
                     end if;
                     if TState = "011" then
                         WR_n   <= '1';
