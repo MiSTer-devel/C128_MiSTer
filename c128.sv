@@ -495,7 +495,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .status(status),
    .status_menumask({
       /* C */ |cart_int_rom,
-      /* B */ |cart_ext_rom | cart_attached,
+      /* B */ cart_attached,
       /* A */ cfg_force64,
       /* 9 */ ~status[69],
       /* 8 */ ~status[66],
@@ -614,7 +614,7 @@ wire  [7:0] cart_data;
 wire [24:0] cart_addr;
 wire        cart_floating;
 wire  [1:0] cart_int_rom;
-wire  [2:0] cart_ext_rom;
+wire  [1:0] cart_ext_rom;
 
 cartridge #(
    .RAM_ADDR(RAM_ADDR),
@@ -629,8 +629,8 @@ cartridge #(
    .reset_n(reset_n),
 
    .cart_loading(ioctl_download && load_crt),
-   .cart_id(cart_attached ? cart_id : status[52] ? 8'd99 : 8'd255),
    .cart_c128(cart_c128),
+   .cart_id(cart_attached ? cart_id : status[52] ? 8'd99 : 8'd255),
    .cart_int_rom(cart_int_rom),
    .cart_ext_rom(cart_ext_rom),
    .cart_exrom(cart_exrom),
@@ -755,8 +755,8 @@ wire [1:0] pd34_mode = status[29:28];
 reg [24:0] ioctl_load_addr;
 reg        ioctl_req_wr;
 
-reg [15:0] cart_id;
 reg        cart_c128;
+reg [15:0] cart_id;
 reg [15:0] cart_bank_laddr;
 reg [15:0] cart_bank_size;
 reg [15:0] cart_bank_num;
@@ -870,15 +870,16 @@ always @(posedge clk_sys) begin
          if (ioctl_addr == DRV_ADDR-ROM_ADDR+DRV_SIZE-1)
             drv_loaded <= 1;
 
-         if (ioctl_addr == CRT_ADDR-ROM_ADDR)
+         if (ioctl_addr == CRT_ADDR-ROM_ADDR) begin
+            cart_attached <= 0;
             cart_ext_rom <= 0;
+            cart_c128 <= 1;
+            cart_id <= 0;
+         end
 
          if (|ioctl_data && ~&ioctl_data) begin
-            if (ioctl_addr[24:14] == {10'((IFR_ADDR-ROM_ADDR)>>15), 1'b0})  cart_int_rom[0] <= 1;
-            if (ioctl_addr[24:14] == {10'((IFR_ADDR-ROM_ADDR)>>15), 1'b1})  cart_int_rom[1] <= 1;
-            if (ioctl_addr[24:13] == {10'((CRT_ADDR-ROM_ADDR)>>15), 2'b00}) cart_ext_rom[0] <= 1;
-            if (ioctl_addr[24:13] == {10'((CRT_ADDR-ROM_ADDR)>>15), 2'b01}) cart_ext_rom[1] <= 1;
-            if (ioctl_addr[24:14] == {10'((CRT_ADDR-ROM_ADDR)>>15), 1'b1})  cart_ext_rom[2] <= 1;
+            if (ioctl_addr[24:15] == {10'((IFR_ADDR-ROM_ADDR)>>15)}) cart_int_rom[ioctl_addr[14]] <= 1;
+            if (ioctl_addr[24:15] == {10'((CRT_ADDR-ROM_ADDR)>>15)}) cart_ext_rom[ioctl_addr[14]] <= 1;
          end
 
          if (!bootrom || !rom_loaded || ioctl_addr >= ROM_SIZE) begin
@@ -915,14 +916,13 @@ always @(posedge clk_sys) begin
       if (load_efr) begin
          if (ioctl_addr == 0) begin
             ioctl_load_addr <= CRT_ADDR;
+            cart_attached <= 0;
             cart_ext_rom <= 0;
+            cart_c128 <= 1;
+            cart_id <= 0;
          end
          if (ioctl_addr < FRM_SIZE) begin
-            if (|ioctl_data && ~&ioctl_data) begin
-               if (ioctl_addr[14:13] == 2'b00) cart_ext_rom[0] <= 1;
-               if (ioctl_addr[14:13] == 2'b01) cart_ext_rom[1] <= 1;
-               if (ioctl_addr[14]    == 1'b1)  cart_ext_rom[2] <= 1;
-            end
+            if (|ioctl_data && ~&ioctl_data) cart_ext_rom[ioctl_addr[14]] <= 1;
             ioctl_req_wr <= 1;
          end
       end
@@ -956,10 +956,13 @@ always @(posedge clk_sys) begin
             ioctl_load_addr <= CRT_ADDR;
             cart_blk_len <= 0;
             cart_hdr_cnt <= 0;
+            cart_attached <= 0;
             cart_ext_rom <= 0;
          end
 
-         if (ioctl_addr == 8'h01) cart_c128       <= ioctl_data[0];
+         if (ioctl_addr == 8'h01) cart_c128       <= ioctl_data == 8'h31;
+         if (ioctl_addr == 8'h02) cart_c128       <= cart_c128 & ioctl_data == 8'h32;
+         if (ioctl_addr == 8'h03) cart_c128       <= cart_c128 & ioctl_data == 8'h38;
          if (ioctl_addr == 8'h16) cart_id[15:8]   <= ioctl_data;
          if (ioctl_addr == 8'h17) cart_id[7:0]    <= ioctl_data;
          if (ioctl_addr == 8'h18) cart_exrom[7:0] <= ioctl_data;
@@ -968,12 +971,20 @@ always @(posedge clk_sys) begin
          if (ioctl_addr >= 8'h40) begin
             if (cart_blk_len == 0 & cart_hdr_cnt == 0) begin
                cart_hdr_cnt <= 1;
-               if (ioctl_load_addr[12:0] != 0) begin
-                  // align to 8KB boundary
-                  ioctl_load_addr[12:0] <= 0;
-                  ioctl_load_addr[24:13] <= ioctl_load_addr[24:13] + 1'b1;
-               end
-            end else if (cart_hdr_cnt != 0) begin
+               if (cart_c128)
+                  if (ioctl_load_addr[13:0] != 0) begin
+                     // align to 16KiB boundary
+                     ioctl_load_addr[13:0] <= 0;
+                     ioctl_load_addr[24:14] <= ioctl_load_addr[24:14] + 1'b1;
+                  end
+               else
+                  if (ioctl_load_addr[12:0] != 0) begin
+                     // align to 8KiB boundary
+                     ioctl_load_addr[12:0] <= 0;
+                     ioctl_load_addr[24:13] <= ioctl_load_addr[24:13] + 1'b1;
+                  end
+            end 
+            else if (cart_hdr_cnt != 0) begin
                cart_hdr_cnt <= cart_hdr_cnt + 1'b1;
                if (cart_hdr_cnt == 4)  cart_blk_len[31:24]  <= ioctl_data;
                if (cart_hdr_cnt == 5)  cart_blk_len[23:16]  <= ioctl_data;
@@ -990,6 +1001,7 @@ always @(posedge clk_sys) begin
                if (cart_hdr_cnt == 15) cart_hdr_wr <= 1;
             end
             else begin
+               cart_ext_rom[ioctl_load_addr[14]] <= 1;
                cart_blk_len <= cart_blk_len - 1'b1;
                ioctl_req_wr <= 1;
             end
@@ -1008,9 +1020,9 @@ always @(posedge clk_sys) begin
       end
    end
 
-   if (old_download != ioctl_download && load_crt) begin
-      cart_attached <= old_download;
-      erase_cram <= 1;
+   if (old_download && !ioctl_download && (load_rom || load_efr || load_crt)) begin
+      cart_attached <= |cart_ext_rom;
+      erase_cram <= |cart_ext_rom;
    end
 
    // Wait for PRG reset to finish
