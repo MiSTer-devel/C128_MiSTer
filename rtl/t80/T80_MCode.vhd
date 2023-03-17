@@ -2174,8 +2174,6 @@ begin
 				when 2 =>
 					Set_BusB_To <= "0110";
 					Set_Addr_To <= aBC;
-					SetWZ <= "11";
-					IncDec_16(3) <= IR(3);
 				when 3 =>
 					if IR(3) = '0' then
 						IncDec_16 <= "0110";
