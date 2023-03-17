@@ -90,7 +90,7 @@ The Internal Function ROM can also be loaded from the OSD via *Hardware*->*Inter
 * <kbd>F2</kbd>, <kbd>F4</kbd>, <kbd>F6</kbd>, <kbd>F8</kbd>, <kbd>Left</kbd>/<kbd>Up</kbd> keys automatically activate <kbd>Shift</kbd> key.
 * <kbd>F9</kbd> - <kbd>&#129145;</kbd> key.
 * <kbd>F10</kbd> - <kbd>=</kbd> key.
-* <kbd>F11</kbd> - <kbd>Restore</kbd> key. Also special key in AR/FC carts.
+* <kbd>F11</kbd> - <kbd>Restore</kbd> key, or <kbd>Freeze</kbd> key for some cartridges (e.g. Action Replay).
 * Meta keys (Win/Apple) - <kbd>C=</kbd> key.
 * <kbd>PgUp</kbd> - Tape play/pause
 * <kbd>PgDn</kbd> - <kbd>Line feed</kbd>
@@ -107,6 +107,7 @@ The <kbd>AltGr</kbd> key (right <kbd>Alt</kbd>) is used to access alternative fu
 * <kbd>AltGr</kbd>+<kbd>F6</kbd> - <kbd>Line feed</kbd>
 * <kbd>AltGr</kbd>+<kbd>F7</kbd> - <kbd>40/80 display</kbd>
 * <kbd>AltGr</kbd>+<kbd>F8</kbd> - <kbd>No scroll</kbd>
+* <kbd>AltGr</kbd>+<kbd>F11</kbd> - <kbd>Restore</kbd> (if a cartridge using <kbd>Freeze</kbd> key is active)
 
 It is possible to access the C128 top-row cursor keys, and the numpad keys on a PC keyboard without numpad using <kbd>AltGr</kbd> combined with the similar keys:
 * <kbd>AltGr</kbd>+<kbd>return</kbd> - Numpad <kbd>enter</kbd>
@@ -212,3 +213,9 @@ To get real time in GEOS, copy CP-CLOCK64-1.3 from supplied [disk](https://githu
 
 C1541/C1571 implementation works in raw GCR mode (D64/D71 format is converted to GCR and then back when saved), so some non-standard tracks are supported if G64/G71 file format is used. Support formatting and some copiers using raw track copy. Speed zones aren't supported (yet), but system follows the speed setting, so variable speed within a track should work.
 Protected disk in most cases won't work yet and still require further tuning of access times to comply with different protections.
+
+### "Pure" 64 mode
+
+With *OSD*->*Hardware*->*C64 mode* the C64 mode of the C128 can be switched between "C128 extensions" and "Pure 64". In "C128 extensions" the 64 mode is identical to the C64 mode of the C128, which is not 100% identical to a real C64. When set to "Pure 64", the 64 mode is more similar to a real C64.
+
+In pure mode the I/O space is identical to a real C64 instead of the C128 extended I/O which includes the VDC and two few extra registers for the VIC. Also, the keyboard layout is modified, e.g. the keys on the numeric keypad map to the normal keys instead of the C128 extended keys.

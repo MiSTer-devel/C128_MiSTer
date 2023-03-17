@@ -580,7 +580,7 @@ begin
 					when "0" & X"7D" => if pure64 = '0' then key_num9     <= pressed; else key_9       <= pressed; end if;
 					when "0" & X"83" => key_F7 <= pressed;
 
-					when "1" & X"11" => if pure64 = '0' then key_fn       <= pressed; end if; -- AltGr (right)
+					when "1" & X"11" => key_fn <= pressed;  -- AltGr (right)
 					when "1" & X"14" => key_ctrl <= pressed; -- Ctrl (right)
 					when "1" & X"1F" => key_commodore <= pressed; -- Meta (left)
 					when "1" & X"27" => key_commodore <= pressed; -- Meta (right)

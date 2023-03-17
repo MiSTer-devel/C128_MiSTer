@@ -914,7 +914,7 @@ port map (
    debug => vdcDebug,
 
    clk => clk32,
-   reset => reset or pure64,
+   reset => reset,
    init => '0',
 
    enableBus => enableVdc,
