@@ -65,6 +65,7 @@ architecture rtl of mmu8722 is
 	signal reg_game : std_logic := '0';
 	signal reg_d4080 : std_logic := '0';
 	signal reg_os : std_logic;
+	signal reg_unused06 : unsigned(1 downto 0);
 	signal reg_vicbank : unsigned(1 downto 0);
 	signal reg_commonH : std_logic;
 	signal reg_commonL : std_logic;
@@ -82,7 +83,12 @@ architecture rtl of mmu8722 is
 	signal game : std_logic;
 	signal d4080 : std_logic;
 
+	signal page: unsigned(15 downto 8);
 	signal systemMask: unsigned(1 downto 0);
+	signal commonPageMask: unsigned(7 downto 0);
+	signal commonPage: unsigned(15 downto 8);
+	signal cpuMask: unsigned(1 downto 0);
+	signal crBank: unsigned(3 downto 0);
 
 begin
 
@@ -105,6 +111,7 @@ begin
 				reg_game <= cpumode or osmode;
 				reg_d4080 <= cpumode or osmode;
 				reg_os <= osmode;
+				reg_unused06 <= (others => '0');
 				reg_vicbank <= (others => '0');
 				reg_commonH <= '0';
 				reg_commonL <= '0';
@@ -141,6 +148,7 @@ begin
 					when X"06" => reg_commonSz <= di(1 downto 0);
 									  reg_commonL <= di(2);
 									  reg_commonH <= di(3);
+									  reg_unused06 <= di(5 downto 4);
 									  reg_vicbank <= di(7 downto 6);
 					when X"07" => reg_p0l <= di;
 								  	  reg_p0h <= reg_p0hb;
@@ -168,45 +176,34 @@ begin
 	fsdiro <= fsdir;
 
 	systemMask <= sys256k & "1";
+	commonPageMask <= "11111100" when reg_commonSz = "00" else  -- 00..03 / FC..FF = 1k
+	                  "11110000" when reg_commonSz = "01" else  -- 00..0F / F0..FF = 4k
+							"11100000" when reg_commonSz = "10" else  -- 00..1F / E0..FF = 8k
+							"11000000";                               -- 00..3F / C0..FF =16k
+
+	page <= addr(15 downto 8);
+	commonPage <= page and commonPageMask;
+	cpuMask <= "00" when (reg_commonH = '1' and commonPage = commonPageMask) or (reg_commonL = '1' and commonPage = "00000000") else systemMask;
+	crBank <= "00" & reg_cr(7 downto 6) and cpuMask;
+
+	vicBank <= reg_vicbank and systemMask;
+
+	c128_n <= reg_os;
+	z80_n <= reg_cpu;
+	iosel <= reg_cr(0);
 
 	translate_addr: process(clk)
 	variable bank: unsigned(1 downto 0);
-	variable cpuMask: unsigned(1 downto 0);
-	variable crBank: unsigned(3 downto 0);
-	variable page: unsigned(15 downto 8);
 	variable tPage: unsigned(15 downto 8);
-	variable commonPage: unsigned(7 downto 0);
-	variable commonMem: std_logic;
-	variable commonPageMask: unsigned(7 downto 0);
 	begin
 		if rising_edge(clk) then
-			page := addr(15 downto 8);
+			bank := crBank(1 downto 0);
+			tPage := page;
 
-			c128_n <= reg_os;
-			z80_n <= reg_cpu;
-
-			vicBank <= reg_vicbank and systemMask;
-
-			case reg_commonSz is
-			when "00" => commonPageMask := "11111100"; -- 00..03 / FC..FF = 1k
-			when "01" => commonPageMask := "11110000"; -- 00..0F / F0..FF = 4k
-			when "10" => commonPageMask := "11100000"; -- 00..1F / E0..FF = 8k
-			when "11" => commonPageMask := "11000000"; -- 00..3F / C0..FF =16k
-			end case;
-
-			commonPage := page and commonPageMask;
-			if (reg_commonH = '1' and commonPage = commonPageMask) or (reg_commonL = '1' and commonPage = "00000000") then
-				cpuMask := "00";
-				crBank := "0000";
-			else
-				cpuMask := systemMask;
-				crBank := "00" & reg_cr(7 downto 6) and systemMask;
-			end if;
-
-			bank := "00";
-			if crBank = B"00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
-				-- When reading from $00xxx in Z80 mode, always read from $0Dxxx. Buslogic will enable ROM4
-				tPage := X"D" & addr(11 downto 8);
+			if reg_cr(7 downto 6) = "00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
+				-- When reading from $00xxx in Z80 mode, translate to $0Dxxx. Buslogic will enable ROM
+				bank := "00";
+				tPage := X"D" & page(11 downto 8);
 			elsif page = X"01" and reg_os = '0' then
 				bank := reg_p1h(1 downto 0) and cpuMask;
 				tPage := reg_p1l;
@@ -219,9 +216,6 @@ begin
 			elsif crBank = reg_p0h and page = reg_p0l then
 				bank := reg_p0h(1 downto 0) and cpuMask;
 				tPage := X"00";
-			else
-				bank := crBank(1 downto 0);
-				tPage := page;
 			end if;
 
 			cpuBank <= bank;
@@ -233,8 +227,6 @@ begin
 			when "00" => rombank <= bank;
 			end case;
 			
-			iosel <= reg_cr(0);
-
 			tAddr <= tPage & addr(7 downto 0);
 		end if;
 	end process;
@@ -253,7 +245,7 @@ begin
 				when X"03" => do <= reg_pcr(2);
 				when X"04" => do <= reg_pcr(3);
 				when X"05" => do <= d4080 & reg_os & exrom & game & fsdir & "11" & reg_cpu;
-				when X"06" => do <= reg_vicbank & "11" & reg_commonH & reg_commonL & reg_commonSz;
+				when X"06" => do <= reg_vicbank & reg_unused06 & reg_commonH & reg_commonL & reg_commonSz;
 				when X"07" => do <= reg_p0l;
 				when X"08" => do <= "1111" & reg_p0h;
 				when X"09" => do <= reg_p1l;
