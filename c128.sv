@@ -613,8 +613,6 @@ wire IOF_rd;
 wire  [7:0] cart_data;
 wire [24:0] cart_addr;
 wire        cart_floating;
-wire  [1:0] cart_int_rom;
-wire  [1:0] cart_ext_rom;
 
 cartridge #(
    .RAM_ADDR(RAM_ADDR),
@@ -781,6 +779,8 @@ reg        io_cycle_we;
 reg [24:0] io_cycle_addr;
 reg  [7:0] io_cycle_data;
 
+reg  [1:0] cart_int_rom = 0;
+reg  [1:0] cart_ext_rom = 0;
 reg        rom_loading, rom_loaded = 0;
 reg        drv_loading, drv_loaded = 0;
 
@@ -788,20 +788,29 @@ wire       rom_download = rom_loading & ioctl_download;
 wire       drv_download = drv_loading & ioctl_download;
 
 // SDRAM layout
-// -- all blocks must be aligned on that block's size boundaries, so a 64k block must start at a 64k boundary, etc.
+// -- all blocks must be aligned on that block's size boundaries unless specified otherwise, 
+//    so a 64k block must start at a 64k boundary, etc.
 localparam RAM_ADDR = 25'h0000000;  // System RAM: 256k
 localparam CRM_ADDR = 25'h0040000;  // Cartridge RAM: 64k
 localparam ROM_ADDR = 25'h0060000;  // System ROM: 96k (align on 128k)       loaded from boot0.rom or MRA (required)
 localparam IFR_ADDR = 25'h0078000;  // Internal function ROM: 32k            can be loaded from boot0.rom, boot2.rom or MRA (optional)
 localparam DRV_ADDR = 25'h0080000;  // Drive ROM: 512k                       loaded from boot0.rom, boot1.rom or MRA (required)
 localparam CRT_ADDR = 25'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
-localparam TAP_ADDR = 25'h0200000;  // Tape buffer
+localparam TAP_ADDR = 25'h0200000;  // Tape buffer (not aligned)
 localparam GEO_ADDR = 25'h0C00000;  // GeoRAM: 4M
 localparam REU_ADDR = 25'h1000000;  // REU: 16M
 
 localparam ROM_SIZE = 25'h0012000;  // min size of boot0.rom
 localparam DRV_SIZE = 25'h0030000;  // exact size of boot1.rom
 localparam FRM_SIZE = 25'h0008000;  // max size of function roms
+
+wire skip_rom = bootrom ? (
+      (                                   ioctl_addr < ROM_SIZE                   && rom_loaded)
+   || (ioctl_addr >= IFR_ADDR-ROM_ADDR && ioctl_addr < IFR_ADDR-ROM_ADDR+FRM_SIZE && |cart_int_rom)
+   || (ioctl_addr >= DRV_ADDR-ROM_ADDR && ioctl_addr < DRV_ADDR-ROM_ADDR+DRV_SIZE && drv_loaded)
+   || (ioctl_addr >= CRT_ADDR-ROM_ADDR && ioctl_addr < CRT_ADDR-ROM_ADDR+FRM_SIZE && (cart_attached || |cart_ext_rom))
+   || (ioctl_addr >= CRT_ADDR-ROM_ADDR+FRM_SIZE)
+) : (ioctl_addr >= ROM_SIZE);
 
 always @(posedge clk_sys) begin
    reg  [4:0] erase_to;
@@ -850,13 +859,13 @@ always @(posedge clk_sys) begin
    if (io_cycle & io_cycleD) {io_cycle_ce, io_cycle_we} <= 0;
 
    if (ioctl_wr) begin
-      if (load_rom) begin
-         if (ioctl_addr == 0 && !(bootrom && rom_loaded)) begin
+      if (load_rom && !skip_rom) begin
+         if (ioctl_addr == 0) begin
             rom_loading <= 1;
             rom_loaded <= 0;
          end
 
-         if (rom_loading && ioctl_addr == ROM_SIZE-1)
+         if (ioctl_addr == ROM_SIZE-1)
             rom_loaded <= 1;
 
          if (ioctl_addr == IFR_ADDR-ROM_ADDR)
@@ -882,10 +891,8 @@ always @(posedge clk_sys) begin
             if (ioctl_addr[24:15] == {10'((CRT_ADDR-ROM_ADDR)>>15)}) cart_ext_rom[ioctl_addr[14]] <= 1;
          end
 
-         if (!bootrom || !rom_loaded || ioctl_addr >= ROM_SIZE) begin
-            ioctl_load_addr <= ioctl_addr + ROM_ADDR;
-            ioctl_req_wr <= 1;
-         end
+         ioctl_load_addr <= ioctl_addr + ROM_ADDR;
+         ioctl_req_wr <= 1;
       end
 
       if (load_drv && !(drv_loaded && bootrom)) begin
