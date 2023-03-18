@@ -57,6 +57,7 @@ reg        cfield;
 reg        newsrow;
 
 wire       ncfield = reg_im[0] & ~cfield;
+wire [4:0] vw = (|reg_vw ? reg_vw : 5'd16) >> reg_im[0];
 wire [5:0] va = reg_va+(ncfield ? 6'd1 : 6'd0);
 wire [7:0] fh = reg_vt+(|va ? 8'd1 : 8'd0);
 wire [4:0] rh = srow==reg_vt+1 ? 5'(va-6'd1) : ctv;
@@ -191,21 +192,21 @@ end
 
 // vsync/vblank
 
-localparam VB_BITS = $clog2(VB_WIDTH+2);
+localparam VB_BITS = $clog2(VB_WIDTH+1);
 
-reg [VB_BITS-1:0] vbCount;
-assign vblank = |vbCount;
+reg [VB_BITS:0] vbCount;
+reg       [4:0] vsCount;
 
-reg [1:0] vsCount;
-assign vsync = vsCount==2'd1;
+assign vblank = |vsCount;
+assign vsync  = |vsCount;
 
 always @(posedge clk) begin
-	reg vsDetect; 
-	reg vbStart;
+	reg       vsDetect; 
+	reg       vbStart;
+	reg [1:0] vsStart;
 
 	if (reset) begin
 		vsCount <= 0;
-		vbCount <= 0;
 		vsDetect <= 0;
 		field <= 0;
 	end 
@@ -220,14 +221,20 @@ always @(posedge clk) begin
 
 		if (vbStart && half2Start) begin
 			vbStart <= 0;
+			vsStart <= 2'd2;
 			vbCount <= VB_BITS'(VB_WIDTH) - VB_BITS'(field ? 1 : 0);
-			vsCount <= 2'd3;
 		end
 
-		if (|vbCount && lineStart) 
+		if (|vbCount && hSyncStart) 
 			vbCount <= vbCount-1'd1;
 
-		if (|vsCount && hSyncStart) 
+		if (|vsStart && hSyncStart) begin
+			vsStart <= vsStart-1'd1;
+			if (vsStart==1)
+				vsCount <= vw - 5'(field ? 1 : 0);
+		end
+
+		if (|vsCount && hSyncStart)
 			vsCount <= vsCount-1'd1;
 	end
 end

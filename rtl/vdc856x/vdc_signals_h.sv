@@ -18,7 +18,7 @@ module vdc_signals_h (
 	input      [3:0] reg_cth,        // R22[7:4]    7 7       Character total horizontal (minus 1)
 	input            reg_atr,        // R25[6]      1 on      Attribute enable
 	input            reg_dbl,        // R25[4]      0 off     Pixel double width
-	input      [7:0] reg_ai,	     // R27        00 0       Address increment per row
+	input      [7:0] reg_ai,	      // R27        00 0       Address increment per row
 	input      [7:0] reg_deb,        // R34        7D 125     Display enable begin
 	input      [7:0] reg_dee,        // R35        64 100     Display enable end
 
@@ -33,13 +33,14 @@ module vdc_signals_h (
 	output           hVisible,       // visible column
 	output reg       hdispen,        // horizontal display enable
 
-	output reg       hsync,          // horizontal sync
+	output           hsync,          // horizontal sync
 	output           hblank          // horizontal blanking
 );
 
 reg [3:0] hbCount; 
 reg       hviscol; 
 
+assign hsync    = |hbCount;
 assign hblank   = |hbCount;
 assign hVisible = hviscol & hdispen;
 
@@ -51,7 +52,6 @@ always @(posedge clk) begin
 		col <= 0;
 		pixel <= {3'b000, reg_dbl};
 
-		hsync <= 0;
 		hbCount <= 0;
 
 		newCol <= 0;
@@ -84,9 +84,6 @@ always @(posedge clk) begin
 				if (col==dee) hdispen <= 0;
 			end
 			
-			// hsync
-			hsync <= hSyncStart;
-
 			// hblank
 			if (hSyncStart) 
 				hbCount <= reg_hw>>reg_dbl;
