@@ -244,10 +244,10 @@ always @(posedge clk32) begin
 					if(ioe_wr) begin
 						bank_hi[0] <= data_in[4];
 						case(data_in[6:5])
-							2'b00: bank_hi[2:1] <= 7'd0;
-							2'b01: bank_hi[2:1] <= 7'd1;
-							2'b10: bank_hi[2:1] <= 7'd0; 
-							2'b11: bank_hi[2:1] <= 7'd2;
+							2'b00: bank_hi[2:1] <= 2'd0;
+							2'b01: bank_hi[2:1] <= 2'd1;
+							2'b10: bank_hi[2:1] <= 2'd0; 
+							2'b11: bank_hi[2:1] <= 2'd2;
 						endcase
 					end
 				end
