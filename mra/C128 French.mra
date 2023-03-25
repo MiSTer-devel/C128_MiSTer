@@ -1,5 +1,5 @@
 <misterromdescription>
-  <name>C128 DCR (Danish)</name>
+  <name>C128 (French)</name>
   <mratimestamp>20230211</mratimestamp>
   <year>1986</year>
   <manufacturer>Commodore</manufacturer>
@@ -34,17 +34,15 @@
       bit 1: Operating mode: 0=C128 1="Pure" C64 (disables Z80/MMU/VDC)
       bit 2: Caps lock key: 0=Caps Lock 1=ASCII/DIN
   </romstruct>
-  <rom index="0" zip="C128rom.zip" md5="53b82a1bb4f50fe42c67a39f3a4131bd">
+  <rom index="0" zip="C128rom.zip" md5="c0d5d3e9a542214a3813c54d43788d4c">
     <part name="c64-basic.901226-01.bin"/>
-    <part name="c64-kernal.danish.318082-01.bin"/>
-    <part name="editor.danish.318082-01.bin"/>
+    <part name="c64-kernal.901227-03.bin"/>
+    <part name="editor.french.unknown.bin"/>
     <part name="z80bios.bin"/>
-    <part name="kernal.danish.318082-01.bin"/>
+    <part name="kernal.french.unknown.bin"/>
     <part name="basic.318022-02.bin"/>
-    <part name="characters.danish.325175-01.bin" offset="0x0800" length="0x0800"/>
-    <part name="characters.danish.325175-01.bin" offset="0x1800" length="0x0800"/>
-    <part name="characters.danish.325175-01.bin" offset="0x0000" length="0x0800"/>
-    <part name="characters.danish.325175-01.bin" offset="0x1000" length="0x0800"/>
+    <part name="characters.ifb.325167-02.bin" offset="0x1000" length="0x1000"/>
+    <part name="characters.ifb.325167-02.bin" offset="0x0000" length="0x1000"/>
     <part repeat="0xE000">00</part>
     <part name="1541-II.355640-01.bin"/> 
     <part name="1541-II.355640-01.bin"/> 
@@ -56,6 +54,6 @@
     <part name="1581.318045-02.bin"/>
   </rom>
   <rom index="1">
-    <part>05</part>
+    <part>04</part>
   </rom>
 </misterromdescription>

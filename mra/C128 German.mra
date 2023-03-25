@@ -1,5 +1,5 @@
 <misterromdescription>
-  <name>C128 DCR (Italian)</name>
+  <name>C128 (German)</name>
   <mratimestamp>20230211</mratimestamp>
   <year>1986</year>
   <manufacturer>Commodore</manufacturer>
@@ -34,15 +34,14 @@
       bit 1: Operating mode: 0=C128 1="Pure" C64 (disables Z80/MMU/VDC)
       bit 2: Caps lock key: 0=Caps Lock 1=ASCII/DIN
   </romstruct>
-  <rom index="0" zip="C128rom.zip" md5="fe57e1dc9ce4ae6415c5a6398bb61d14">
+  <rom index="0" zip="C128rom.zip" md5="9c7cf755b3cb4508759f808d924d7db5">
     <part name="c64-basic.901226-01.bin"/>
     <part name="c64-kernal.901227-03.bin"/>
-    <part name="editor.italian.318079-01.bin"/>
+    <part name="editor.german.315078-03.bin"/>
     <part name="z80bios.bin"/>
-    <part name="kernal.italian.318079-01.bin"/>
+    <part name="kernal.german.315078-03.bin"/>
     <part name="basic.318022-02.bin"/>
-    <part name="characters.ifb.325167-02.bin" offset="0x1000" length="0x1000"/>
-    <part name="characters.ifb.325167-02.bin" offset="0x0000" length="0x1000"/>
+    <part name="characters.german.315079-01.bin"/>
     <part repeat="0xE000">00</part>
     <part name="1541-II.355640-01.bin"/> 
     <part name="1541-II.355640-01.bin"/> 
@@ -54,6 +53,6 @@
     <part name="1581.318045-02.bin"/>
   </rom>
   <rom index="1">
-    <part>05</part>
+    <part>04</part>
   </rom>
 </misterromdescription>
