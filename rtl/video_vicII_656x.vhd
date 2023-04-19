@@ -129,6 +129,7 @@ architecture rtl of video_vicii_656x is
 	signal baSpriteLast : std_logic;
 
 -- Memory refresh cycles
+	signal refresh : std_logic;
 	signal refreshCounter : unsigned(7 downto 0);
 
 -- User registers
@@ -272,9 +273,10 @@ architecture rtl of video_vicii_656x is
 	signal myWr_c : std_logic;
 	signal myRd : std_logic;
 
--- I/O port (Model 856x)
+-- VIC-IIe registers
    signal k_reg : unsigned(2 downto 0) := (others => '0');
 	signal turbo_reg : std_logic;
+	signal turbo_reg_d : std_logic_vector(1 downto 0);
 	signal test_reg : std_logic;
 
 -- type selection
@@ -296,13 +298,22 @@ begin
 -- -----------------------------------------------------------------------
 -- Ouput signals
 -- -----------------------------------------------------------------------
-	ba <= baLoc;
+	ba <= baLoc or ((turbo_reg_d(1) or turbo_reg_d(0)) and vic2e);
 	vicAddr <= vicAddrReg when registeredAddress else vicAddrLoc;
 	hSync <= hBlanking;
 	vSync <= vBlanking;
 	irq_n <= not IRQ;
-	turbo_state <= turbo_reg;
+	turbo_state <= turbo_reg_d(1) and turbo_reg_d(0);
 	ko <= k_reg;
+
+	process(clk)
+	begin
+		if rising_edge(clk) then
+			if enaData = '1' and (turbo_reg_d(1) = '1' or phi = '1') then
+				turbo_reg_d <= turbo_reg_d(0) & turbo_reg;
+			end if;
+		end if;
+	end process;
 
 -- -----------------------------------------------------------------------
 -- chip-select signals and data/address bus latch
@@ -554,13 +565,15 @@ vicStateMachine: process(clk)
 -- -----------------------------------------------------------------------
 -- Refresh counter
 -- -----------------------------------------------------------------------
+	vicRefresh <= refresh;
+
 	process(clk)
 	begin
 		if rising_edge(clk) then
-			vicRefresh <= '0';
+			refresh <= '0';
 			case vicCycle is
 			when cycleRefresh1 | cycleRefresh2 | cycleRefresh3 | cycleRefresh4 | cycleRefresh5 =>
-				vicRefresh <= '1';
+				refresh <= '1';
 				if phi = '0'
 				and enaData = '1'
 				and baSync = '0' then
@@ -711,8 +724,7 @@ vicStateMachine: process(clk)
 	process(phi, baCnt)
 	begin
 		addrValid <= '0';
-		if phi = '0'
-		or baCnt(2) = '1' then
+		if ((turbo_reg_d(0) and turbo_reg_d(1)) = '0' or vic2e = '0' or refresh = '1') and (phi = '0' or baCnt(2) = '1') then
 			addrValid <= '1';
 		end if;
 	end process;
@@ -1586,6 +1598,11 @@ writeRegisters: process(clk)
 					when "101100" => spriteColors(5) <= diRegisters(3 downto 0);
 					when "101101" => spriteColors(6) <= diRegisters(3 downto 0);
 					when "101110" => spriteColors(7) <= diRegisters(3 downto 0);
+					when "110000" => 
+						if vic2e = '1' or turbo_en = '1' then
+							turbo_reg <= diRegisters(0);
+							test_reg <= diRegisters(1) and vic2e;
+						end if;
 					when others => null;
 					end case;
 				end if;
@@ -1659,11 +1676,6 @@ writeRegisters: process(clk)
 					when "101111" => 
 						if vic2e = '1' then
 							k_reg <= diRegisters(2 downto 0);
-						end if;
-					when "110000" => 
-						if vic2e = '1' or turbo_en = '1' then
-							turbo_reg <= diRegisters(0);
-							test_reg <= diRegisters(1) and vic2e;
 						end if;
 					when others => null;
 					end case;
