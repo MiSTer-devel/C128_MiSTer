@@ -287,6 +287,8 @@ architecture rtl of video_vicii_656x is
 	signal ntsc_new : std_logic;
 	signal vic2e : std_logic;
 
+	signal diChar : unsigned(7 downto 0);
+
 begin
 	pal_b <= mode6569 or mode8566;
 	pal_n <= mode6572 or mode8569;
@@ -334,7 +336,7 @@ begin
 	myWr_b <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "011" else '0';
 	myWr_c <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "100" else '0';
 	-- timing of the read is only important for the collision register reads
-	myRd   <= '1' when cs = '1' and phi = '1' and we = '0' and enaPixel = '1' and rasterX(1 downto 0) = "00" else '0';
+	myRd   <= '1' when cs = '1' and phi = '1' and we = '0' and enaPixel = '1' and rasterX(2 downto 0) = "000" else '0';
 
 -- -----------------------------------------------------------------------
 -- debug signals
@@ -522,6 +524,8 @@ vicStateMachine: process(clk)
 -- -----------------------------------------------------------------------
 -- Character storage
 -- -----------------------------------------------------------------------
+	diChar <= di when baCnt(2) = '1' else (others => '1');
+
 	process(clk)
 	begin
 		if rising_edge(clk) then
@@ -529,7 +533,7 @@ vicStateMachine: process(clk)
 			and shiftChars
 			and phi = '1' then
 				if baChars = '0' then
-					nextChar(7 downto 0) <= di;
+					nextChar(7 downto 0) <= diChar;
 					nextChar(11 downto 8) <= diColor;
 				else
 					nextChar <= charStore(38);
