@@ -117,6 +117,7 @@ architecture rtl of video_vicii_656x is
 	signal rasterEnable: std_logic;
 
 -- BA signal
+	signal aec : std_logic;
 	signal badLine : boolean; -- true if we have a badline condition
 	signal baLoc : std_logic;
 	signal baCnt : unsigned(2 downto 0);
@@ -300,18 +301,20 @@ begin
 -- -----------------------------------------------------------------------
 -- Ouput signals
 -- -----------------------------------------------------------------------
-	ba <= baLoc or ((turbo_reg_d(1) or turbo_reg_d(0)) and vic2e);
+	ba <= baLoc or turbo_reg_d(0) or turbo_reg_d(1);
 	vicAddr <= vicAddrReg when registeredAddress else vicAddrLoc;
 	hSync <= hBlanking;
 	vSync <= vBlanking;
 	irq_n <= not IRQ;
-	turbo_state <= turbo_reg_d(1) and turbo_reg_d(0);
+	turbo_state <= turbo_reg_d(1);
 	ko <= k_reg;
 
 	process(clk)
 	begin
 		if rising_edge(clk) then
-			if enaData = '1' and (turbo_reg_d(1) = '1' or phi = '1') then
+			if vic2e = '0' then
+				turbo_reg_d <= (others => '0');
+			elsif enaData = '1' and phi = '1' then
 				turbo_reg_d <= turbo_reg_d(0) & turbo_reg;
 			end if;
 		end if;
@@ -365,6 +368,7 @@ begin
 			if baLoc = '0' then
 				if phi = '0'
 				and enaData = '1'
+				and (turbo_reg_d(1 downto 0) = "00")
 				and baCnt(2) = '0' then
 					baCnt <= baCnt + 1;
 				end if;
@@ -524,7 +528,7 @@ vicStateMachine: process(clk)
 -- -----------------------------------------------------------------------
 -- Character storage
 -- -----------------------------------------------------------------------
-	diChar <= di when baCnt(2) = '1' else (others => '1');
+	diChar <= di when refresh = '0' and (aec = '1' or cs = '1') else (others => '1');
 
 	process(clk)
 	begin
@@ -725,11 +729,13 @@ vicStateMachine: process(clk)
 -- -----------------------------------------------------------------------
 -- Address valid?
 -- -----------------------------------------------------------------------
+	addrValid <= aec;
+
 	process(phi, baCnt)
 	begin
-		addrValid <= '0';
-		if ((turbo_reg_d(0) and turbo_reg_d(1)) = '0' or vic2e = '0' or refresh = '1') and (phi = '0' or baCnt(2) = '1') then
-			addrValid <= '1';
+		aec <= '0';
+		if (turbo_reg_d(1 downto 0) = "00" or vic2e = '0' or refresh = '1') and (phi = '0' or baCnt(2) = '1') then
+			aec <= '1';
 		end if;
 	end process;
 

@@ -270,6 +270,7 @@ signal cs_cia1      : std_logic;
 signal cs_cia2      : std_logic;
 signal cs_ram       : std_logic;
 signal cpuWe        : std_logic;
+signal cpuWe_l      : std_logic;
 signal cpuWe_nd     : std_logic;
 signal cpuWe_T65    : std_logic;
 signal cpuWe_T80    : std_logic;
@@ -1174,7 +1175,7 @@ io_access <= cs_vic or cs_sid or cs_mmuL or cs_vdc or cs_cia1 or cs_cia2 or ioe_
 io_enable <= '1' when (baLoc = '1' or cpuWe = '1') else '0';
 
 -- Last data activity of the CPU
-cpuLastData <= cpuDo when cpuWe = '1' else cpuDi_l when phi0_cpu = '0' else cpuDi;
+cpuLastData <= cpuDo when cpuWe_l = '1' else cpuDi_l when phi0_cpu = '0' else cpuDi;
 
 process(clk32)
 begin
@@ -1192,7 +1193,10 @@ begin
                end if;
 
          when CYCLE_CPU3 | CYCLE_CPU7 | CYCLE_CPUB | CYCLE_CPUF 
-            => cpuDi_l <= cpuDi;
+            => cpuWe_l <= cpuWe;
+               if cpucycT65 = '1' or cpuactT80 = '1' then
+                  cpuDi_l <= cpuDi;
+               end if;
                if sysCycle = CYCLE_CPUF then
                   cpuactT65 <= mmu_z80_n and not cpuBusAk_T80_n;
                   cpuactT80 <= not mmu_z80_n;
