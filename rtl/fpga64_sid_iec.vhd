@@ -334,6 +334,7 @@ signal fs_o         : std_logic;
 
 -- VIC signals
 signal vicColorIndex: unsigned(3 downto 0);
+signal vicPhaseShift: std_logic;
 signal vicDi        : unsigned(7 downto 0);
 signal vicDiAec     : unsigned(7 downto 0);
 signal vicAddr      : unsigned(15 downto 0);
@@ -813,6 +814,7 @@ port map (
    hSync => vicHS,
    vSync => vicVsync,
    colorIndex => vicColorIndex,
+   phaseShift => vicPhaseShift,
 
    irq_n => irq_vic
 );
@@ -822,6 +824,7 @@ vicHsync <= vicHS;
 vicColors: entity work.fpga64_rgbcolor
 port map (
    index => vicColorIndex,
+   shift => vicPhaseShift,
    r => vicRo,
    g => vicGo,
    b => vicBo
