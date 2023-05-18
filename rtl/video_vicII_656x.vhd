@@ -73,7 +73,7 @@ entity video_vicii_656x is
 		hSync : out std_logic;
 		vSync : out std_logic;
 		colorIndex : out unsigned(3 downto 0);
-		phaseShift : out std_logic;
+		invertV : out std_logic;
 
 		-- I/O pins
 		ko : out unsigned(2 downto 0);
@@ -105,7 +105,7 @@ architecture rtl of video_vicii_656x is
 	type spriteColorsDef is array(7 downto 0) of unsigned(3 downto 0);
 	type pixelColorStoreDef is array(7 downto 0) of unsigned(3 downto 0);
 
-	constant PIX_DELAY : integer := 5;
+	constant PIX_DELAY : integer := 8;
 
 -- State machine
 	signal lastLineFlag : boolean := false; -- True on last line of the frame.
@@ -342,7 +342,7 @@ begin
 		end if;
 	end process;
 
-	myWr_a <= cs and phi and we;
+	myWr_a <= '1' when cs = '1' and we = '1' and phi = '1' and enaPixel = '1' and rasterX(2 downto 1) = "00" else '0';
 	myWr_b <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "011" else '0';
 	myWr_c <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "100" else '0';
 	-- timing of the read is only important for the collision register reads
@@ -357,8 +357,8 @@ begin
 -- -----------------------------------------------------------------------
 -- Badline condition
 -- -----------------------------------------------------------------------
-	process(rasterY, yscroll, rasterEnable)
-	begin
+	process(rasterY, yscroll, rasterEnable, test_state_s)
+		begin
 		badLine <= false;
 		if (rasterY(2 downto 0) = yscroll)
 		and (rasterEnable = '1') 
@@ -739,7 +739,7 @@ vicStateMachine: process(clk)
 -- -----------------------------------------------------------------------
 	addrValid <= aec;
 
-	process(phi, baCnt)
+	process(phi, baCnt, turbo_state_s, vic2e, refresh)
 	begin
 		aec <= '0';
 		if (turbo_state_s(1 downto 0) = "00" or vic2e = '0' or refresh = '1') and (phi = '0' or baCnt(2) = '1') then
@@ -829,13 +829,13 @@ vicStateMachine: process(clk)
 -- X/Y Raster counter
 -- -----------------------------------------------------------------------
 cycleLast <= (vicCycle = cycleSpriteB) and (sprite = 2);
-cycleTest <= test_state_s(1) = '1' and not skipTestCycle;
-rasterY_next <= (others => '0') when lastLineFlag else rasterY + 1;
+cycleTest <= test_state_s(1) = '1';
+rasterY_next <= (others => '0') when lastLineFlag else rasterY when skipTestCycle else rasterY + 1;
 
 skipTest: process(clk)
 	begin
 		if rising_edge(clk) then
-			if baSync = '0' and phi = '1' and enaData = '1' and (cycleLast or test_state_s(1) = '1') then
+			if baSync = '0' and phi = '1' and enaData = '1' and cycleTest then
 				skipTestCycle <= lastLineFlag;
 			end if;
 		end if;
@@ -933,41 +933,33 @@ lightPen: process(clk)
 -- -----------------------------------------------------------------------
 -- VSync
 -- -----------------------------------------------------------------------
-doVBlanking: process(clk, ntsc)
+doVSync: process(clk, ntsc)
 		variable rasterBlank : integer range 0 to 311;
 		variable rasterSync : integer range 0 to 311;
 		variable rasterSyncEnd : integer range 0 to 311;
 		variable rasterBlankEnd : integer range 0 to 311;
 	begin
-		rasterBlank := 299;
-		rasterSync := 303;
+		rasterBlank := 300;
+		rasterSync := 304;
 		rasterSyncEnd := 307;
-		rasterBlankEnd := 310;
+		rasterBlankEnd := 311;
 		if ntsc = '1' then
 			rasterBlank := 13;
 			rasterSync := 17;
-			rasterSyncEnd := 21;
-			rasterBlankEnd := 25;
+			rasterSyncEnd := 20;
+			rasterBlankEnd := 24;
 		end if;
 		if rising_edge(clk) then
 			if enaData = '1'
 			and baSync = '0'
-			and (cycleLast or cycleTest)
 			then
-				if phi = '0' then
-					if rasterY_next = rasterBlank then
-						vBlank <= '1';
-					end if;
-					if rasterY_next = rasterBlankEnd then
-						vBlank <= '0';
+				vBlank <= '0';
+				if rasterY >= rasterBlank and rasterY < rasterBlankEnd then
+					vBlank <= '1';
 				end if;
-				else -- if not cycleTest then
-					if rasterY_next = rasterSync then
-						vSync <= '1';
-					end if;
-					if rasterY_next = rasterSyncEnd then
-						vSync <= '0';
-					end if;
+				vSync <= '0';
+				if rasterY >= rasterSync and rasterY < rasterSyncEnd and not cycleTest then
+					vSync <= '1';
 				end if;
 			end if;
 		end if;
@@ -976,7 +968,7 @@ doVBlanking: process(clk, ntsc)
 -- -----------------------------------------------------------------------
 -- HSync
 -- -----------------------------------------------------------------------
-doHBlanking: process(clk)
+doHSync: process(clk)
 	begin
 		if rising_edge(clk) then
 			if enaPixel = '1' then
@@ -1006,7 +998,7 @@ calcBorders: process(clk)
 				newTBBorder := TBBorder;
 				-- 1. If the X coordinate reaches the right comparison value, the main border
 				--   flip flop is set (comparison values are from VIC II datasheet).
-				if (rasterX = 339 + 2 and CSEL = '0') or (rasterX = 348 + 2 and CSEL = '1')  then
+				if (rasterX = 339 + 5 and CSEL = '0') or (rasterX = 348 + 5 and CSEL = '1')  then
 					MainBorder <= '1';
 				end if;
 				-- 2. If the Y coordinate reaches the bottom comparison value in cycle 63, the
@@ -1026,7 +1018,7 @@ calcBorders: process(clk)
 						setTBBorder <= false;
 					end if;
 				end if;
-				if (rasterX = 35 + 2 and CSEL = '0') or (rasterX = 28 + 2 and CSEL = '1') then
+				if (rasterX = 35 + 5 and CSEL = '0') or (rasterX = 28 + 5 and CSEL = '1') then
 					-- 4. If the X coordinate reaches the left comparison value and the Y
 					-- coordinate reaches the bottom one, the vertical border flip flop is set.
 					-- FIX: act on the already triggered condition
@@ -1382,7 +1374,7 @@ calcBitmap: process(clk)
 -- Video output
 -- -----------------------------------------------------------------------
 
-	process(clk)
+process(clk)
 		variable myColor: unsigned(3 downto 0);
 		variable muxSprite : unsigned(2 downto 0);
 		variable muxColor : unsigned(1 downto 0);
@@ -1390,6 +1382,7 @@ calcBitmap: process(clk)
 		-- 01 = MM0
 		-- 10 = Sprite
 		-- 11 = MM1
+		variable lastBlank: std_logic;
 	begin
 		if rising_edge(clk) then
 			muxColor := "00";
@@ -1441,6 +1434,8 @@ calcBitmap: process(clk)
 --			end loop;
 
 			if enaPixel = '1' then
+				lastBlank := hBlank or vBlank;
+
 				colorIndex <= myColor;
 
 -- Krestage 3 debugging routine
@@ -1450,43 +1445,46 @@ calcBitmap: process(clk)
 				if MainBorder = '1' then
 					colorIndex <= EC;
 				end if;
-				if (hBlank = '1' or vBlank = '1') then
+				if hBlank = '0' and vBlank = '0' and lastBlank = '1' then
+					colorIndex <= (others => '1');
+				end if;
+				if hBlank = '1' or vBlank = '1' then
 					colorIndex <= (others => '0');
 				end if;
 			end if;
 		end if;
 	end process;
 
-	phaseShifter: process(clk)
-		variable phaseReset : integer range 0 to 15 := 0;
-		variable phase : boolean := false;
+	YUVinverter: process(clk)
+		variable count : integer range 0 to 11 := 0;
+		variable state : boolean := false;
 	begin
-		-- unclear when the phase shift should reset to normal
-		-- (my) real hw resets it after approx. 16 raster lines, and there are screenshots of hw doing the same,
+		-- unclear when the inversion should reset to normal
+		-- (my) real hw resets it after approx. 12 raster lines, and there are screenshots of hw doing the same,
 		-- z64k resets it at top of the field and RfO expects that in the frog section
 		-- this is likely a difference in (otherwise undocumented) hw revisions, maybe C128 vs C128DCR
 
 		if rising_edge(clk) then
 			if enaPixel = '1'
 			and baSync = '0'
-			and rasterX(2 downto 0) = "100" then
-				if cycleTest
+			and rasterXDelay(2 downto 0) = "110" then
+				if cycleTest and not skipTestCycle and not cycleLast
 				then
-					phase := not phase;
-					phaseReset := 15;
-				elsif phaseReset > 0 then
+					state := not state;
+					count := 11;
+				elsif count > 0 then
 					if cycleLast then
-						phaseReset := phaseReset - 1;
+						count := count - 1;
 					end if;
 				else
-					phase := false;
+					state := false;
 				end if;
 			end if;
 
-			if phase then
-				phaseShift <= '1';
+			if state then
+				invertV <= '1';
 			else
-				phaseShift <= '0';
+				invertV <= '0';
 			end if;
 		end if;
 	end process;
@@ -1535,7 +1533,6 @@ spriteSpriteCollision: process(clk)
 				and (collision /= "01000000")
 				and (collision /= "10000000") then
 					M2M <= M2M or collision;
-
 				end if;
 
 				-- Give collision interrupt but only once until clear of register
@@ -1597,8 +1594,15 @@ spriteBackgroundCollision: process(clk)
 -- -----------------------------------------------------------------------
 -- Write registers
 -- -----------------------------------------------------------------------
-writeRegisters: process(clk)
+writeRegisters: process(clk, rasterX(0))
+	variable color : unsigned(3 downto 0);
 	begin
+		if (rasterX(0) = '0') then
+			color := (others => '1');
+		else
+			color := diRegisters(3 downto 0);
+		end if;
+
 		if rising_edge(clk) then
 			resetLightPenIrq <= '0';
 			resetIMMC <= '0';
@@ -1662,23 +1666,22 @@ writeRegisters: process(clk)
 			else
 
 				if (myWr_a = '1') then
-					-- assumption: color registers are latched during the whole PHI high cycle
 					case aRegisters is
-					when "100000" => EC <= diRegisters(3 downto 0);
-					when "100001" => B0C <= diRegisters(3 downto 0);
-					when "100010" => B1C <= diRegisters(3 downto 0);
-					when "100011" => B2C <= diRegisters(3 downto 0);
-					when "100100" => B3C <= diRegisters(3 downto 0);
-					when "100101" => MM0 <= diRegisters(3 downto 0);
-					when "100110" => MM1 <= diRegisters(3 downto 0);
-					when "100111" => spriteColors(0) <= diRegisters(3 downto 0);
-					when "101000" => spriteColors(1) <= diRegisters(3 downto 0);
-					when "101001" => spriteColors(2) <= diRegisters(3 downto 0);
-					when "101010" => spriteColors(3) <= diRegisters(3 downto 0);
-					when "101011" => spriteColors(4) <= diRegisters(3 downto 0);
-					when "101100" => spriteColors(5) <= diRegisters(3 downto 0);
-					when "101101" => spriteColors(6) <= diRegisters(3 downto 0);
-					when "101110" => spriteColors(7) <= diRegisters(3 downto 0);
+					when "100000" => EC <= color;
+					when "100001" => B0C <= color;
+					when "100010" => B1C <= color;
+					when "100011" => B2C <= color;
+					when "100100" => B3C <= color;
+					when "100101" => MM0 <= color;
+					when "100110" => MM1 <= color;
+					when "100111" => spriteColors(0) <= color;
+					when "101000" => spriteColors(1) <= color;
+					when "101001" => spriteColors(2) <= color;
+					when "101010" => spriteColors(3) <= color;
+					when "101011" => spriteColors(4) <= color;
+					when "101100" => spriteColors(5) <= color;
+					when "101101" => spriteColors(6) <= color;
+					when "101110" => spriteColors(7) <= color;
 					when others => null;
 					end case;
 				end if;

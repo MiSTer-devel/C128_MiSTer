@@ -33,7 +33,7 @@ always @(posedge clk) begin
    reg [3:0] adj;
 
    if (hsync)
-      counter <= 6'd24;
+      counter <= 6'd8;
    else
       counter <= counter + 1'd1;
 

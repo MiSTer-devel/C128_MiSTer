@@ -215,12 +215,12 @@ end fpga64_sid_iec;
 architecture rtl of fpga64_sid_iec is
 -- System state machine
 type sysCycleDef is (
-   CYCLE_EXT0, CYCLE_EXT1, CYCLE_EXT2, CYCLE_EXT3,
-   CYCLE_DMA0, CYCLE_DMA1, CYCLE_DMA2, CYCLE_DMA3,
    CYCLE_CPU0, CYCLE_CPU1, CYCLE_CPU2, CYCLE_CPU3,
    CYCLE_CPU4, CYCLE_CPU5, CYCLE_CPU6, CYCLE_CPU7,
-   CYCLE_EXT4, CYCLE_EXT5, CYCLE_EXT6, CYCLE_EXT7,
+   CYCLE_EXT0, CYCLE_EXT1, CYCLE_EXT2, CYCLE_EXT3,
    CYCLE_VIC0, CYCLE_VIC1, CYCLE_VIC2, CYCLE_VIC3,
+   CYCLE_EXT4, CYCLE_EXT5, CYCLE_EXT6, CYCLE_EXT7,
+   CYCLE_DMA0, CYCLE_DMA1, CYCLE_DMA2, CYCLE_DMA3,
    CYCLE_CPU8, CYCLE_CPU9, CYCLE_CPUA, CYCLE_CPUB,
    CYCLE_CPUC, CYCLE_CPUD, CYCLE_CPUE, CYCLE_CPUF
 );
@@ -233,6 +233,7 @@ signal rfsh_cycle   : unsigned(1 downto 0);
 signal dma_active   : std_logic;
 
 signal phi0_cpu     : std_logic;
+signal cpuCycle     : std_logic;
 signal cpuHasBus    : std_logic;
 
 signal baLoc        : std_logic;
@@ -334,7 +335,7 @@ signal fs_o         : std_logic;
 
 -- VIC signals
 signal vicColorIndex: unsigned(3 downto 0);
-signal vicPhaseShift: std_logic;
+signal vicInvertV   : std_logic;
 signal vicDi        : unsigned(7 downto 0);
 signal vicDiAec     : unsigned(7 downto 0);
 signal vicAddr      : unsigned(15 downto 0);
@@ -549,10 +550,7 @@ end process;
 
 -- PHI0/2-clock emulation
 
-phi0_cpu <= '1' when ((sysCycle >= CYCLE_CPU0 and sysCycle <= CYCLE_CPU3) 
-                   or (sysCycle >= CYCLE_CPU4 and sysCycle <= CYCLE_CPU7) 
-                   or (sysCycle >= CYCLE_CPU8 and sysCycle <= CYCLE_CPUB) 
-                   or (sysCycle >= CYCLE_CPUC and sysCycle <= CYCLE_CPUF)) else '0';
+phi0_cpu <= '1' when (sysCycle >= sysCycleDef'val(16) and sysCycle <= sysCycleDef'high) else '0';
 cpuHasBus <= '1' when (aec = '0' or (phi0_cpu = '1' and ba_dma = '1' and dma_active = '1')) else '0';
 
 -- process(clk32)
@@ -814,7 +812,7 @@ port map (
    hSync => vicHS,
    vSync => vicVsync,
    colorIndex => vicColorIndex,
-   phaseShift => vicPhaseShift,
+   invertV => vicInvertV,
 
    irq_n => irq_vic
 );
@@ -824,7 +822,7 @@ vicHsync <= vicHS;
 vicColors: entity work.fpga64_rgbcolor
 port map (
    index => vicColorIndex,
-   shift => vicPhaseShift,
+   invertV => vicInvertV,
    r => vicRo,
    g => vicGo,
    b => vicBo
@@ -1171,14 +1169,19 @@ t65_cyc <= (not t65_cyc_s) when
            -- (sysCycle = CYCLE_CPU4 and turbo_m(1) = '1' and safe_cs = '1' ) or
            -- (sysCycle = CYCLE_CPU8 and turbo_m(2) = '1' and safe_cs = '1' ) or
            (sysCycle = CYCLE_CPUC) else '0';
-cpucycT80 <= '1' when sysCycle = CYCLE_CPU0 else '0';
+cpucycT80 <= '1' when sysCycle = CYCLE_CPU8 else '0';
 
 -- I/O access to any of these chips starts a 8502 clock stretched cycle in 2 MHz mode
 io_access <= cs_vic or cs_sid or cs_mmuL or cs_vdc or cs_cia1 or cs_cia2 or ioe_i or iof_i;
 io_enable <= '1' when (baLoc = '1' or cpuWe = '1') else '0';
 
--- Last data activity of the CPU
-cpuLastData <= cpuDo when cpuWe_l = '1' else cpuDi_l when phi0_cpu = '0' else cpuDi;
+-- Last data bus activity of the CPU
+cpuCycle <= '1' when ((sysCycle >= CYCLE_CPU0 and sysCycle <= CYCLE_CPU3) 
+                   or (sysCycle >= CYCLE_CPU4 and sysCycle <= CYCLE_CPU7) 
+                   or (sysCycle >= CYCLE_CPU8 and sysCycle <= CYCLE_CPUB) 
+                   or (sysCycle >= CYCLE_CPUC and sysCycle <= CYCLE_CPUF)) else '0';
+
+cpuLastData <= cpuDo when cpuWe_l = '1' else cpuDi_l when cpuCycle = '0' else cpuDi;
 
 process(clk32)
 begin
