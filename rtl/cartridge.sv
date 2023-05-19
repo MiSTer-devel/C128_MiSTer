@@ -268,6 +268,19 @@ always @(posedge clk32) begin
 						else bank_lo <= data_in[5:0];
 					end
 				end
+
+			// GMod2-128 (read-only)
+			// Up to 32 banks of 16KiB mapped to ROML
+			5: begin
+					bank_lo_en <= 1;
+
+					if(!init_n) begin
+						bank_lo <= 0;
+					end
+					else if(ioe_wr) begin
+						bank_lo <= data_in[4:0];
+					end
+				end
 		endcase
 	end
 	else begin
