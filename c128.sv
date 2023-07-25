@@ -1654,6 +1654,7 @@ video_sync videoSyncVIC
 (
    .clk32(clk_sys),
    .video_out(1),
+   .bypass(0),
    .pause(c64_pause),
    .wide(wide),
    .hsync(vicHsync),
@@ -1670,6 +1671,7 @@ video_sync videoSyncVDC
 (
    .clk32(clk_sys),
    .video_out(0),
+   .bypass(vdcIlace),
    .pause(c64_pause),
    .wide(wide),
    .hsync(vdcHsync),
