@@ -215,10 +215,12 @@ end fpga64_sid_iec;
 architecture rtl of fpga64_sid_iec is
 -- System state machine
 type sysCycleDef is (
+   -- phi0 low
    CYCLE_CPU0, CYCLE_CPU1, CYCLE_CPU2, CYCLE_CPU3,
    CYCLE_CPU4, CYCLE_CPU5, CYCLE_CPU6, CYCLE_CPU7,
    CYCLE_EXT0, CYCLE_EXT1, CYCLE_EXT2, CYCLE_EXT3,
    CYCLE_VIC0, CYCLE_VIC1, CYCLE_VIC2, CYCLE_VIC3,
+   -- phi0 high
    CYCLE_EXT4, CYCLE_EXT5, CYCLE_EXT6, CYCLE_EXT7,
    CYCLE_DMA0, CYCLE_DMA1, CYCLE_DMA2, CYCLE_DMA3,
    CYCLE_CPU8, CYCLE_CPU9, CYCLE_CPUA, CYCLE_CPUB,
@@ -553,32 +555,6 @@ end process;
 phi0_cpu <= '1' when (sysCycle >= sysCycleDef'val(16) and sysCycle <= sysCycleDef'high) else '0';
 cpuHasBus <= '1' when (aec = '0' or (phi0_cpu = '1' and ba_dma = '1' and dma_active = '1')) else '0';
 
--- process(clk32)
--- variable ba_cnt : integer range 0 to 4 := 0;
--- begin
---    if rising_edge(clk32) then
---       if sysCycle = sysCycleDef'pred(CYCLE_CPU0) then
---          phi0_cpu <= '1';
---          if baLoc = '1' then
---             ba_cnt := 0;
---          elsif ba_cnt < 4 then
---             ba_cnt := ba_cnt + 1;
---          end if;
---          if baLoc = '1' or
---                (cpuactT65 = '1' and cpuWe = '1' and dma_active = '0') or
---                (cpuactT80 = '1' and ba_cnt < 4 and dma_active = '0') or
---                (ba_dma = '1' and dma_active = '1')
---          then
---             cpuHasBus <= '1';
---          end if;
---       end if;
---       if sysCycle = sysCycleDef'high then
---          phi0_cpu <= '0';
---          cpuHasBus <= '0';
---       end if;
---    end if;
--- end process;
-
 process(clk32)
 begin
    if rising_edge(clk32) then
@@ -591,11 +567,11 @@ begin
       case sysCycle is
       when CYCLE_VIC2 =>
          enableVic <= '1';
+      when CYCLE_CPUC =>
+         enableCia_n <= '1';
       when CYCLE_CPUE =>
          enableVic <= '1';
          enableVdc <= '1';
-      when CYCLE_CPUC =>
-         enableCia_n <= '1';
       when CYCLE_CPUF =>
          enableCia_p <= '1';
          enableSid <= '1';
@@ -1200,7 +1176,7 @@ begin
 
          when CYCLE_CPU3 | CYCLE_CPU7 | CYCLE_CPUB | CYCLE_CPUF 
             => cpuWe_l <= cpuWe;
-               if cpucycT65 = '1' or cpuactT80 = '1' then
+               if cpucycT65 = '1' or (cpuRd_T80 = '1' and sysCycle = CYCLE_CPUF) then
                   cpuDi_l <= cpuDi;
                end if;
                if sysCycle = CYCLE_CPUF then
