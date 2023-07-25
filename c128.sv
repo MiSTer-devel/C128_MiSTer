@@ -193,7 +193,7 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXxxXXXXXX XXXXXXXXX XX  X  XXXXXXXx   XXXXXXXXXXX
+// XXXXXXXXXXXXXXxxXXXXXX XXXXXXXXX XX  X  XXXXXXXxxXXXXXXXXXXXXX
 
 //                                      1         1         1
 // 6     7         8         9          0         1         2
@@ -207,6 +207,8 @@ assign VGA_SCALER = 0;
 localparam CONF_STR = {
    "C128;UART9600:2400;",
    // XXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	"HAO[47],Turbo mode,Standard,Smart;",
+	"HAd6O[49:48],Turbo speed,2x,3x,4x;",
 `ifdef VDC_XRAY
    "HAO[127],VDC XRay,Off,On;",
    "HA-;",
@@ -235,7 +237,7 @@ localparam CONF_STR = {
    "HAP1-;",
    "HAP1O[81:80],VDC Model,Auto,8563R9,8568;",
 `ifndef REDUCE_VDC_RAM
-   "HAH6P1O[88],VDC memory,16k,64k;",
+   "HAHCP1O[88],VDC memory,16k,64k;",
 `endif
    "HAP1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
    "HAh2P1O[90:89],VDC colour,White,Green,Amber,Red;",
@@ -494,13 +496,14 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 
    .status(status),
    .status_menumask({
+      /* D */ vdcVersion,
       /* C */ |cart_int_rom,
       /* B */ cart_attached,
       /* A */ cfg_force64,
       /* 9 */ ~status[69],
       /* 8 */ ~status[66],
       /* 7 */ status[58],
-      /* 6 */ vdcVersion,
+      /* 6 */ status[47],
       /* 5 */ sidVersion[1],
       /* 4 */ sidVersion[0],
       /* 3 */ tap_loaded,
@@ -1313,8 +1316,8 @@ fpga64_sid_iec #(
 `else
    .vdcDebug(0),
 `endif
-   .turbo_mode(2'b01),
-   .turbo_speed(2'b00),
+   .turbo_mode(~pure64 & status[47]),
+   .turbo_speed(status[49:48]),
 
    .go64(go64),
    .ps2_key(key),
