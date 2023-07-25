@@ -15,6 +15,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - Parallel IEC port for faster (~20x) loading time.
 - External IEC through USER_IO port, **including Fast Serial**.
 - **VIC jailbars**.
+- **VIC register $D030 video manipulation tricks** (used in some demos, e.g. RfO part 1)
 - **VDC with 16k or 64k RAM and multiple colour palettes**.
 - Almost all C64 **and C128** cartridge formats (\*.CRT).
 - Direct file injection (\*.PRG) **with detection of C128 or C64 mode**.
@@ -34,7 +35,6 @@ Features marked in **bold** are unique to the C128 core, the other features are 
 
 ### C128 features not (fully) implemented
 
-- VIC register $D030 video manipulation tricks (used in some demos, e.g. RfO part 1)
 - VDC non-standard high resolution modes (e.g. VGA-like modes)
 
 ## Usage
