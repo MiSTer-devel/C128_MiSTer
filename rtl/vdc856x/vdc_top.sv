@@ -33,8 +33,6 @@ module vdc_top #(
 	output         pixelclk,
 	output         vsync,
 	output         hsync,
-	output         vblank,
-	output         hblank,
 	output         ilace,
 	output		   field,
 	output		   disableVideo,
@@ -131,16 +129,14 @@ reg  [15:0] dispaddr;
 (* ramstyle = "no_rw_check" *) reg [7:0] charbuf[C_LATCH_WIDTH];
 
 reg         lpStatus;
-wire		vsync_pos, vblank_pos;
-wire		hsync_pos, hblank_pos;
+wire        vsync_pos;
+wire	      hsync_pos;
 
 wire        busy;
 wire  		hVisible, vVisible, hdispen;
 
 assign      vsync = vsync_pos ^ (~version & reg_vspol);
 assign      hsync = hsync_pos ^ (~version & reg_hspol);
-assign      vblank = vblank_pos | vsync_pos;
-assign      hblank = hblank_pos | hsync_pos;
 assign      ilace = reg_im[0];
 
 assign      disableVideo = 0;
@@ -192,8 +188,6 @@ vdc_signals signals (
 	.hdispen(hdispen),
 	.blink(blink),
 
-	.vblank(vblank_pos),
-	.hblank(hblank_pos),
 	.vsync(vsync_pos),
 	.hsync(hsync_pos),
 	.field(field)
@@ -291,7 +285,6 @@ vdc_video #(
 	.hVisible(hVisible),
 	.vVisible(vVisible),
 	.hdispen(hdispen),
-	.blank(hblank | vblank),
 	.blink(blink),
 	.rowbuf(rowbuf),
 	.col(col),

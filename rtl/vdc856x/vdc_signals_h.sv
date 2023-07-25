@@ -33,15 +33,13 @@ module vdc_signals_h (
 	output           hVisible,       // visible column
 	output reg       hdispen,        // horizontal display enable
 
-	output           hsync,          // horizontal sync
-	output           hblank          // horizontal blanking
+	output           hsync           // horizontal sync
 );
 
-reg [3:0] hbCount; 
+reg [3:0] hsCount; 
 reg       hviscol; 
 
-assign hsync    = |hbCount;
-assign hblank   = |hbCount;
+assign hsync    = |hsCount;
 assign hVisible = hviscol & hdispen;
 
 wire [7:0] deb = (reg_deb>=7 && reg_deb<reg_hd+7) ? reg_deb+8'd2 : reg_deb+8'd1;
@@ -52,7 +50,7 @@ always @(posedge clk) begin
 		col <= 0;
 		pixel <= {3'b000, reg_dbl};
 
-		hbCount <= 0;
+		hsCount <= 0;
 
 		newCol <= 0;
 		endCol <= 1;
@@ -84,11 +82,11 @@ always @(posedge clk) begin
 				if (col==dee) hdispen <= 0;
 			end
 			
-			// hblank
+			// hsync
 			if (hSyncStart) 
-				hbCount <= reg_hw>>reg_dbl;
-			else if (hblank) 
-				hbCount <= hbCount-1'd1;
+				hsCount <= reg_hw>>reg_dbl;
+			else if (|hsCount) 
+				hsCount <= hsCount-1'd1;
 		end
 		else
 			pixel <= pixel+4'd1;

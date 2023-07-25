@@ -4,9 +4,7 @@
  * for the C128 MiSTer FPGA core, by Erik Scheffers
  ********************************************************************************/
 
-module vdc_signals #(
-	parameter VB_WIDTH = 20  // vertical blanking width
-)(
+module vdc_signals (
 	input            clk,
 	input            reset,
 	input            enable,
@@ -56,8 +54,6 @@ module vdc_signals #(
 
 	output reg       hsync,          // horizontal sync
 	output reg       vsync,          // vertical sync
-	output reg       hblank,         // horizontal blanking
-	output reg       vblank,         // vertical blanking
 	output reg       field           // 0=first half, 1=second half
 );
 
@@ -88,8 +84,7 @@ vdc_signals_h signals_h (
 	.hVisible(hVisible),
 	.hdispen(hdispen),
 
-	.hsync(hsync),
-	.hblank(hblank)
+	.hsync(hsync)
 );
 
 wire lineStart    = newCol && col==0;
@@ -101,9 +96,7 @@ wire lineEnd      = endCol && col==reg_ht;
 
 reg  updateBlink;
 
-vdc_signals_v #(
-	.VB_WIDTH(VB_WIDTH)
-) signals_v (
+vdc_signals_v signals_v (
 	.clk(clk),
 	.reset(reset),
 	.enable(enable),
@@ -139,7 +132,6 @@ vdc_signals_v #(
 	.vVisible(vVisible),
 
 	.vsync(vsync),
-	.vblank(vblank),
 	.field(field),
 
 	.updateBlink(updateBlink)
