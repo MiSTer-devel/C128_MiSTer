@@ -561,10 +561,8 @@ wire       video_out  = ~auto_config(status[100:99], status[98]);
 wire       pure64     = cfg_force64 | (c128_n & status[93]);
 
 always @(posedge clk_sys) begin
-   reg c128_nd;
    reg d4080_sense_d;
 
-   c128_nd <= c128_n;
    d4080_sense_d <= d4080_sense;
    if (RESET) begin
       status_in_98 <= status[98];
@@ -574,7 +572,7 @@ always @(posedge clk_sys) begin
       if (status_in_98 == status[98])
          status_set <= 0;
    end
-   else if (!c128_nd && c128_n && status[98]) begin
+   else if (pure64 && status[98]) begin
       status_in_98 <= 0;
       status_set <= 1;
    end
