@@ -9,7 +9,8 @@ module vdc_top #(
 	parameter C_LATCH_WIDTH = 8,
 	parameter S_LATCH_WIDTH = 82,
 	parameter SYSCLK_PAL = 31527954,
-	parameter SYSCLK_NTSC = 32727266
+	parameter SYSCLK_NTSC = 32727266,
+	parameter SYNC_CLOCKS = 1  // 1=sync clock on hsync, this results in a slight timing difference with real hw but prevents HDMI jitter
 )(
 	input          version,   // 0=8563R9, 1=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
@@ -44,18 +45,26 @@ wire [31:0] SYSCLK = ntsc ? SYSCLK_NTSC : SYSCLK_PAL;
 reg enable;
 always @(posedge clk) begin
    int sum = 0;
+	reg hsync_r;
    reg div;
 
    enable <= 0;
    pixelclk <= 0;
+	hsync_r <= hsync;
 
-   sum = sum + 16000000;
+	if (hsync && !hsync_r && SYNC_CLOCKS) begin
+		div <= 0;
+		sum = 0;
+	end
+	else
+	   sum = sum + 16000000;
+
    if(sum >= SYSCLK) begin
-      sum = sum - SYSCLK;
+   	sum = sum - SYSCLK;
 
-	  pixelclk <= 1;
-	  div <= ~div & reg_dbl;
-	  enable <= div | ~reg_dbl;
+		pixelclk <= 1;
+		div <= ~div & reg_dbl;
+		enable <= div | ~reg_dbl;
    end
 end
 
