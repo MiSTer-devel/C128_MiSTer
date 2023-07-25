@@ -37,7 +37,7 @@ entity video_vicii_656x is
 	);
 	port (
 		clk: in std_logic;
-		-- phi = 0 is VIC cycle (not used by VIC when turbo mode is enabled, except during refresh)
+		-- phi = 0 is VIC cycle
 		-- phi = 1 is CPU cycle (only used by VIC when BA is low)
 		phi : in std_logic;
 		enaData : in std_logic;
