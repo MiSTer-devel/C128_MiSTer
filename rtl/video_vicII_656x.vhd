@@ -519,7 +519,14 @@ vicStateMachine: process(clk)
 			end if;
 		when others =>
 			if ECM = '1' then
-				vicAddrLoc(10 downto 9) <= "00";
+				vicAddrLoc(10 downto 9) <= "00";           -- 39FF
+			end if;
+			if (phi = '0' and baChars = '0' and baCnt = "000") then
+				if (vic2e = '1') then
+					vicAddrLoc(10 downto 3) <= "00000000";  -- 3807
+				else
+					vicAddrLoc(10 downto 8) <= "000";       -- 38FF
+				end if;
 			end if;
 			if phi = '1' then
 				vicAddrLoc <= VM & colCounter;
