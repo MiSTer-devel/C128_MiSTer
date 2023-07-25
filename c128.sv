@@ -1275,7 +1275,6 @@ wire  [7:0] vicR, vicG, vicB;
 
 wire        vdcPixClk;
 wire        vdcHsync, vdcVsync;
-wire        vdcHblank, vdcVblank;
 wire        vdcIlace, vdcF1, vdcDisable;
 wire  [7:0] vdcR, vdcG, vdcB;
 
@@ -1348,8 +1347,6 @@ fpga64_sid_iec #(
    .vdcPixClk(vdcPixClk),
    .vdcHsync(vdcHsync),
    .vdcVsync(vdcVsync),
-   .vdcHblank(vdcHblank),
-   .vdcVblank(vdcVblank),
    .vdcIlace(vdcIlace),
    .vdcF1(vdcF1),
    .vdcDisable(vdcDisable),
@@ -1653,32 +1650,49 @@ assign USER_OUT[5] = c64_iec_atn | ~ext_iec_en;
 
 wire vicHblank, vicVblank;
 wire vicHsync_out, vicVsync_out;
-
-video_sync vicSync
+video_sync videoSyncVIC
 (
    .clk32(clk_sys),
+   .video_out(1),
+   .bypass(0),
    .pause(c64_pause),
+   .wide(wide),
    .hsync(vicHsync),
    .vsync(vicVsync),
-   .ntsc(ntsc),
-   .wide(wide),
    .hsync_out(vicHsync_out),
    .vsync_out(vicVsync_out),
    .hblank(vicHblank),
    .vblank(vicVblank)
 );
 
-wire       hsync_out   = video_out ? vicHsync_out : vdcHsync;
-wire       vsync_out   = video_out ? vicVsync_out : vdcVsync;
+wire vdcHblank, vdcVblank;
+wire vdcHsync_out, vdcVsync_out;
+video_sync videoSyncVDC
+(
+   .clk32(clk_sys),
+   .video_out(0),
+   .bypass(vdcIlace),
+   .pause(c64_pause),
+   .wide(wide),
+   .hsync(vdcHsync),
+   .vsync(vdcVsync),
+   .hsync_out(vdcHsync_out),
+   .vsync_out(vdcVsync_out),
+   .hblank(vdcHblank),
+   .vblank(vdcVblank)
+);
+
+wire       hsync_out   = video_out ? vicHsync_out : vdcHsync_out;
+wire       vsync_out   = video_out ? vicVsync_out : vdcVsync_out;
 wire       hblank      = video_out ? vicHblank : vdcHblank;
 wire       vblank      = video_out ? vicVblank : vdcVblank;
 wire       ilace       = ~video_out & vdcIlace;
 assign     VGA_F1      = ~video_out & vdcF1;
 assign     VGA_DISABLE = ~video_out & vdcDisable;
 
-wire [7:0] r         = video_out ? vicR : vdcR;
-wire [7:0] g         = video_out ? vicG : vdcG;
-wire [7:0] b         = video_out ? vicB : vdcB;
+wire [7:0] r           = video_out ? vicR : vdcR;
+wire [7:0] g           = video_out ? vicG : vdcG;
+wire [7:0] b           = video_out ? vicB : vdcB;
 
 reg hq2x160;
 reg hq2x320;

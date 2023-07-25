@@ -15,9 +15,14 @@
 -- Dar 08/03/2014 : shift hsync to sprite #3
 -- -----------------------------------------------------------------------
 --
--- Erik Scheffers 2022
+-- Erik Scheffers 2022/2023
 --
--- updated for C128: (vic2e) added mode85xx settings and ko output pins
+-- updated for C128 vic-IIe 
+--   - added mode85xx settings and ko output pins
+--   - updated badline/AEC handling for turbo mode
+--   - added test mode and YUV V-component inversion side-effect
+--   - updated timings based on results of tests using turbo and test modes
+--     with d030tester v2.1 from Vice
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -73,6 +78,7 @@ entity video_vicii_656x is
 		hSync : out std_logic;
 		vSync : out std_logic;
 		colorIndex : out unsigned(3 downto 0);
+		invertV : out std_logic;
 
 		-- I/O pins
 		ko : out unsigned(2 downto 0);
@@ -104,10 +110,10 @@ architecture rtl of video_vicii_656x is
 	type spriteColorsDef is array(7 downto 0) of unsigned(3 downto 0);
 	type pixelColorStoreDef is array(7 downto 0) of unsigned(3 downto 0);
 
-	constant PIX_DELAY : integer := 5;
+	constant PIX_DELAY : integer := 8;
 
 -- State machine
-	signal lastLineFlag : boolean; -- True for on last line of the frame.
+	signal lastLineFlag : boolean := false; -- True on last line of the frame.
 	signal vicCycle : vicCycles := cycleRefresh1;
 	signal sprite : unsigned(2 downto 0) := "000";
 	signal shiftChars : boolean;
@@ -117,6 +123,7 @@ architecture rtl of video_vicii_656x is
 	signal rasterEnable: std_logic;
 
 -- BA signal
+	signal aec : std_logic;
 	signal badLine : boolean; -- true if we have a badline condition
 	signal baLoc : std_logic;
 	signal baCnt : unsigned(2 downto 0);
@@ -129,6 +136,7 @@ architecture rtl of video_vicii_656x is
 	signal baSpriteLast : std_logic;
 
 -- Memory refresh cycles
+	signal refresh : std_logic;
 	signal refreshCounter : unsigned(7 downto 0);
 
 -- User registers
@@ -170,9 +178,8 @@ architecture rtl of video_vicii_656x is
 	signal MainBorder: std_logic;
 	signal TBBorder: std_logic;
 	signal setTBBorder: boolean;
-	signal hBlack: std_logic;
-	signal vBlanking : std_logic;
-	signal hBlanking : std_logic;
+	signal vBlank: std_logic;
+	signal hBlank: std_logic;
 	signal xscroll: unsigned(2 downto 0);
 	signal yscroll: unsigned(2 downto 0);
 	signal rasterCmp : unsigned(8 downto 0);
@@ -211,6 +218,9 @@ architecture rtl of video_vicii_656x is
 	signal rasterY : unsigned(8 downto 0) := (others => '0');
 	signal rasterY_next : unsigned(8 downto 0);
 	signal cycleLast : boolean;
+	signal cycleTest : boolean;
+	signal skipTest : boolean;
+	signal rasterIncr : boolean;
 	signal rasterXDelay : unsigned(9 downto 0);
 
 -- Light pen
@@ -226,6 +236,7 @@ architecture rtl of video_vicii_656x is
 
 -- Character generation
 	signal charStore: charStoreDef;
+	signal diChar : unsigned(7 downto 0);
 	signal nextChar : unsigned(11 downto 0);
 	-- Char/Pixels pair waiting to be shifted
 	signal waitingChar : unsigned(11 downto 0);
@@ -272,10 +283,13 @@ architecture rtl of video_vicii_656x is
 	signal myWr_c : std_logic;
 	signal myRd : std_logic;
 
--- I/O port (Model 856x)
+-- VIC-IIe registers
    signal k_reg : unsigned(2 downto 0) := (others => '0');
-	signal turbo_reg : std_logic;
-	signal test_reg : std_logic;
+	signal turbo_reg : std_logic := '0';
+	signal test_reg : std_logic := '0';
+
+-- VIC-IIe turbo/test state
+	signal turbo_state_s : std_logic_vector(1 downto 0);
 
 -- type selection
 	signal pal_b : std_logic;
@@ -296,13 +310,25 @@ begin
 -- -----------------------------------------------------------------------
 -- Ouput signals
 -- -----------------------------------------------------------------------
-	ba <= baLoc;
+	ba <= baLoc or turbo_state_s(0) or turbo_state_s(1);
 	vicAddr <= vicAddrReg when registeredAddress else vicAddrLoc;
-	hSync <= hBlanking;
-	vSync <= vBlanking;
 	irq_n <= not IRQ;
-	turbo_state <= turbo_reg;
+	turbo_state <= turbo_state_s(1);
 	ko <= k_reg;
+
+-- -----------------------------------------------------------------------
+-- VIC-IIe turbo mode and test mode
+-- -----------------------------------------------------------------------
+	turbo_state_s(0) <= turbo_reg and vic2e;
+
+	process(clk)
+	begin
+		if rising_edge(clk) then
+			if enaData = '1' and phi = '1' then
+				turbo_state_s(1) <= turbo_state_s(0);
+			end if;
+		end if;
+	end process;
 
 -- -----------------------------------------------------------------------
 -- chip-select signals and data/address bus latch
@@ -319,11 +345,11 @@ begin
 		end if;
 	end process;
 
-	myWr_a <= cs and phi and we;
+	myWr_a <= '1' when cs = '1' and we = '1' and phi = '1' and enaPixel = '1' and rasterX(2 downto 1) = "00" else '0';
 	myWr_b <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "011" else '0';
 	myWr_c <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "100" else '0';
 	-- timing of the read is only important for the collision register reads
-	myRd   <= '1' when cs = '1' and phi = '1' and we = '0' and enaPixel = '1' and rasterX(1 downto 0) = "00" else '0';
+	myRd   <= '1' when cs = '1' and phi = '1' and we = '0' and enaPixel = '1' and rasterX(2 downto 0) = "000" else '0';
 
 -- -----------------------------------------------------------------------
 -- debug signals
@@ -334,10 +360,10 @@ begin
 -- -----------------------------------------------------------------------
 -- Badline condition
 -- -----------------------------------------------------------------------
-	process(rasterY, yscroll, rasterEnable)
-	begin
+	process(rasterY_next, yscroll, rasterEnable)
+		begin
 		badLine <= false;
-		if (rasterY(2 downto 0) = yscroll)
+		if (rasterY_next(2 downto 0) = yscroll)
 		and (rasterEnable = '1') then
 			badLine <= true;
 		end if;
@@ -352,6 +378,7 @@ begin
 			if baLoc = '0' then
 				if phi = '0'
 				and enaData = '1'
+				and (turbo_state_s = "00")
 				and baCnt(2) = '0' then
 					baCnt <= baCnt + 1;
 				end if;
@@ -492,7 +519,14 @@ vicStateMachine: process(clk)
 			end if;
 		when others =>
 			if ECM = '1' then
-				vicAddrLoc(10 downto 9) <= "00";
+				vicAddrLoc(10 downto 9) <= "00";           -- 39FF
+			end if;
+			if (phi = '0' and baChars = '0' and baCnt = "000") then
+				if (vic2e = '1') then
+					vicAddrLoc(10 downto 3) <= "00000000";  -- 3807
+				else
+					vicAddrLoc(10 downto 8) <= "000";       -- 38FF
+				end if;
 			end if;
 			if phi = '1' then
 				vicAddrLoc <= VM & colCounter;
@@ -511,6 +545,8 @@ vicStateMachine: process(clk)
 -- -----------------------------------------------------------------------
 -- Character storage
 -- -----------------------------------------------------------------------
+	diChar <= di when refresh = '0' and (aec = '1' or cs = '1') else (others => '1');
+
 	process(clk)
 	begin
 		if rising_edge(clk) then
@@ -518,7 +554,7 @@ vicStateMachine: process(clk)
 			and shiftChars
 			and phi = '1' then
 				if baChars = '0' then
-					nextChar(7 downto 0) <= di;
+					nextChar(7 downto 0) <= diChar;
 					nextChar(11 downto 8) <= diColor;
 				else
 					nextChar <= charStore(38);
@@ -554,13 +590,15 @@ vicStateMachine: process(clk)
 -- -----------------------------------------------------------------------
 -- Refresh counter
 -- -----------------------------------------------------------------------
+	vicRefresh <= refresh;
+
 	process(clk)
 	begin
 		if rising_edge(clk) then
-			vicRefresh <= '0';
+			refresh <= '0';
 			case vicCycle is
 			when cycleRefresh1 | cycleRefresh2 | cycleRefresh3 | cycleRefresh4 | cycleRefresh5 =>
-				vicRefresh <= '1';
+				refresh <= '1';
 				if phi = '0'
 				and enaData = '1'
 				and baSync = '0' then
@@ -584,15 +622,14 @@ vicStateMachine: process(clk)
 		-- This is only possible in line 48 on the VIC-II.
 		-- On other lines any DEN changes are ignored.
 		if rising_edge(clk) then
-			if (rasterY = 48) and (DEN = '1') then
+			if (rasterY_next = 48) and (DEN = '1') then
 				rasterEnable <= '1';
 			end if;
-			if (rasterY = 248) then
+			if (rasterY_next = 248) then
 				rasterEnable <= '0';
 			end if;
 		end if;
 	end process;
-
 
 -- -----------------------------------------------------------------------
 -- BA generator (Text/Bitmap)
@@ -708,12 +745,13 @@ vicStateMachine: process(clk)
 -- -----------------------------------------------------------------------
 -- Address valid?
 -- -----------------------------------------------------------------------
-	process(phi, baCnt)
+	addrValid <= aec;
+
+	process(phi, baCnt, turbo_state_s, vic2e, refresh)
 	begin
-		addrValid <= '0';
-		if phi = '0'
-		or baCnt(2) = '1' then
-			addrValid <= '1';
+		aec <= '0';
+		if (turbo_state_s = "00" or vic2e = '0' or refresh = '1') and (phi = '0' or baCnt(2) = '1') then
+			aec <= '1';
 		end if;
 	end process;
 
@@ -799,9 +837,34 @@ vicStateMachine: process(clk)
 -- X/Y Raster counter
 -- -----------------------------------------------------------------------
 cycleLast <= (vicCycle = cycleSpriteB) and (sprite = 2);
-rasterY_next <= (others => '0') when lastLineFlag else RasterY + 1;
+
+-- vic2e: rasterY_next changed semantics from FPGA64 implementation:
+-- it was ((rasterY+1) % rasterLines), now it's the rasterY of the next cycle
+-- since vBlank, badLine and rasterEnable appear to be tested agains *that* instead of the current rasterY
+rasterIncr <= (cycleLast and not (cycleTest and skipTest)) or (cycleTest and not skipTest);
+rasterY_next <= (others => '0') when (rasterIncr and lastLineFlag) 
+                else rasterY+1  when rasterIncr
+					 else rasterY;
+
+testMode: process(clk)
+	begin
+		if rising_edge(clk) then
+			if baSync = '0' and enaData = '1' then
+				if phi = '0' then
+					if test_reg = '0' or vic2e = '0' then
+						cycleTest <= false;
+					end if;
+				else
+					if test_reg = '1' and vic2e = '1' then
+						cycleTest <= true;
+					end if;
+				end if;
+			end if;
+		end if;
+	end process;
 
 rasterCounters: process(clk, rasterX, rasterXDelay)
+	variable firstLine: boolean := false;
 	begin
 		if rising_edge(clk) then
 			if enaPixel = '1' then
@@ -811,20 +874,37 @@ rasterCounters: process(clk, rasterX, rasterXDelay)
 					rasterXDelay <= (others => '0');
 				end if;
 			end if;
-			if phi = '0'
-			and enaData = '1'
-			and baSync = '0' then
-				rasterX(9 downto 3) <= rasterX(9 downto 3) + 1;
-				rasterX(2 downto 0) <= (others => '0');
-				if vicCycle = cycleRefresh3 then
-					rasterX <= (others => '0');
-				end if;
-			end if;
-			if phi = '1'
-			and enaData = '1'
-			and baSync = '0' then
-				if cycleLast then
+			if baSync = '0' and enaData = '1' then
+				skipTest <= false;
+
+				if phi = '0' then
+					rasterX(9 downto 3) <= rasterX(9 downto 3) + 1;
+					rasterX(2 downto 0) <= (others => '0');
+					if vicCycle = cycleRefresh3 then
+						rasterX <= (others => '0');
+					end if;
+
+					-- in test mode update rasterY each cycle
+					if cycleTest then
+						rasterY <= rasterY_next;
+					end if;
+
+					-- rasterY=0 occurs for two cycles during test mode
+					if rasterY_next = 0 and not firstLine then
+						firstLine := cycleTest;
+						skipTest <= true;
+					else
+						firstLine := false;
+					end if;
+
+				elsif cycleLast then
 					rasterY <= rasterY_next;
+
+					-- in test mode, skip next rasterY increment
+					skipTest <= true;
+
+				elsif firstLine then
+					skipTest <= true;
 				end if;
 			end if;
 		end if;
@@ -839,8 +919,7 @@ rasterCounters: process(clk, rasterX, rasterXDelay)
 			if phi = '1'
 			and enaData = '1'
 			and baSync = '0'
-			and (vicCycle = cycleSpriteB)
-			and (sprite = 2) then
+			and cycleLast then
 				rasterIrqDone <= '0';
 			end if;
 			if resetRasterIrq = '1' then
@@ -899,17 +978,34 @@ lightPen: process(clk)
 -- -----------------------------------------------------------------------
 -- VSync
 -- -----------------------------------------------------------------------
-doVBlanking: process(clk, ntsc)
-		variable rasterBlank : integer range 0 to 300;
+doVSync: process(clk, ntsc)
+		variable rasterBlank : integer range 0 to 311;
+		variable rasterSync : integer range 0 to 311;
+		variable rasterSyncEnd : integer range 0 to 311;
+		variable rasterBlankEnd : integer range 0 to 311;
 	begin
 		rasterBlank := 300;
+		rasterSync := 304;
+		rasterSyncEnd := 307;
+		rasterBlankEnd := 311;
 		if ntsc = '1' then
-			rasterBlank := 12;
+			rasterBlank := 13;
+			rasterSync := 17;
+			rasterSyncEnd := 20;
+			rasterBlankEnd := 24;
 		end if;
 		if rising_edge(clk) then
-			vBlanking <= '0';
-			if rasterY = rasterBlank then
-				vBlanking <= '1';
+			if enaData = '1'
+			and baSync = '0'
+			then
+				vBlank <= '0';
+				if rasterY_next >= rasterBlank and rasterY_next < rasterBlankEnd then
+					vBlank <= '1';
+				end if;
+				vSync <= '0';
+				if rasterY >= rasterSync and rasterY < rasterSyncEnd and not cycleTest then  -- Maybe also rasterY_next ?
+					vSync <= '1';
+				end if;
 			end if;
 		end if;
 	end process;
@@ -917,20 +1013,20 @@ doVBlanking: process(clk, ntsc)
 -- -----------------------------------------------------------------------
 -- HSync
 -- -----------------------------------------------------------------------
-doHBlanking: process(clk)
+doHSync: process(clk)
 	begin
 		if rising_edge(clk) then
 			if enaPixel = '1' then
 				if sprite = 2 then
-					hBlack <= '1';
+					hBlank <= '1';
 				end if;
 				if vicCycle = cycleRefresh1 then
-					hBlack <= '0';
+					hBlank <= '0';
 				end if;
 				if rasterX = 396 then -- from VIC II datasheet
-					hBlanking <= '1';
+					hSync <= '1';
 				elsif rasterX = 496 then -- from VIC II datasheet
-					hBlanking <= '0';
+					hSync <= '0';
 				end if;
 			end if;
 		end if;
@@ -947,7 +1043,7 @@ calcBorders: process(clk)
 				newTBBorder := TBBorder;
 				-- 1. If the X coordinate reaches the right comparison value, the main border
 				--   flip flop is set (comparison values are from VIC II datasheet).
-				if (rasterX = 339 + 2 and CSEL = '0') or (rasterX = 348 + 2 and CSEL = '1')  then
+				if (rasterX = 339 + 5 and CSEL = '0') or (rasterX = 348 + 5 and CSEL = '1')  then
 					MainBorder <= '1';
 				end if;
 				-- 2. If the Y coordinate reaches the bottom comparison value in cycle 63, the
@@ -967,7 +1063,7 @@ calcBorders: process(clk)
 						setTBBorder <= false;
 					end if;
 				end if;
-				if (rasterX = 35 + 2 and CSEL = '0') or (rasterX = 28 + 2 and CSEL = '1') then
+				if (rasterX = 35 + 5 and CSEL = '0') or (rasterX = 28 + 5 and CSEL = '1') then
 					-- 4. If the X coordinate reaches the left comparison value and the Y
 					-- coordinate reaches the bottom one, the vertical border flip flop is set.
 					-- FIX: act on the already triggered condition
@@ -1323,7 +1419,7 @@ calcBitmap: process(clk)
 -- Video output
 -- -----------------------------------------------------------------------
 
-	process(clk)
+process(clk)
 		variable myColor: unsigned(3 downto 0);
 		variable muxSprite : unsigned(2 downto 0);
 		variable muxColor : unsigned(1 downto 0);
@@ -1331,6 +1427,7 @@ calcBitmap: process(clk)
 		-- 01 = MM0
 		-- 10 = Sprite
 		-- 11 = MM1
+		variable lastBlank: std_logic;
 	begin
 		if rising_edge(clk) then
 			muxColor := "00";
@@ -1382,6 +1479,8 @@ calcBitmap: process(clk)
 --			end loop;
 
 			if enaPixel = '1' then
+				lastBlank := hBlank or vBlank;
+
 				colorIndex <= myColor;
 
 -- Krestage 3 debugging routine
@@ -1391,9 +1490,42 @@ calcBitmap: process(clk)
 				if MainBorder = '1' then
 					colorIndex <= EC;
 				end if;
-				if (hBlack = '1') then
+				if hBlank = '0' and vBlank = '0' and lastBlank = '1' and vic2e = '1' then
+					colorIndex <= (others => '1');
+				end if;
+				if hBlank = '1' or vBlank = '1' then
 					colorIndex <= (others => '0');
 				end if;
+			end if;
+		end if;
+	end process;
+
+	YUVinverter: process(clk)
+		variable state : boolean := false;
+	begin
+		-- unclear when the inversion should reset to normal
+		-- (my) real hw resets it after approx. 16 raster lines, and there are screenshots of other hw doing the same,
+		-- (e.g. https://misterfpga.org/viewtopic.php?p=70977#p70977)
+		-- z64k resets it at top of the field and RfO expects that in the frog section
+		-- this is likely a difference in (otherwise undocumented) hw revisions, maybe C128 vs C128DCR
+		-- Using RfO's interpretation, since that's the only real-world use at the moment
+
+		if rising_edge(clk) then
+			if enaPixel = '1'
+			and baSync = '0'
+			and rasterXDelay(2 downto 0) = "110" then
+				if cycleTest and not skipTest and vic2e = '1' then
+					state := not state;
+				end if;
+				if cycleLast and rasterY_next = 30 then
+					state := false;
+				end if;
+			end if;
+
+			if state then
+				invertV <= '1';
+			else
+				invertV <= '0';
 			end if;
 		end if;
 	end process;
@@ -1442,7 +1574,6 @@ spriteSpriteCollision: process(clk)
 				and (collision /= "01000000")
 				and (collision /= "10000000") then
 					M2M <= M2M or collision;
-
 				end if;
 
 				-- Give collision interrupt but only once until clear of register
@@ -1504,8 +1635,15 @@ spriteBackgroundCollision: process(clk)
 -- -----------------------------------------------------------------------
 -- Write registers
 -- -----------------------------------------------------------------------
-writeRegisters: process(clk)
+writeRegisters: process(clk, rasterX(0))
+	variable color : unsigned(3 downto 0);
 	begin
+		if rasterX(0) = '0' and vic2e = '1' then
+			color := (others => '1');
+		else
+			color := diRegisters(3 downto 0);
+		end if;
+
 		if rising_edge(clk) then
 			resetLightPenIrq <= '0';
 			resetIMMC <= '0';
@@ -1569,27 +1707,26 @@ writeRegisters: process(clk)
 			else
 
 				if (myWr_a = '1') then
-					-- assumption: color registers are latched during the whole PHI high cycle
 					case aRegisters is
-					when "100000" => EC <= diRegisters(3 downto 0);
-					when "100001" => B0C <= diRegisters(3 downto 0);
-					when "100010" => B1C <= diRegisters(3 downto 0);
-					when "100011" => B2C <= diRegisters(3 downto 0);
-					when "100100" => B3C <= diRegisters(3 downto 0);
-					when "100101" => MM0 <= diRegisters(3 downto 0);
-					when "100110" => MM1 <= diRegisters(3 downto 0);
-					when "100111" => spriteColors(0) <= diRegisters(3 downto 0);
-					when "101000" => spriteColors(1) <= diRegisters(3 downto 0);
-					when "101001" => spriteColors(2) <= diRegisters(3 downto 0);
-					when "101010" => spriteColors(3) <= diRegisters(3 downto 0);
-					when "101011" => spriteColors(4) <= diRegisters(3 downto 0);
-					when "101100" => spriteColors(5) <= diRegisters(3 downto 0);
-					when "101101" => spriteColors(6) <= diRegisters(3 downto 0);
-					when "101110" => spriteColors(7) <= diRegisters(3 downto 0);
+					when "100000" => EC <= color;
+					when "100001" => B0C <= color;
+					when "100010" => B1C <= color;
+					when "100011" => B2C <= color;
+					when "100100" => B3C <= color;
+					when "100101" => MM0 <= color;
+					when "100110" => MM1 <= color;
+					when "100111" => spriteColors(0) <= color;
+					when "101000" => spriteColors(1) <= color;
+					when "101001" => spriteColors(2) <= color;
+					when "101010" => spriteColors(3) <= color;
+					when "101011" => spriteColors(4) <= color;
+					when "101100" => spriteColors(5) <= color;
+					when "101101" => spriteColors(6) <= color;
+					when "101110" => spriteColors(7) <= color;
 					when others => null;
 					end case;
 				end if;
-
+				
 				if (myWr_b = '1') then
 					case addr_r is
 					when "010001" =>
@@ -1626,6 +1763,15 @@ writeRegisters: process(clk)
 						-- MC <= di_r;
 						MCDelay <= di_r; -- !!! Krestage 3 hack
 					when "011101" => MXE <= di_r;
+					when "101111" => 
+						if vic2e = '1' then
+							k_reg <= di_r(2 downto 0);
+						end if;
+					when "110000" => 
+						if vic2e = '1' or turbo_en = '1' then
+							turbo_reg <= di_r(0);
+							test_reg <= di_r(1) and vic2e;
+						end if;
 					when others => null;
 					end case;
 				elsif (myWr_c = '1') then
@@ -1656,15 +1802,6 @@ writeRegisters: process(clk)
 						MX(5)(8) <= di_r(5);
 						MX(6)(8) <= di_r(6);
 						MX(7)(8) <= di_r(7);
-					when "101111" => 
-						if vic2e = '1' then
-							k_reg <= diRegisters(2 downto 0);
-						end if;
-					when "110000" => 
-						if vic2e = '1' or turbo_en = '1' then
-							turbo_reg <= diRegisters(0);
-							test_reg <= diRegisters(1) and vic2e;
-						end if;
 					when others => null;
 					end case;
 				end if;

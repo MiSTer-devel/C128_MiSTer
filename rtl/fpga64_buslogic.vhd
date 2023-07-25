@@ -80,8 +80,6 @@ entity fpga64_buslogic is
 		cia2Data    : in unsigned(7 downto 0);
 		lastVicData : in unsigned(7 downto 0);
 
-		io_enable   : in std_logic;
-
 		systemWe    : out std_logic;
 		systemAddr  : out unsigned(17 downto 0);
 		dataToCpu   : out unsigned(7 downto 0);
@@ -439,7 +437,6 @@ begin
 			end if;
 
 			if ultimax = '0' and vicAddr(13 downto 12)="01" and ((c128_n = '0' and bankSwitch(2) = '0') or (c128_n = '1' and vicAddr(14) = '0')) then
-				-- vicCharLoc <= '1';
 				cs_sysRomLoc <= '1';
 				sysRomBank <= romCBank;
 			elsif ultimax = '1' and vicAddr(13 downto 12)="11" then
@@ -451,7 +448,7 @@ begin
 		end if;
 
 		if (c128_n = '0') then
-			if (cpuHasBus = '1' or aec = '0') then
+			if (cpuHasBus = '1') then
 				colorA10 <= not bankSwitch(0);
 			else
 				colorA10 <= not bankSwitch(1);
@@ -460,16 +457,16 @@ begin
 	end process;
 
 	cs_ram <= cs_ramLoc or cs_romLLoc or cs_romHLoc or cs_romFLLoc or cs_romFHLoc or cs_UMAXromHLoc or cs_UMAXnomapLoc or cs_sysRomLoc;
-	cs_vic <= cs_vicLoc and io_enable;
-	cs_sid <= cs_sidLoc and io_enable;
-	cs_mmuH <= cs_mmuHLoc and io_enable;
-	cs_mmuL <= cs_mmuLLoc and io_enable;
-	cs_vdc <= cs_vdcLoc and io_enable;
-	cs_color <= cs_colorLoc and io_enable;
-	cs_cia1 <= cs_cia1Loc and io_enable;
-	cs_cia2 <= cs_cia2Loc and io_enable;
-	cs_ioE <= cs_ioELoc and io_enable;
-	cs_ioF <= cs_ioFLoc and io_enable;
+	cs_vic <= cs_vicLoc;
+	cs_sid <= cs_sidLoc;
+	cs_mmuH <= cs_mmuHLoc;
+	cs_mmuL <= cs_mmuLLoc;
+	cs_vdc <= cs_vdcLoc;
+	cs_color <= cs_colorLoc;
+	cs_cia1 <= cs_cia1Loc;
+	cs_cia2 <= cs_cia2Loc;
+	cs_ioE <= cs_ioELoc;
+	cs_ioF <= cs_ioFLoc;
 	cs_romL <= cs_romLLoc;
 	cs_romH <= cs_romHLoc;
 	cs_romFL <= cs_romFLLoc;
