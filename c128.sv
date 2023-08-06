@@ -1316,7 +1316,7 @@ fpga64_sid_iec #(
 `else
    .vdcDebug(0),
 `endif
-   .turbo_mode(~pure64 & status[47]),
+   .turbo_mode(status[47]),
    .turbo_speed(status[49:48]),
 
    .go64(go64),

@@ -110,7 +110,7 @@ architecture rtl of video_vicii_656x is
 	type spriteColorsDef is array(7 downto 0) of unsigned(3 downto 0);
 	type pixelColorStoreDef is array(7 downto 0) of unsigned(3 downto 0);
 
-	constant PIX_DELAY : integer := 8;
+	constant PIX_DELAY : integer := 5;
 
 -- State machine
 	signal lastLineFlag : boolean := false; -- True on last line of the frame.
@@ -281,6 +281,7 @@ architecture rtl of video_vicii_656x is
 	signal myWr_a : std_logic;
 	signal myWr_b : std_logic;
 	signal myWr_c : std_logic;
+	signal myWr_d : std_logic;
 	signal myRd : std_logic;
 
 -- VIC-IIe registers
@@ -319,13 +320,30 @@ begin
 -- -----------------------------------------------------------------------
 -- VIC-IIe turbo mode and test mode
 -- -----------------------------------------------------------------------
-	turbo_state_s(0) <= turbo_reg and vic2e;
+	turbo_state_s(0) <= turbo_reg and (vic2e or turbo_en);
 
 	process(clk)
 	begin
 		if rising_edge(clk) then
-			if enaData = '1' and phi = '1' then
+			if enaPixel = '1' and rasterX(2 downto 0) = "011" then
 				turbo_state_s(1) <= turbo_state_s(0);
+			end if;
+		end if;
+	end process;
+
+	process(clk)
+	begin
+		if rising_edge(clk) then
+			if baSync = '0' and enaData = '1' then
+				if phi = '0' then
+					if test_reg = '0' or vic2e = '0' then
+						cycleTest <= false;
+					end if;
+				else
+					if test_reg = '1' and vic2e = '1' then
+						cycleTest <= true;
+					end if;
+				end if;
 			end if;
 		end if;
 	end process;
@@ -345,11 +363,13 @@ begin
 		end if;
 	end process;
 
-	myWr_a <= '1' when cs = '1' and we = '1' and phi = '1' and enaPixel = '1' and rasterX(2 downto 1) = "00" else '0';
-	myWr_b <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "011" else '0';
-	myWr_c <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "100" else '0';
+	myWr_a <= '1' when cs = '1' and we = '1' and enaPixel = '1' and (rasterX(2 downto 0) = "101" or rasterX(2 downto 0) = "110") else '0';
+	myWr_b <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "101" else '0';
+	myWr_c <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "110" else '0';
+	myWr_d <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "011" else '0';
 	-- timing of the read is only important for the collision register reads
-	myRd   <= '1' when cs = '1' and phi = '1' and we = '0' and enaPixel = '1' and rasterX(2 downto 0) = "000" else '0';
+	-- myRd   <= '1' when cs = '1' and phi = '1' and we = '0' and enaPixel = '1' and rasterX(2 downto 0) = "000" else '0';
+	myRd   <= '1' when cs = '1' and phi = '1' and we = '0' and enaPixel = '1' and rasterX(1 downto 0) = "00" else '0';
 
 -- -----------------------------------------------------------------------
 -- debug signals
@@ -480,9 +500,9 @@ vicStateMachine: process(clk)
 -- -----------------------------------------------------------------------
 -- Address generator
 -- -----------------------------------------------------------------------
-	process(phi, vicCycle, sprite, shiftChars, idle,
-			VM, CB, ECM, BMM, nextChar, colCounter, rowCounter, MPtr, MCnt,
-			MDMA_next, refreshCounter)
+	process(phi, vicCycle, baChars, baCnt, vic2e, sprite, shiftChars, idle,
+	        VM, CB, ECM, BMM, nextChar, colCounter, rowCounter, MPtr, MCnt, 
+			  MDMA_next, refreshCounter)
 	begin
 		--
 		-- Default case ($3FFF fetches)
@@ -846,23 +866,6 @@ rasterY_next <= (others => '0') when (rasterIncr and lastLineFlag)
                 else rasterY+1  when rasterIncr
 					 else rasterY;
 
-testMode: process(clk)
-	begin
-		if rising_edge(clk) then
-			if baSync = '0' and enaData = '1' then
-				if phi = '0' then
-					if test_reg = '0' or vic2e = '0' then
-						cycleTest <= false;
-					end if;
-				else
-					if test_reg = '1' and vic2e = '1' then
-						cycleTest <= true;
-					end if;
-				end if;
-			end if;
-		end if;
-	end process;
-
 rasterCounters: process(clk, rasterX, rasterXDelay)
 	variable firstLine: boolean := false;
 	begin
@@ -1043,7 +1046,7 @@ calcBorders: process(clk)
 				newTBBorder := TBBorder;
 				-- 1. If the X coordinate reaches the right comparison value, the main border
 				--   flip flop is set (comparison values are from VIC II datasheet).
-				if (rasterX = 339 + 5 and CSEL = '0') or (rasterX = 348 + 5 and CSEL = '1')  then
+				if (rasterX = 339 + 2 and CSEL = '0') or (rasterX = 348 + 2 and CSEL = '1')  then
 					MainBorder <= '1';
 				end if;
 				-- 2. If the Y coordinate reaches the bottom comparison value in cycle 63, the
@@ -1063,7 +1066,7 @@ calcBorders: process(clk)
 						setTBBorder <= false;
 					end if;
 				end if;
-				if (rasterX = 35 + 5 and CSEL = '0') or (rasterX = 28 + 5 and CSEL = '1') then
+				if (rasterX = 35 + 2 and CSEL = '0') or (rasterX = 28 + 2 and CSEL = '1') then
 					-- 4. If the X coordinate reaches the left comparison value and the Y
 					-- coordinate reaches the bottom one, the vertical border flip flop is set.
 					-- FIX: act on the already triggered condition
@@ -1513,7 +1516,7 @@ process(clk)
 		if rising_edge(clk) then
 			if enaPixel = '1'
 			and baSync = '0'
-			and rasterXDelay(2 downto 0) = "110" then
+			and rasterX(2 downto 0) = "100" then
 				if cycleTest and not skipTest and vic2e = '1' then
 					state := not state;
 				end if;
@@ -1635,10 +1638,10 @@ spriteBackgroundCollision: process(clk)
 -- -----------------------------------------------------------------------
 -- Write registers
 -- -----------------------------------------------------------------------
-writeRegisters: process(clk, rasterX(0))
+writeRegisters: process(clk, rasterX(0), vic2e, diRegisters)
 	variable color : unsigned(3 downto 0);
 	begin
-		if rasterX(0) = '0' and vic2e = '1' then
+		if rasterX(0) = '1' and vic2e = '1' then
 			color := (others => '1');
 		else
 			color := diRegisters(3 downto 0);
@@ -1767,11 +1770,6 @@ writeRegisters: process(clk, rasterX(0))
 						if vic2e = '1' then
 							k_reg <= di_r(2 downto 0);
 						end if;
-					when "110000" => 
-						if vic2e = '1' or turbo_en = '1' then
-							turbo_reg <= di_r(0);
-							test_reg <= di_r(1) and vic2e;
-						end if;
 					when others => null;
 					end case;
 				elsif (myWr_c = '1') then
@@ -1802,6 +1800,15 @@ writeRegisters: process(clk, rasterX(0))
 						MX(5)(8) <= di_r(5);
 						MX(6)(8) <= di_r(6);
 						MX(7)(8) <= di_r(7);
+					when others => null;
+					end case;
+				elsif (myWr_d = '1') then
+					case addr_r is
+					when "110000" => 
+						if vic2e = '1' or turbo_en = '1' then
+							turbo_reg <= di_r(0);
+							test_reg <= di_r(1) and vic2e;
+						end if;
 					when others => null;
 					end case;
 				end if;

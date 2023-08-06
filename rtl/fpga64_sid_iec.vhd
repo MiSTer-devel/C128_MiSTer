@@ -542,7 +542,7 @@ begin
    if rising_edge(clk32) then
       if preCycle = sysCycleDef'high then
          reset <= not reset_n;
-         turbo_mode_r <= turbo_mode;
+         turbo_mode_r <= turbo_mode and not pure64;
       end if;
    end if;
 end process;
@@ -1161,6 +1161,15 @@ begin
       case sysCycle is
          when CYCLE_CPU0 | CYCLE_CPU4 | CYCLE_CPU8 | CYCLE_CPUC 
             => t65_cyc_s <= t65_cyc;
+               turbo_m <= "000";
+               if dma_req = '0' and (turbo_mode_r = '1' or turbo_state = '1') then
+                  case turbo_speed is
+                     when "00" => turbo_m <= "100";
+                     when "01" => turbo_m <= "110";
+                     when "10" => turbo_m <= "111";
+                     when "11" => turbo_m <= "XXX";
+                  end case;
+               end if;
 
          when CYCLE_CPU2 | CYCLE_CPU6 | CYCLE_CPUA | CYCLE_CPUE 
             => if cs_io = '0' or sysCycle = CYCLE_CPU6 then
@@ -1180,15 +1189,6 @@ begin
 
          when CYCLE_EXT1 | CYCLE_EXT5
             => dma_active <= dma_req;
-               turbo_m <= "000";
-               if dma_req = '0' and (turbo_mode_r = '1' or turbo_state = '1') then
-                  case turbo_speed is
-                     when "00" => turbo_m <= "100";
-                     when "01" => turbo_m <= "110";
-                     when "10" => turbo_m <= "111";
-                     when "11" => turbo_m <= "XXX";
-                  end case;
-               end if;
 
          when others => null;
       end case;
