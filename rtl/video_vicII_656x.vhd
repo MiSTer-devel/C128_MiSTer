@@ -368,7 +368,6 @@ begin
 	myWr_c <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "110" else '0';
 	myWr_d <= '1' when we_r = '1' and enaPixel = '1' and rasterX(2 downto 0) = "011" else '0';
 	-- timing of the read is only important for the collision register reads
-	-- myRd   <= '1' when cs = '1' and phi = '1' and we = '0' and enaPixel = '1' and rasterX(2 downto 0) = "000" else '0';
 	myRd   <= '1' when cs = '1' and phi = '1' and we = '0' and enaPixel = '1' and rasterX(1 downto 0) = "00" else '0';
 
 -- -----------------------------------------------------------------------

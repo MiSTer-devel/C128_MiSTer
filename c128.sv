@@ -235,7 +235,7 @@ localparam CONF_STR = {
    "HAP1-;",
    "HAP1O[81:80],VDC Model,Auto,8563R9,8568;",
 `ifndef REDUCE_VDC_RAM
-   "HAH6P1O[88],VDC memory,16k,64k;",
+   "HAHDP1O[88],VDC memory,16k,64k;",
 `endif
    "HAP1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
    "HAh2P1O[90:89],VDC colour,White,Green,Amber,Red;",
@@ -294,8 +294,9 @@ localparam CONF_STR = {
 	"O[3],Swap Joysticks,No,Yes;",
    "-;",
 	"HAO[47],8502 Turbo mode,Standard,Smart;",
-	"HAO[49:48],8502 Turbo speed,2x,3x,4x;",
-   "HA-;",
+	"hAO[47],8502 Turbo mode,Off,Smart;",
+	"h6O[49:48],8502 Turbo speed,2x,3x,4x;",
+   "-;",
 	"R[0],Reset;",
 	"hBR[17],Reset & Remove Cartridge;",
    "HAhCR[82],Reset & Remove Int.Func.ROM;",
@@ -497,13 +498,14 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 
    .status(status),
    .status_menumask({
+      /* D */ vdcVersion,
       /* C */ |cart_int_rom,
       /* B */ cart_attached,
       /* A */ cfg_force64,
       /* 9 */ ~status[69],
       /* 8 */ ~status[66],
       /* 7 */ status[58],
-      /* 6 */ vdcVersion,
+      /* 6 */ status[47],
       /* 5 */ sidVersion[1],
       /* 4 */ sidVersion[0],
       /* 3 */ tap_loaded,
@@ -1316,7 +1318,7 @@ fpga64_sid_iec #(
 `else
    .vdcDebug(0),
 `endif
-   .turbo_mode(status[47]),
+   .turbo_mode(status[47] & ~disk_access),
    .turbo_speed(status[49:48]),
 
    .go64(go64),

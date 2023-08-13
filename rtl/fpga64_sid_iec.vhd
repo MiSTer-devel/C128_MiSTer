@@ -298,6 +298,7 @@ signal io_data_i    : unsigned(7 downto 0);
 signal ioe_i        : std_logic;
 signal iof_i        : std_logic;
 
+signal io_enable    : std_logic;
 signal cs_enable    : std_logic;
 signal cs_io        : std_logic;
 signal t65_cyc      : std_logic;
@@ -1141,14 +1142,14 @@ ramCE   <= cs_ram when
            (cpuactT65 = '0' and sysCycle = CYCLE_CPU4) else '0';
 t65_cyc <= (not t65_cyc_s) when
            (sysCycle = CYCLE_CPU0 and turbo_m(0) = '1' and cs_ram = '1') or
-           (sysCycle = CYCLE_CPU4) or
+           (sysCycle = CYCLE_CPU4 and (io_enable = '1'  or cs_ram = '1')) or
            (sysCycle = CYCLE_CPU8 and turbo_m(1) = '1' and cs_ram = '1') or
            (sysCycle = CYCLE_CPUC and turbo_m(2) = '1' and ((turbo_mode_r = '0' and aec = '0') or (turbo_mode_r = '1' and cs_ram = '1'))) else '0';
 cpucycT80 <= '1' when sysCycle = CYCLE_CPU0 else '0';
 
 -- I/O access to any of these chips starts a 8502 clock stretched cycle in 2 MHz mode
 cs_io <= cs_vic or cs_sid or cs_mmuL or cs_vdc or cs_cia1 or cs_cia2 or ioe_i or iof_i;
-cs_enable <= '1' when (baLoc = '1' or cpuWe = '1' or cpuBusAk_T80_n = '1') else '0';
+cs_enable <= '1' when io_enable = '1' and (baLoc = '1' or cpuWe = '1' or cpuBusAk_T80_n = '1') else '0';
 
 -- Last data bus activity of the CPU
 cpuLastData <= cpuDo when cpuWe_l = '1' else cpuDi_l when cpuCycle = '0' else cpuDi;
@@ -1162,13 +1163,17 @@ begin
          when CYCLE_CPU0 | CYCLE_CPU4 | CYCLE_CPU8 | CYCLE_CPUC 
             => t65_cyc_s <= t65_cyc;
                turbo_m <= "000";
-               if dma_req = '0' and (turbo_mode_r = '1' or turbo_state = '1') then
-                  case turbo_speed is
-                     when "00" => turbo_m <= "100";
-                     when "01" => turbo_m <= "110";
-                     when "10" => turbo_m <= "111";
-                     when "11" => turbo_m <= "XXX";
-                  end case;
+               if dma_req = '0' then
+                  if turbo_mode_r = '1' then
+                     case turbo_speed is
+                        when "00" => turbo_m <= "100";
+                        when "01" => turbo_m <= "110";
+                        when "10" => turbo_m <= "111";
+                        when "11" => turbo_m <= "XXX";
+                     end case;
+                  elsif turbo_state = '1' then
+                     turbo_m <= "100";
+                  end if;
                end if;
 
          when CYCLE_CPU2 | CYCLE_CPU6 | CYCLE_CPUA | CYCLE_CPUE 
@@ -1182,7 +1187,11 @@ begin
                if cpucycT65 = '1' or (cpuRd_T80 = '1' and sysCycle = CYCLE_CPU7) then
                   cpuDi_l <= cpuDi;
                end if;
+               if cpucycT65 = '1' and cpuactT65 = '1' and turbo_mode_r = '1' then
+                  io_enable <= '0';
+               end if;
                if sysCycle = CYCLE_CPU7 then
+                  io_enable <= '1';
                   cpuactT65 <= mmu_z80_n and not cpuBusAk_T80_n;
                   cpuactT80 <= not mmu_z80_n;
                end if;
