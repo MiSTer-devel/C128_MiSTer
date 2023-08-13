@@ -10,6 +10,7 @@ module vdc_top #(
 	parameter S_LATCH_WIDTH = 82,
 	parameter SYSCLK_PAL = 31527954,
 	parameter SYSCLK_NTSC = 32727266,
+	parameter VDCCLK = 16009968,
 	parameter SYNC_CLOCKS = 1  // 1=sync clock on hsync, this results in a slight timing difference with real hw but prevents HDMI jitter
 )(
 	input          version,   // 0=8563R9, 1=8568
@@ -40,11 +41,13 @@ module vdc_top #(
 	output   [3:0] rgbi		  
 );
 
-wire [31:0] SYSCLK = ntsc ? SYSCLK_NTSC : SYSCLK_PAL;
+localparam CLK_BITS = $clog2(SYSCLK_NTSC+VDCCLK);
+
+wire [CLK_BITS-1:0] sysclk = ntsc ? CLK_BITS'(SYSCLK_NTSC) : CLK_BITS'(SYSCLK_PAL);
 
 reg enable;
 always @(posedge clk) begin
-   int sum = 0;
+   reg [CLK_BITS-1:0] sum = 0;
 	reg hsync_r;
    reg div;
 
@@ -53,14 +56,20 @@ always @(posedge clk) begin
 	hsync_r <= hsync;
 
 	if (hsync && !hsync_r && SYNC_CLOCKS) begin
-		div <= 0;
-		sum = 0;
+		if (sum >= CLK_BITS'(VDCCLK*2)) begin
+			sum = CLK_BITS'(VDCCLK*2);
+		end
+		else if (sum >= CLK_BITS'(VDCCLK)) begin
+			sum = CLK_BITS'(VDCCLK);
+		end
+		else begin
+			sum = 0;
+		end
 	end
-	else
-	   sum = sum + 16000000;
 
-   if(sum >= SYSCLK) begin
-   	sum = sum - SYSCLK;
+	sum = sum + CLK_BITS'(VDCCLK);
+   if (sum >= sysclk) begin
+   	sum = sum - sysclk;
 
 		pixelclk <= 1;
 		div <= ~div & reg_dbl;
@@ -70,7 +79,7 @@ end
 
 // Register file
 
-							// Reg      Init value   Description
+                            // Reg      Init value   Description
 reg   [7:0] reg_ht;         // R0      7E/7F 126/127 Horizontal total (minus 1) [126 for original ROM, 127 for PAL on DCR]
 reg   [7:0] reg_hd;         // R1         50 80      Horizontal displayed
 reg   [7:0] reg_hp;         // R2         66 102     Horizontal sync position
