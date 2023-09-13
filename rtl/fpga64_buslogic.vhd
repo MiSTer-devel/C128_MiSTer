@@ -35,7 +35,7 @@ entity fpga64_buslogic is
 		cpslk_mode  : in std_logic;
 
 		cpuHasBus   : in std_logic;
-		aec         : in std_logic;
+		vicHasBus   : in std_logic;
 		z80io       : in std_logic;
 		z80m1       : in std_logic;
 
@@ -197,7 +197,7 @@ begin
 	ultimax <= exrom and (not game);
 
 	process(
-		cpuHasBus, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, aec, vicAddr,
+		cpuHasBus, vicHasBus, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, vicAddr,
 		pure64, c128_n, z80_n, z80io, z80m1, mmu_rombank, mmu_iosel, cpuBank, vicBank,
       rom1Bank, rom23Bank, rom4Bank, romCBank
 	)
@@ -429,8 +429,8 @@ begin
 				systemWe <= cpuWe;
 			end if;
 		else
-			-- The VIC-II has the bus, but only when aec is asserted
-			if aec = '1' then
+			-- The VIC-II has the bus, but only when vicHasBus is asserted
+			if vicHasBus = '1' then
 				currentAddr <= vicBank & vicAddr;
 			else
 				currentAddr <= cpuBank & tAddr;

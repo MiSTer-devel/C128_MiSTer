@@ -28,6 +28,8 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - RS232 with VIC-1011 and UP9600 modes either internal or through USER_IO.
 - Loadable Kernal/drive ROMs.
 - Special reduced border mode for 16:9 display.
+- Smart Turbo mode (up to 4x speed) for the 8502.
+- **Smart Turbo mode (2x speed) for the Z80.**
 - Real-time clock.
 - *(Experimental)* **Support for easy configuration of ROMs and hardware options using MRA files**.
 
@@ -36,6 +38,7 @@ Features marked in **bold** are unique to the C128 core, the other features are 
 ### C128 features not (fully) implemented
 
 - VDC non-standard high resolution modes (e.g. VGA-like modes)
+- CP/M hangs when REU is enabled
 
 ## Usage
 

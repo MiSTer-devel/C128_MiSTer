@@ -192,43 +192,41 @@ begin
 	z80_n <= reg_cpu;
 	iosel <= reg_cr(0);
 
-	translate_addr: process(clk)
+	translate_addr: process(crBank, cpuMask, reg_cr, reg_cpu, reg_os, reg_p0h, reg_p0l, reg_p1h, reg_p1l, page, addr, we)
 	variable bank: unsigned(1 downto 0);
 	variable tPage: unsigned(15 downto 8);
 	begin
-		if rising_edge(clk) then
-			bank := crBank(1 downto 0);
-			tPage := page;
+		bank := crBank(1 downto 0);
+		tPage := page;
 
-			if reg_cr(7 downto 6) = "00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
-				-- When reading from $00xxx in Z80 mode, translate to $0Dxxx. Buslogic will enable ROM
-				bank := "00";
-				tPage := X"D" & page(11 downto 8);
-			elsif page = X"01" and reg_os = '0' then
-				bank := reg_p1h(1 downto 0) and cpuMask;
-				tPage := reg_p1l;
-			elsif page = X"00" and reg_os = '0' then
-				bank := reg_p0h(1 downto 0) and cpuMask;
-				tPage := reg_p0l;
-			elsif crBank = reg_p1h and page = reg_p1l then
-				bank := reg_p1h(1 downto 0) and cpuMask;
-				tPage := X"01";
-			elsif crBank = reg_p0h and page = reg_p0l then
-				bank := reg_p0h(1 downto 0) and cpuMask;
-				tPage := X"00";
-			end if;
-
-			cpuBank <= bank;
-
-			case addr(15 downto 14) is
-			when "11" => rombank <= reg_cr(5 downto 4);
-			when "10" => rombank <= reg_cr(3 downto 2);
-			when "01" => rombank <= reg_cr(1) & reg_cr(1);
-			when "00" => rombank <= bank;
-			end case;
-			
-			tAddr <= tPage & addr(7 downto 0);
+		if reg_cr(7 downto 6) = "00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
+			-- When reading from $00xxx in Z80 mode, translate to $0Dxxx. Buslogic will enable ROM
+			bank := "00";
+			tPage := X"D" & page(11 downto 8);
+		elsif page = X"01" and reg_os = '0' then
+			bank := reg_p1h(1 downto 0) and cpuMask;
+			tPage := reg_p1l;
+		elsif page = X"00" and reg_os = '0' then
+			bank := reg_p0h(1 downto 0) and cpuMask;
+			tPage := reg_p0l;
+		elsif crBank = reg_p1h and page = reg_p1l then
+			bank := reg_p1h(1 downto 0) and cpuMask;
+			tPage := X"01";
+		elsif crBank = reg_p0h and page = reg_p0l then
+			bank := reg_p0h(1 downto 0) and cpuMask;
+			tPage := X"00";
 		end if;
+
+		cpuBank <= bank;
+
+		case addr(15 downto 14) is
+		when "11" => rombank <= reg_cr(5 downto 4);
+		when "10" => rombank <= reg_cr(3 downto 2);
+		when "01" => rombank <= reg_cr(1) & reg_cr(1);
+		when "00" => rombank <= bank;
+		end case;
+		
+		tAddr <= tPage & addr(7 downto 0);
 	end process;
 
 -- -----------------------------------------------------------------------
