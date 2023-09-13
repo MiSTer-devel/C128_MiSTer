@@ -314,7 +314,7 @@ begin
 	ba <= baLoc or turbo_state_s(0) or turbo_state_s(1);
 	vicAddr <= vicAddrReg when registeredAddress else vicAddrLoc;
 	irq_n <= not IRQ;
-	turbo_state <= turbo_state_s(1);
+	turbo_state <= turbo_state_s(0) or turbo_state_s(1);
 	ko <= k_reg;
 
 -- -----------------------------------------------------------------------
