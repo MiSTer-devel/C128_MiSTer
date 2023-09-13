@@ -79,7 +79,7 @@ port(
    refresh     : out std_logic;
 
    cia_mode    : in  std_logic;
-   turbo_mode  : in  std_logic_vector(1 downto 0);
+   turbo_mode  : in  std_logic_vector(2 downto 0);
 
    -- VGA/SCART interface
    ntscMode    : in  std_logic;
@@ -212,14 +212,14 @@ end fpga64_sid_iec;
 architecture rtl of fpga64_sid_iec is
 -- System state machine
 type sysCycleDef is (
-   CYCLE_EXT0, CYCLE_EXT1, CYCLE_EXT2, CYCLE_EXT3,  -- MiSTer external I/O cycle
-   CYCLE_VIC0, CYCLE_VIC1, CYCLE_VIC2, CYCLE_VIC3,  -- VIC normal cycle
-   CYCLE_EXT4, CYCLE_EXT5, CYCLE_EXT6, CYCLE_EXT7,  -- MiSTer external I/O cycle
-   CYCLE_DMA0, CYCLE_DMA1, CYCLE_DMA2, CYCLE_DMA3,  -- DMA cycle (REU)
-   CYCLE_CPU0, CYCLE_CPU1, CYCLE_CPU2, CYCLE_CPU3,  -- 8502 x4 turbo cycle, Z80 normal 1st cycle
-   CYCLE_CPU4, CYCLE_CPU5, CYCLE_CPU6, CYCLE_CPU7,  -- 8502 normal cycle,   Z80 normal 2nd cycle, VIC badline cycle
-   CYCLE_CPU8, CYCLE_CPU9, CYCLE_CPUA, CYCLE_CPUB,  -- 8502 x3 turbo cycle, Z80 turbo 1st cycle
-   CYCLE_CPUC, CYCLE_CPUD, CYCLE_CPUE, CYCLE_CPUF   -- 8502 x2 turbo cycle, Z80 turbo 2nd cycle
+   CYCLE_EXT0, CYCLE_EXT1, CYCLE_EXT2, CYCLE_EXT3,  -- MiSTer external I/O
+   CYCLE_VIC0, CYCLE_VIC1, CYCLE_VIC2, CYCLE_VIC3,  -- VIC
+   CYCLE_EXT4, CYCLE_EXT5, CYCLE_EXT6, CYCLE_EXT7,  -- MiSTer external I/O
+   CYCLE_DMA0, CYCLE_DMA1, CYCLE_DMA2, CYCLE_DMA3,  -- DMA (REU)
+   CYCLE_CPU0, CYCLE_CPU1, CYCLE_CPU2, CYCLE_CPU3,  -- 8502 x4 turbo, Z80 normal
+   CYCLE_CPU4, CYCLE_CPU5, CYCLE_CPU6, CYCLE_CPU7,  -- 8502 normal, Z80 normal, VIC badline
+   CYCLE_CPU8, CYCLE_CPU9, CYCLE_CPUA, CYCLE_CPUB,  -- 8502 x3 turbo, Z80 turbo
+   CYCLE_CPUC, CYCLE_CPUD, CYCLE_CPUE, CYCLE_CPUF   -- 8502 x2 turbo, Z80 turbo
 );
 
 signal sysCycle     : sysCycleDef := sysCycleDef'low;
@@ -302,7 +302,10 @@ signal cs_enable    : std_logic;
 signal cs_io        : std_logic;
 signal t65_cyc      : std_logic;
 signal t65_cyc_s    : std_logic;
-signal turbo_m      : std_logic_vector(2 downto 0);
+signal t65_turbo_m  : std_logic_vector(2 downto 0);
+signal t80_cyc      : std_logic;
+signal t80_cyc_s    : std_logic;
+signal t80_turbo_m  : std_logic;
 signal turbo_std    : std_logic;
 
 signal reset        : std_logic := '1';
@@ -1139,17 +1142,23 @@ ramWE   <= systemWe;
 ramCE   <= cs_ram when
            sysCycle = CYCLE_VIC0 or
            (cpuactT65 = '1' and t65_cyc = '1') or
-           (cpuactT65 = '0' and sysCycle = CYCLE_CPU4) else '0';
+           (cpuactT65 = '0' and t80_cyc_s = '1' and (sysCycle = CYCLE_CPU4 or sysCycle = CYCLE_CPUC)) else '0';
 t65_cyc <= (not t65_cyc_s) when
-           (sysCycle = CYCLE_CPU0 and turbo_m(0) = '1' and cs_ram = '1') or
-           (sysCycle = CYCLE_CPU4 and (io_enable = '1'  or cs_ram = '1')) or
-           (sysCycle = CYCLE_CPU8 and turbo_m(1) = '1' and cs_ram = '1') or
-           (sysCycle = CYCLE_CPUC and turbo_m(2) = '1' and ((turbo_std = '1' and aec = '0') or (turbo_std = '0' and cs_ram = '1'))) else '0';
-cpucycT80 <= '1' when sysCycle = CYCLE_CPU0 else '0';
+           (sysCycle = CYCLE_CPU0 and t65_turbo_m(0) = '1' and cs_ram = '1') or
+           (sysCycle = CYCLE_CPU4 and (io_enable = '1'      or cs_ram = '1')) or
+           (sysCycle = CYCLE_CPU8 and t65_turbo_m(1) = '1' and cs_ram = '1') or
+           (sysCycle = CYCLE_CPUC and t65_turbo_m(2) = '1' and ((turbo_std = '1' and aec = '0') or (turbo_std = '0' and cs_ram = '1'))) else '0';
+t80_cyc <= '1' when 
+           (sysCycle = CYCLE_CPU0 and io_enable = '1') or
+           (sysCycle = CYCLE_CPU8 and t80_turbo_m = '1' and cs_ram = '1') else '0';
+
+cpuCycT80 <= t80_cyc;
 
 -- I/O access to any of these chips starts a 8502 clock stretched cycle in 2 MHz mode
-cs_io <= cs_vic or cs_sid or cs_mmuL or cs_vdc or cs_cia1 or cs_cia2 or ioe_i or iof_i;
-cs_enable <= '1' when io_enable = '1' and (baLoc = '1' or cpuWe = '1' or cpuBusAk_T80_n = '1') else '0';
+cs_io <= cs_vic or cs_sid or cs_mmuL or cs_vdc or cs_cia1 or cs_cia2 or ioe_i or iof_i or cpuIO_T80;
+-- cs_enable <= io_enable when (baLoc = '1' or cpuWe = '1' or cpuBusAk_T80_n = '1') else '0';
+-- cs_enable <= baLoc or cpuWe or cpuBusAk_T80_n;
+cs_enable <= cpuBusAk_T80_n or (io_enable and (baLoc or cpuWe));
 
 -- Last data bus activity of the CPU
 cpuLastData <= cpuDo when cpuWe_l = '1' else cpuDi_l when cpuCycle = '0' else cpuDi;
@@ -1158,20 +1167,10 @@ process(clk32)
 begin
    if rising_edge(clk32) then
       cpucycT65 <= '0';
-
       case sysCycle is
          when CYCLE_CPU0 | CYCLE_CPU4 | CYCLE_CPU8 | CYCLE_CPUC 
             => t65_cyc_s <= t65_cyc;
-               turbo_m <= "000";
-               if dma_active = '0' then
-                  case turbo_mode(1 downto 0) is
-                     when "00" => turbo_m <= turbo_state & "00";
-                     when "01" => turbo_m <= "100";
-                     when "10" => turbo_m <= "110";
-                     when "11" => turbo_m <= "111";
-                  end case;
-               end if;
-   
+
          when CYCLE_CPU2 | CYCLE_CPU6 | CYCLE_CPUA | CYCLE_CPUE 
             => if cs_io = '0' or sysCycle = CYCLE_CPU6 then
                   cpucycT65 <= t65_cyc_s;
@@ -1179,12 +1178,53 @@ begin
                end if;
 
          when CYCLE_CPU3 | CYCLE_CPU7 | CYCLE_CPUB | CYCLE_CPUF 
-            => cpuWe_l <= cpuWe;
-               if cpucycT65 = '1' or (cpuRd_T80 = '1' and sysCycle = CYCLE_CPU7) then
-                  cpuDi_l <= cpuDi;
+            => if cpuactT65 = '1' then
+                  cpuWe_l <= cpuWe;
+                  if cpucycT65 = '1' then
+                     cpuDi_l <= cpuDi;
+                     if turbo_std = '0' then
+                        io_enable <= '0';
+                     end if;
+                  end if;
                end if;
-               if cpucycT65 = '1' and cpuactT65 = '1' and turbo_std = '0' then
-                  io_enable <= '0';
+
+               if sysCycle = CYCLE_CPU3 or cpuactT65 = '0' or dma_active = '1' then
+                  t65_turbo_m <= turbo_state & "00";
+               end if;
+               if sysCycle = CYCLE_CPU3 and cpuactT65 = '1' and dma_active = '0' then
+                  case turbo_mode(1 downto 0) is
+                     when "01" => t65_turbo_m <= "100";
+                     when "10" => t65_turbo_m <= "110";
+                     when "11" => t65_turbo_m <= "111";
+                     when others => null;
+                  end case;
+               end if;
+                  
+         when others => null;
+      end case;
+
+      case sysCycle is
+         when CYCLE_CPU0 | CYCLE_CPU8
+            => t80_cyc_s <= cpuCycT80;
+
+         when CYCLE_CPU7 | CYCLE_CPUF
+            => if cpuactT65 = '0' then 
+                  cpuWe_l <= cpuWe;
+                  if sysCycle = CYCLE_CPU7 or t80_cyc_s = '1' then
+                     if cpuRd_T80 = '1' then
+                        cpuDi_l <= cpuDi;
+                     end if;
+                     if cs_io = '1' then
+                        io_enable <= '0';
+                     end if;
+                  end if;
+               end if;
+
+               if sysCycle = CYCLE_CPUF or cpuBusAk_T80_n = '0' or dma_active = '1' then
+                  t80_turbo_m <= '0';
+               end if;
+               if sysCycle = CYCLE_CPUF and cpuBusAk_T80_n = '1' and dma_active = '0' then
+                  t80_turbo_m <= turbo_mode(2);
                end if;
 
          when others => null;

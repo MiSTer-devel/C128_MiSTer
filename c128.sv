@@ -198,7 +198,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX XXXXX                          X
+// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX XXXXXX                         X
 
 // bits  0.. 79 keep in sync with C64 core (X: identical, x: different use)
 // bits 80..127 C128 core options
@@ -293,8 +293,8 @@ localparam CONF_STR = {
    "-;",
 	"O[3],Swap Joysticks,No,Yes;",
    "-;",
-	"HAO[49:48],8502 Turbo mode,Standard,Smart x2,Smart x3,Smart x4;",
-	"hAO[49:48],8502 Turbo mode,Off,Smart x2,Smart x3,Smart x4;",
+	"O[49:48],8502 Speed,Standard,x2,x3,x4;",
+   "HAO[101],Z80 Speed,Standard,x2;",
    "-;",
 	"R[0],Reset;",
 	"hBR[17],Reset & Remove Cartridge;",
@@ -1316,7 +1316,7 @@ fpga64_sid_iec #(
 `else
    .vdcDebug(0),
 `endif
-   .turbo_mode(disk_access ? 2'b00 : status[49:48]),
+   .turbo_mode(disk_access ? 3'b000 : {status[101], status[49:48]}),
 
    .go64(go64),
    .ps2_key(key),
