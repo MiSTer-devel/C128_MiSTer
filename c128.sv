@@ -193,7 +193,7 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXxxXXXXXX XXXXXXXXX XX  X  XXXXXXX xxXXXXXXXXXXXX
+// XXXXXXXXXXXXXXxxXXXXXX XXXXXXXXX XX  X  XXXXXXXxxxXXXXXXXXXXXX
 
 //                                      1         1         1
 // 6     7         8         9          0         1         2
@@ -1299,10 +1299,12 @@ fpga64_sid_iec #(
    .pause(freeze),
    .pause_out(c64_pause),
 
+   .turbo_mode(disk_access ? 3'b000 : {status[101], status[49:48]}),
    .force64(cfg_force64),
    .pure64(pure64),
    .d4080_sel(~status[98]),
    .sys256k(status[87]),
+
    .vdcVersion(vdcVersion),
 `ifdef REDUCE_VDC_RAM
    .vdc64k(0),
@@ -1316,7 +1318,6 @@ fpga64_sid_iec #(
 `else
    .vdcDebug(0),
 `endif
-   .turbo_mode(disk_access ? 3'b000 : {status[101], status[49:48]}),
 
    .go64(go64),
    .ps2_key(key),
