@@ -1156,8 +1156,6 @@ cpuCycT80 <= t80_cyc;
 
 -- I/O access to any of these chips starts a 8502 clock stretched cycle in 2 MHz mode
 cs_io <= cs_vic or cs_sid or cs_mmuL or cs_vdc or cs_cia1 or cs_cia2 or ioe_i or iof_i or cpuIO_T80;
--- cs_enable <= io_enable when (baLoc = '1' or cpuWe = '1' or cpuBusAk_T80_n = '1') else '0';
--- cs_enable <= baLoc or cpuWe or cpuBusAk_T80_n;
 cs_enable <= cpuBusAk_T80_n or (io_enable and (baLoc or cpuWe));
 
 -- Last data bus activity of the CPU
@@ -1207,7 +1205,11 @@ begin
          when CYCLE_CPU0 | CYCLE_CPU8
             => t80_cyc_s <= cpuCycT80;
 
-         when CYCLE_CPU7 | CYCLE_CPUF
+               if cpuactT65 = '0' and cpuCycT80 = '1' and cpuRd_T80 = '1' and cpuIO_T80 = '1' then
+                  cpuDi_l <= cpuDi;
+               end if;            
+         
+            when CYCLE_CPU7 | CYCLE_CPUF
             => if cpuactT65 = '0' then 
                   cpuWe_l <= cpuWe;
                   if sysCycle = CYCLE_CPU7 or t80_cyc_s = '1' then
