@@ -557,7 +557,7 @@ vicCycle <= '1' when ((sysCycle >= CYCLE_VIC0 and sysCycle <= CYCLE_VIC3)
 cpuCycle <= '1' when (sysCycle >= CYCLE_CPU0 and sysCycle <= CYCLE_CPUF) else '0';
 
 vicHasBus <= aec and vicCycle;
-cpuHasBus <= (not vicHasBus) or (cpuCycle and ba_dma and dma_active);
+cpuHasBus <= not vicHasBus;
 
 process(clk32)
 begin
@@ -717,8 +717,8 @@ port map (
    sysRomBank => sysRomBank
 );
 
-IOE <= ioe_i and cs_enable;
-IOF <= iof_i and cs_enable;
+IOE <= ioe_i and cs_enable and vicCycle;
+IOF <= iof_i and cs_enable and vicCycle;
 
 process(clk32)
 begin
@@ -1209,7 +1209,7 @@ begin
                   cpuDi_l <= cpuDi;
                end if;            
          
-            when CYCLE_CPU7 | CYCLE_CPUF
+         when CYCLE_CPU7 | CYCLE_CPUF
             => if cpuactT65 = '0' then 
                   cpuWe_l <= cpuWe;
                   if sysCycle = CYCLE_CPU7 or t80_cyc_s = '1' then
@@ -1243,9 +1243,18 @@ end process;
 process(clk32)
 begin
    if rising_edge(clk32) then
-      if (sysCycle = CYCLE_EXT1 or sysCycle = CYCLE_EXT5) then
-         dma_active <= dma_req;
-      end if;
+      case sysCycle is
+         when CYCLE_EXT1 | CYCLE_EXT5
+            => dma_active <= dma_req;
+
+         when sysCycleDef'pred(CYCLE_CPU0)
+            => dma_cycle <= dma_active and (baLoc or ba_dma);
+
+         when CYCLE_CPUF
+            => dma_cycle <= '0';
+
+         when others => null;
+      end case;
    end if;
 end process;
 
@@ -1261,7 +1270,6 @@ cpuDo   <= cpuDo_nd   when dma_active = '0' else dma_dout;
 cpuWe   <= cpuWe_nd   when dma_active = '0' else dma_we;
 
 ext_cycle <= '1' when (sysCycle >= CYCLE_DMA0 and sysCycle <= CYCLE_DMA3) else '0';
-dma_cycle <= '1' when cpuHasBus = '1' and dma_active = '1' else '0';
 dma_din   <= cpuDi;
 
 c128_n <= mmu_c128_n;

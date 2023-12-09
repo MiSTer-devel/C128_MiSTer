@@ -37,7 +37,6 @@ Features marked in **bold** are unique to the C128 core, the other features are 
 
 ### Known issues
 
-- CP/M hangs when REU is enabled.
 - VDC non-standard high resolution modes (e.g. VGA-like modes) do not display correctly.
 
 ## Usage
