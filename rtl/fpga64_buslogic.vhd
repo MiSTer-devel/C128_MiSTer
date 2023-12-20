@@ -93,6 +93,7 @@ entity fpga64_buslogic is
 		cs_cia1     : out std_logic;
 		cs_cia2     : out std_logic;
 		cs_ram      : out std_logic;
+		cs_io7      : out std_logic;
 
 		-- To cartridge port
 		cs_ioE      : out std_logic;
@@ -125,6 +126,7 @@ architecture rtl of fpga64_buslogic is
 	signal cs_colorLoc    : std_logic;
 	signal cs_cia1Loc     : std_logic;
 	signal cs_cia2Loc     : std_logic;
+	signal cs_io7Loc      : std_logic;
 	signal cs_ioELoc      : std_logic;
 	signal cs_ioFLoc      : std_logic;
 	signal cs_romLLoc     : std_logic;
@@ -216,6 +218,7 @@ begin
 		cs_mmuHLoc <= '0';
 		cs_mmuLLoc <= '0';
 		cs_vdcLoc <= '0';
+		cs_io7Loc <= '0';
 		cs_ioELoc <= '0';
 		cs_ioFLoc <= '0';
 		cs_romLLoc <= '0'; -- external rom L
@@ -264,6 +267,8 @@ begin
 								end if;
 							when X"6" =>
 								cs_vdcLoc <= not z80m1;
+							when X"7" =>
+								cs_io7Loc <= not z80m1;
 							when X"8" | X"9" | X"A" | X"B" =>
 								cs_colorLoc <= '1';
 							when X"C" =>
@@ -358,10 +363,13 @@ begin
 								cs_vicLoc <= '1';
 							when X"4" =>
 								cs_sidLoc <= not z80m1;
+							when X"5" =>
+								cs_sidLoc <= pure64 and not z80m1;
 							when X"6" =>
 								cs_vdcLoc <= not pure64 and not z80m1;
 								cs_sidLoc <= pure64 and not z80m1;
-							when X"5" | X"7" =>
+							when X"7" =>
+								cs_io7Loc <= not z80m1;
 								cs_sidLoc <= pure64 and not z80m1;
 							when X"8" | X"9" | X"A" | X"B" =>
 								cs_colorLoc <= '1';
@@ -462,6 +470,7 @@ begin
 	cs_mmuH <= cs_mmuHLoc;
 	cs_mmuL <= cs_mmuLLoc;
 	cs_vdc <= cs_vdcLoc;
+	cs_io7 <= cs_io7Loc;
 	cs_color <= cs_colorLoc;
 	cs_cia1 <= cs_cia1Loc;
 	cs_cia2 <= cs_cia2Loc;

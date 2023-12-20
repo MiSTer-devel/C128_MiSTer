@@ -22,8 +22,8 @@ module cartridge
 	input             cart_loading,
 	input             cart_c128,  	      // C128 cart
 	input      [15:0] cart_id,					// cart ID or cart type
-	input       [1:0] cart_int_rom,        // Internal function rom loaded during boot
-	input       [1:0] cart_ext_rom,        // External function rom loaded during boot
+	input       [6:0] cart_int_rom,        // internal function rom size mask: 00h=none 01h=16k, 03h=32k, 07h=64k, 0Fh=128k, 1Fh=256k, 3Fh=512k, 7Fh=1M
+	input       [1:0] cart_ext_rom,        // external function rom size mask: 0=none, 1=16k, 3=32k
 	input       [7:0] cart_exrom,				// CRT file EXROM status
 	input       [7:0] cart_game,				// CRT file GAME status
 	input      [15:0] cart_bank_laddr,		// bank loading address
@@ -32,6 +32,7 @@ module cartridge
 	input       [7:0] cart_bank_type,
 	input      [24:0] cart_bank_raddr,		// chip packet address
 	input             cart_bank_wr,
+	input       [4:0] cart_bank_int,       // Internal function ROM bank number (MegaBit128)
 
 	output            exrom,					// exrom line output (from cartridge)
 	input					exrom_in,				// exrom line input (to cartridge)
@@ -840,7 +841,7 @@ wire cs_iof = IOF && (mem_write ? IOF_wr_ena : IOF_ena);
 assign mem_ce_out = mem_ce | (cs_ioe & stb_ioe) | (cs_iof & stb_iof);
 
 //RAM banks are mapped to 0x040000 (64K max)
-//ROM banks are mapped to 0x100000 (1MB max)
+//CRT/EFR banks are mapped to 0x100000 (1MB max)
 function [11:0] get_bank;
 	input [6:0] bank;
 	input       ram;
@@ -865,11 +866,11 @@ always begin
 		if(sysRom) addr_out[24:12] = {8'(ROM_ADDR>>17), sysRomBank};
 
 		if(romFL && !mem_write) begin
-			addr_out[24:14] = {10'(IFR_ADDR>>15), 1'b0};
+			addr_out[24:14] = {5'(IFR_ADDR>>20), cart_bank_int & cart_int_rom[6:2], 1'b0};
 			data_floating = ~cart_int_rom[0];
 		end
 		if(romFH && !mem_write) begin
-			addr_out[24:14] = {10'(IFR_ADDR>>15), 1'b1};
+			addr_out[24:14] = {5'(IFR_ADDR>>20), cart_bank_int & cart_int_rom[6:2], 1'b1};
 			data_floating = ~cart_int_rom[1];
 		end
 		if(romH && (romH_we || !mem_write)) begin

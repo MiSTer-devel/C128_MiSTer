@@ -498,7 +498,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .status(status),
    .status_menumask({
       /* C */ |cart_int_rom,
-      /* B */ cart_attached,
+      /* B */ |{cart_attached, cart_ext_rom},
       /* A */ cfg_force64,
       /* 9 */ ~status[69],
       /* 8 */ ~status[66],
@@ -640,6 +640,7 @@ cartridge #(
    .cart_bank_type(cart_bank_type),
    .cart_bank_raddr(ioctl_load_addr),
    .cart_bank_wr(cart_hdr_wr),
+   .cart_bank_int(d7port[4:0]),
 
    .sysRom(sysRom),
    .sysRomBank(sysRomBank),
@@ -780,7 +781,7 @@ reg        io_cycle_we;
 reg [24:0] io_cycle_addr;
 reg  [7:0] io_cycle_data;
 
-reg  [1:0] cart_int_rom = 0;
+reg  [6:0] cart_int_rom = 0;
 reg  [1:0] cart_ext_rom = 0;
 reg        rom_loading, rom_loaded = 0;
 reg        drv_loading, drv_loaded = 0;
@@ -794,23 +795,24 @@ wire       drv_download = drv_loading & ioctl_download;
 localparam RAM_ADDR = 25'h0000000;  // System RAM: 256k
 localparam CRM_ADDR = 25'h0040000;  // Cartridge RAM: 64k
 localparam ROM_ADDR = 25'h0060000;  // System ROM: 96k (align on 128k)       loaded from boot0.rom or MRA (required)
-localparam IFR_ADDR = 25'h0078000;  // Internal function ROM: 32k            can be loaded from boot0.rom, boot2.rom or MRA (optional)
 localparam DRV_ADDR = 25'h0080000;  // Drive ROM: 512k                       loaded from boot0.rom, boot1.rom or MRA (required)
 localparam CRT_ADDR = 25'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
-localparam TAP_ADDR = 25'h0200000;  // Tape buffer (not aligned)
+localparam IFR_ADDR = 25'h0200000;  // Internal function ROM: 1M             can be loaded from boot2.rom or MRA (optional)
+localparam TAP_ADDR = 25'h0300000;  // Tape buffer (not aligned)
 localparam GEO_ADDR = 25'h0C00000;  // GeoRAM: 4M
 localparam REU_ADDR = 25'h1000000;  // REU: 16M
 
 localparam ROM_SIZE = 25'h0012000;  // min size of boot0.rom
-localparam DRV_SIZE = 25'h0030000;  // exact size of boot1.rom
-localparam FRM_SIZE = 25'h0008000;  // max size of function roms
+localparam DRV_SIZE = 25'h0030000;  // max size of boot1.rom
+localparam EFR_SIZE = 25'h0008000;  // max size of external function rom
+localparam IFR_SIZE = 25'h0100000;  // max size of internal function rom
 
 wire skip_rom = bootrom ? (
       (                                   ioctl_addr < ROM_SIZE                   && rom_loaded)
-   || (ioctl_addr >= IFR_ADDR-ROM_ADDR && ioctl_addr < IFR_ADDR-ROM_ADDR+FRM_SIZE && |cart_int_rom)
+   // || (ioctl_addr >= IFR_ADDR-ROM_ADDR && ioctl_addr < IFR_ADDR-ROM_ADDR+EFR_SIZE && |cart_int_rom)
    || (ioctl_addr >= DRV_ADDR-ROM_ADDR && ioctl_addr < DRV_ADDR-ROM_ADDR+DRV_SIZE && drv_loaded)
-   || (ioctl_addr >= CRT_ADDR-ROM_ADDR && ioctl_addr < CRT_ADDR-ROM_ADDR+FRM_SIZE && (cart_attached || |cart_ext_rom))
-   || (ioctl_addr >= CRT_ADDR-ROM_ADDR+FRM_SIZE)
+   || (ioctl_addr >= CRT_ADDR-ROM_ADDR && ioctl_addr < CRT_ADDR-ROM_ADDR+EFR_SIZE && (cart_attached || |cart_ext_rom))
+   || (ioctl_addr >= CRT_ADDR-ROM_ADDR+EFR_SIZE)
 ) : (ioctl_addr >= ROM_SIZE);
 
 always @(posedge clk_sys) begin
@@ -869,9 +871,6 @@ always @(posedge clk_sys) begin
          if (ioctl_addr == ROM_SIZE-1)
             rom_loaded <= 1;
 
-         if (ioctl_addr == IFR_ADDR-ROM_ADDR)
-            cart_int_rom <= 0;
-
          if (ioctl_addr == DRV_ADDR-ROM_ADDR) begin
             drv_loading <= 1;
             drv_loaded <= 0;
@@ -888,7 +887,6 @@ always @(posedge clk_sys) begin
          end
 
          if (|ioctl_data && ~&ioctl_data) begin
-            if (ioctl_addr[24:15] == {10'((IFR_ADDR-ROM_ADDR)>>15)}) cart_int_rom[ioctl_addr[14]] <= 1;
             if (ioctl_addr[24:15] == {10'((CRT_ADDR-ROM_ADDR)>>15)}) cart_ext_rom[ioctl_addr[14]] <= 1;
          end
 
@@ -913,10 +911,17 @@ always @(posedge clk_sys) begin
       if (load_ifr) begin
          if (ioctl_addr == 0) begin
             ioctl_load_addr <= IFR_ADDR;
-            cart_int_rom <= 0;
+            cart_int_rom <= 7'h1;
          end
-         if (ioctl_addr < FRM_SIZE) begin
-            if (|ioctl_data && ~&ioctl_data) cart_int_rom[ioctl_addr[14]] <= 1;
+         if (ioctl_addr < IFR_SIZE) begin
+            if (|ioctl_data && ~&ioctl_data) begin
+               if (ioctl_addr[14]) cart_int_rom[1] <= 1;
+               if (ioctl_addr[15]) cart_int_rom[2] <= 1;
+               if (ioctl_addr[16]) cart_int_rom[3] <= 1;
+               if (ioctl_addr[17]) cart_int_rom[4] <= 1;
+               if (ioctl_addr[18]) cart_int_rom[5] <= 1;
+               if (ioctl_addr[19]) cart_int_rom[6] <= 1;
+            end
             ioctl_req_wr <= 1;
          end
       end
@@ -925,12 +930,14 @@ always @(posedge clk_sys) begin
          if (ioctl_addr == 0) begin
             ioctl_load_addr <= CRT_ADDR;
             cart_attached <= 0;
-            cart_ext_rom <= 0;
+            cart_ext_rom <= 2'h1;
             cart_c128 <= 1;
             cart_id <= 0;
          end
-         if (ioctl_addr < FRM_SIZE) begin
-            if (|ioctl_data && ~&ioctl_data) cart_ext_rom[ioctl_addr[14]] <= 1;
+         if (ioctl_addr < EFR_SIZE) begin
+            if (|ioctl_data && ~&ioctl_data) begin
+               if (ioctl_addr[14]) cart_ext_rom[1] <= 1;
+            end
             ioctl_req_wr <= 1;
          end
       end
@@ -1267,6 +1274,9 @@ wire        romL;
 wire        romH;
 wire        UMAXromH;
 
+wire [7:0]  d7port;
+wire        d7port_trig;
+
 wire [17:0] audio_l,audio_r;
 
 wire        ntsc = status[2];
@@ -1441,6 +1451,9 @@ fpga64_sid_iec #(
    .cass_motor(cass_motor),
    .cass_sense(~tape_adc_act & (use_tape ? cass_sense : cass_rtc)),
    .cass_read(tape_adc_act ? ~tape_adc : cass_read),
+
+   .d7port(d7port),
+   .d7port_trig(d7port_trig),
 
    .c128_n(c128_n),
    .z80_n(z80_n)

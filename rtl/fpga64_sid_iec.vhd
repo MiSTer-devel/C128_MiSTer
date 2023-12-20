@@ -195,6 +195,10 @@ port(
    vdcPalette  : in  unsigned(3 downto 0);
    vdcDebug    : in  std_logic;
 
+   -- D7xx port
+   d7port      : out unsigned(7 downto 0);
+   d7port_trig : out std_logic;
+
    -- System memory size
    sys256k     : in  std_logic;
 
@@ -294,6 +298,7 @@ signal cpuM1_T80    : std_logic;
 signal cpuIrq_n     : std_logic;
 signal cpuBusAk_T80_n: std_logic;
 signal io_data_i    : unsigned(7 downto 0);
+signal io7_i        : std_logic;
 signal ioe_i        : std_logic;
 signal iof_i        : std_logic;
 
@@ -702,6 +707,7 @@ port map (
    cs_mmuH => cs_mmuH,
    cs_mmuL => cs_mmuL,
    cs_vdc => cs_vdc,
+   cs_io7 => io7_i,
    cs_color => cs_color,
    cs_cia1 => cs_cia1,
    cs_cia2 => cs_cia2,
@@ -1086,6 +1092,26 @@ begin
 end process;
 
 -- -----------------------------------------------------------------------
+-- D7xx port
+-- -----------------------------------------------------------------------
+
+process(clk32)
+begin
+   if rising_edge(clk32) then
+      d7port_trig <= '0';
+
+      if reset = '1' then
+         d7port <= X"00";
+      elsif sysCycle = CYCLE_CPU6 then
+         if io7_i = '1' and cs_enable = '1' then
+            d7port <= cpuLastData;
+            d7port_trig <= cpuWe;
+         end if;
+      end if;
+   end if;
+end process;
+
+-- -----------------------------------------------------------------------
 -- CPU / DMA
 -- -----------------------------------------------------------------------
 cpuIrq_n <= irq_cia1 and irq_vic and irq_n and irq_ext_n;
@@ -1155,7 +1181,7 @@ t80_cyc <= '1' when
 cpuCycT80 <= t80_cyc;
 
 -- I/O access to any of these chips starts a 8502 clock stretched cycle in 2 MHz mode
-cs_io <= cs_vic or cs_sid or cs_mmuL or cs_vdc or cs_cia1 or cs_cia2 or ioe_i or iof_i or cpuIO_T80;
+cs_io <= cs_vic or cs_sid or cs_mmuL or cs_vdc or cs_cia1 or cs_cia2 or io7_i or ioe_i or iof_i or cpuIO_T80;
 cs_enable <= cpuBusAk_T80_n or (io_enable and (baLoc or cpuWe));
 
 -- Last data bus activity of the CPU

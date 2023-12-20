@@ -18,6 +18,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - **VIC register $D030 video manipulation tricks** (used in some demos, e.g. RfO part 1)
 - **VDC with 16k or 64k RAM and multiple colour palettes**.
 - Almost all C64 **and C128** cartridge formats (\*.CRT).
+- **Internal Function ROM support for ROMs up to 1Mb with MegaBit 128 support**
 - Direct file injection (\*.PRG) **with detection of C128 or C64 mode**.
 - Dual SID with several degree of mixing 6581/8580 from stereo to mono.
 - Similar to 6581 and 8580 SID filters.
@@ -62,8 +63,8 @@ To boot using rom files, a `boot0.rom` and `boot1.rom` file need to be placed in
 Each drive's ROM is repeated twice in `boot1.rom`. The first ROM is used for drive 8, the second for drive 9. This makes it possible to use different ROMs in the two drives. The 1541 ROM is 16k and needs to be repeated 4 times to fill the 64k space.
 
 There are two optional boot roms:
-* `boot2.rom` for the optional Internal Function ROM (16 or 32k)
-* `boot3.rom` for the optional External Function ROM (16 or 32k) 
+* `boot2.rom` for the optional Internal Function ROM (up to 1Mb with MegaBit 128 support)
+* `boot3.rom` for the optional External Function ROM (16 or 32k)
   * This is different from a cartridge (`.CRT`) file, it should be a plain ROM image without the cartridge headers
 
 #### Using MRA files
