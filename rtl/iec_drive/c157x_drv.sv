@@ -82,17 +82,20 @@ assign led = act | sd_busy;
 
 reg        readonly = 0;
 reg        disk_present = 0;
-reg [23:0] ch_timeout;
+reg [24:0] ch_timeout;
 always @(posedge clk) begin
 	reg old_mounted;
+	reg present = 0;
 
 	if(ce && ch_timeout > 0) ch_timeout <= ch_timeout - 1'd1;
+	if(!ch_timeout) disk_present <= present;
 
 	old_mounted <= img_mounted;
 	if (~old_mounted & img_mounted) begin
 		ch_timeout <= '1;
 		readonly <= img_readonly;
-		disk_present <= |img_size;
+		present <= |img_size;
+		disk_present <= 0;
 	end
 end
 
@@ -157,7 +160,7 @@ c157x_logic #(.DRIVE(DRIVE)) c157x_logic
 	.par_stb_out(par_stb_o),
 
 	// drive signals
-	.wps_n(~readonly ^ ch_timeout[22]),
+	.wps_n(~readonly ^ ch_timeout[23]),
 	.act(act),
 	.side(side),
 	.mode(mode),
