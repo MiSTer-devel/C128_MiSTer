@@ -39,10 +39,10 @@ always @(posedge clk) begin
 
    if (mode && luma) begin
       case(counter[4:1])
-         15     : adj = mode == 1 ? 4'd3 : mode == 2 ? 4'd3 : 4'd5;
-         0      : adj = mode == 1 ? 4'd6 : mode == 2 ? 4'd8 : 4'd11;
-         1      : adj = mode == 1 ? 4'd1 : mode == 2 ? 4'd5 : 4'd7;
-         2      : adj = mode == 1 ? 4'd0 : mode == 2 ? 4'd1 : 4'd2;
+         11     : adj = mode == 1 ? 4'd3 : mode == 2 ? 4'd3 : 4'd5;
+         12     : adj = mode == 1 ? 4'd6 : mode == 2 ? 4'd8 : 4'd11;
+         13     : adj = mode == 1 ? 4'd1 : mode == 2 ? 4'd5 : 4'd7;
+         14     : adj = mode == 1 ? 4'd0 : mode == 2 ? 4'd1 : 4'd2;
          default: adj = 4'd0;
       endcase
 

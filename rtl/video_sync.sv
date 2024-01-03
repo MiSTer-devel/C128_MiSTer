@@ -104,8 +104,8 @@ always @(posedge clk32) begin
          if (line_count == vres-287) vblank <= 0;
 
          if (!wide) begin
-            if (dot_count == (hres-43)-hshift_r50) hblank <= 1;
-            if (dot_count == 436-hshift_l50)       hblank <= 0;
+            if (dot_count == (hres-59)-hshift_r50) hblank <= 1;
+            if (dot_count == 428-hshift_l50)       hblank <= 0;
          end
          else begin
             if (dot_count == (hres-151)-hshift_r50) hblank <= 1;

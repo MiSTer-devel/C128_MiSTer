@@ -82,6 +82,7 @@ port(
    turbo_mode  : in  std_logic_vector(2 downto 0);
 
    -- VGA/SCART interface
+   vic_variant : in  std_logic_vector(1 downto 0);
    ntscMode    : in  std_logic;
    vicJailbars : in  std_logic_vector(1 downto 0);
 
@@ -768,14 +769,12 @@ port map (
    ba => baLoc,
    ba_dma => ba_dma,
 
-	mode6569 => pure64 and (not ntscMode),
+	mode6569 => not ntscMode,
 	mode6567old => '0',
-	mode6567R8 => pure64 and ntscMode,
+	mode6567R8 => ntscMode,
 	mode6572 => '0',
-
-   mode8564 => not pure64 and ntscMode,
-   mode8566 => not pure64 and (not ntscMode),
-   mode8569 => '0',
+   variant => vic_variant,
+   vic2e => not pure64,
 
    turbo_en => not pure64,
    turbo_state => turbo_state,

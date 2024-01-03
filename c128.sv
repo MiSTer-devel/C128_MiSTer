@@ -193,7 +193,7 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXxxXXXXXX XXXXXXXXX XX  X  XXXXXXXxxxXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXX XX  X  XXXXXXXxxxXXXXXXXXXXXX
 
 //                                      1         1         1
 // 6     7         8         9          0         1         2
@@ -231,7 +231,8 @@ localparam CONF_STR = {
 	"d1P1O[32],Vertical Crop,No,Yes;",
 	"P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
    "P1-;",
-   "P1O[95:94],VIC Jailbars,Off,Low,Medium,High;",
+   "hDP1O[35:34],VIC-II variant,656x,856x,Early 856x;",
+   "P1O[95:94],VIC-II Jailbars,Off,Low,Medium,High;",
    "HAP1-;",
    "HAP1O[81:80],VDC Model,Auto,8563R9,8568;",
 `ifndef REDUCE_VDC_RAM
@@ -272,7 +273,7 @@ localparam CONF_STR = {
 	"P2O[51],RS232 mode,UP9600,VIC-1011;",
 	"P2O[33],RS232 connection,Internal,External;",
 	"P2O[36],Real-Time Clock,Auto,Disabled;",
-   "P2O[46:45],CIA Model,Auto,6526,8521;",
+   "P2O[46:45],CIA,Auto,6526,8521;",
    "P2-;",
 	"P2O[27:26],Pot 1/2,Joy 1 Fire 2/3,Mouse,Paddles 1/2;",
 	"P2O[29:28],Pot 3/4,Joy 2 Fire 2/3,Mouse,Paddles 3/4;",
@@ -497,6 +498,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 
    .status(status),
    .status_menumask({
+      /* D */ pure64,
       /* C */ |cart_int_rom,
       /* B */ |{cart_attached, cart_ext_rom},
       /* A */ cfg_force64,
@@ -1346,6 +1348,7 @@ fpga64_sid_iec #(
    .ramCE(ram_ce),
    .ramWE(ram_we),
 
+   .vic_variant(pure64 ? status[35:34] : 2'b01),
    .ntscmode(ntsc),
    .vicJailbars(status[95:94]),
 
