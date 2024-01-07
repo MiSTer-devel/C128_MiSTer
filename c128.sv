@@ -219,17 +219,17 @@ localparam CONF_STR = {
    "-;",
    "F2,PRGCRTREUTAP;",
    "h3-;",
-	"h3R[7],Tape Play/Pause;",
-	"h3R[23],Tape Unload;",
-	"h3O[11],Tape Sound,Off,On;",
+   "h3R[7],Tape Play/Pause;",
+   "h3R[23],Tape Unload;",
+   "h3O[11],Tape Sound,Off,On;",
    "-;",
 
    "P1,Audio & Video;",
-	"P1O[2],Video Standard,PAL,NTSC;",
-	"P1O[5:4],Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
-	"P1O[10:8],Scandoubler Fx,None,HQ2x-320,HQ2x-160,CRT 25%,CRT 50%,CRT 75%;",
-	"d1P1O[32],Vertical Crop,No,Yes;",
-	"P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
+   "P1O[2],Video Standard,PAL,NTSC;",
+   "P1O[5:4],Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
+   "P1O[10:8],Scandoubler Fx,None,HQ2x-320,HQ2x-160,CRT 25%,CRT 50%,CRT 75%;",
+   "d1P1O[32],Vertical Crop,No,Yes;",
+   "P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
    "P1-;",
    "hDP1O[35:34],VIC-II variant,656x,856x,Early 856x;",
    "P1O[95:94],VIC-II Jailbars,Off,Low,Medium,High;",
@@ -241,65 +241,65 @@ localparam CONF_STR = {
    "HAP1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
    "HAh2P1O[90:89],VDC colour,White,Green,Amber,Red;",
    "P1-;",
-	"P1O[14:13],Left SID,Auto,6581,8580;",
-	"P1O[16:15],Right SID,Auto,6581,8580;",
-	"D4P1O[66:64],Left Filter,Default,Custom 1,Custom 2,Custom 3,Adjustable;",
-	"D5P1O[69:67],Right Filter,Default,Custom 1,Custom 2,Custom 3,Adjustable;",
-	"D4D8P1O[72:70],Left Fc Offset,0,1,2,3,4,5;",
-	"D5D9P1O[75:73],Right Fc Offset,0,1,2,3,4,5;",
+   "P1O[14:13],Left SID,Auto,6581,8580;",
+   "P1O[16:15],Right SID,Auto,6581,8580;",
+   "D4P1O[66:64],Left Filter,Default,Custom 1,Custom 2,Custom 3,Adjustable;",
+   "D5P1O[69:67],Right Filter,Default,Custom 1,Custom 2,Custom 3,Adjustable;",
+   "D4D8P1O[72:70],Left Fc Offset,0,1,2,3,4,5;",
+   "D5D9P1O[75:73],Right Fc Offset,0,1,2,3,4,5;",
    "P1O[21:20],Right SID Port,Same,D420,DE00,DF00;",
    "P1FC7,FLT,Load Custom Filters;",
    "P1-;",
-	"P1O[12],Sound Expander,Disabled,OPL2;",
-	"P1O[41:40],DigiMax,Disabled,DE00,DF00;",
-	"P1O[19:18],Stereo Mix,None,25%,50%,100%;",
+   "P1O[12],Sound Expander,Disabled,OPL2;",
+   "P1O[41:40],DigiMax,Disabled,DE00,DF00;",
+   "P1O[19:18],Stereo Mix,None,25%,50%,100%;",
 
    "P2,Hardware;",
    "HAP2O[93],C64 mode,C128 extensions,Pure C64;",
    "HAP2-;",
-	"P2O[58:57],Enable Drive #8,If Mounted,Always,Never;",
-	"P2O[56:55],Enable Drive #9,If Mounted,Always,Never;",
+   "P2O[58:57],Enable Drive #8,If Mounted,Always,Never;",
+   "P2O[56:55],Enable Drive #9,If Mounted,Always,Never;",
    "D7P2O[84:83],Drive #8 5.25\" model,Auto,1541,1571;",
    "D0P2O[86:85],Drive #9 5.25\" model,Auto,1541,1571;",
-	"P2O[44],Parallel port,Enabled,Disabled;",
-	"P2O[25],External IEC,Disabled,Enabled;",
-	"P2R[6],Reset Disk Drives;",
+   "P2O[44],Parallel port,Enabled,Disabled;",
+   "P2O[25],External IEC,Disabled,Enabled;",
+   "P2R[6],Reset Disk Drives;",
    "P2-;",
    "HAP2O[87],Internal memory,128K,256K;",
-	"P2O[52],GeoRAM,Disabled,4MB;",
-	"P2O[54:53],REU,Disabled,512KB,2MB (512KB wrap),16MB;",
+   "P2O[52],GeoRAM,Disabled,4MB;",
+   "P2O[54:53],REU,Disabled,512KB,2MB (512KB wrap),16MB;",
    "P2-;",
-	"P2O[43],Expansion,Joysticks,RS232;",
-	"P2O[51],RS232 mode,UP9600,VIC-1011;",
-	"P2O[33],RS232 connection,Internal,External;",
-	"P2O[36],Real-Time Clock,Auto,Disabled;",
+   "P2O[43],Expansion,Joysticks,RS232;",
+   "P2O[51],RS232 mode,UP9600,VIC-1011;",
+   "P2O[33],RS232 connection,Internal,External;",
+   "P2O[36],Real-Time Clock,Auto,Disabled;",
    "P2O[46:45],CIA,Auto,6526,8521;",
    "P2-;",
-	"P2O[27:26],Pot 1/2,Joy 1 Fire 2/3,Mouse,Paddles 1/2;",
-	"P2O[29:28],Pot 3/4,Joy 2 Fire 2/3,Mouse,Paddles 3/4;",
-	"P2-;",
-	"P2O[60:59],Key modifier,L+R Shift,L Shift,R Shift;",
+   "P2O[27:26],Pot 1/2,Joy 1 Fire 2/3,Mouse,Paddles 1/2;",
+   "P2O[29:28],Pot 3/4,Joy 2 Fire 2/3,Mouse,Paddles 3/4;",
+   "P2-;",
+   "P2O[60:59],Key modifier,L+R Shift,L Shift,R Shift;",
    "HAP2O[97:96],Caps Lock mode,Auto,Caps Lock,ASCII/DIN;",
-	"P2-;",
-	"P2O[1],Release Keys on Reset,Yes,No;",
-	"P2O[24],Clear RAM on Reset,Yes,No;",
-	"P2O[50],Reset & Run PRG,Yes,No;",
-	"P2O[42],Pause When OSD is Open,No,Yes;",
-	"P2O[39],Tape Autoplay,Yes,No;",
+   "P2-;",
+   "P2O[1],Release Keys on Reset,Yes,No;",
+   "P2O[24],Clear RAM on Reset,Yes,No;",
+   "P2O[50],Reset & Run PRG,Yes,No;",
+   "P2O[42],Pause When OSD is Open,No,Yes;",
+   "P2O[39],Tape Autoplay,Yes,No;",
    "P2-;",
    "P2FC3,ROMBIN,System ROMs                 ;",
    "P2FC4,ROMBIN,Drive ROMs                  ;",
    "HAP2FC6,ROMBIN,Internal Function ROM      ;",
    "P2FC5,CRT,Boot Cartridge              ;",
    "-;",
-	"O[3],Swap Joysticks,No,Yes;",
+   "O[3],Swap Joysticks,No,Yes;",
    "-;",
-	"O[49:48],8502 Speed,Standard,x2,x3,x4;",
+   "O[49:48],8502 Speed,Standard,x2,x3,x4;",
    "HAO[101],Z80 Speed,Standard,x2;",
    "-;",
-	"R[0],Reset;",
-	"hBR[17],Reset & Remove Cartridge;",
    "HAhCR[82],Reset & Remove Int.Func.ROM;",
+   "hBR[17],Reset & Remove Cartridge;",
+   "R[0],Reset;",
    "J,Fire 1,Fire 2,Fire 3,Paddle Btn,Mod1,Mod2;",
    "jn,A,B,Y,X|P,R,L;",
    "jp,A,B,Y,X|P,R,L;",
@@ -499,8 +499,8 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .status(status),
    .status_menumask({
       /* D */ pure64,
-      /* C */ |cart_int_rom,
-      /* B */ |{cart_attached, cart_ext_rom},
+      /* C */ ifr_attached,
+      /* B */ cart_attached,
       /* A */ cfg_force64,
       /* 9 */ ~status[69],
       /* 8 */ ~status[66],
@@ -552,7 +552,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 );
 
 function auto_config;
-   input [1:0] st; 
+   input [1:0] st;
    input       cfg;
    begin
       return |st ? st[1] : cfg;
@@ -597,7 +597,7 @@ wire load_efr = ioctl_index == {2'd3, 6'd0};                           // boot3.
 wire load_cfg = ioctl_index == {2'd0, 6'd1};                           // MRA index 1
 wire load_prg = ioctl_index == {2'd0, 6'd2};                           // OSD "load *.PRG"
 wire load_crt = ioctl_index == {2'd1, 6'd2} || ioctl_index[5:0] == 5;  // OSD "load *.CRT" or "Boot Cartridge"
-wire load_reu = ioctl_index == {2'd2, 6'd2};                           // OSD "load *.REU" 
+wire load_reu = ioctl_index == {2'd2, 6'd2};                           // OSD "load *.REU"
 wire load_tap = ioctl_index == {2'd3, 6'd2};                           // OSD "load *.TAP"
 wire load_flt = ioctl_index[5:0] == 7;                                 // OSD "load Custom Filters"
 
@@ -785,14 +785,12 @@ reg  [7:0] io_cycle_data;
 
 reg  [6:0] cart_int_rom = 0;
 reg  [1:0] cart_ext_rom = 0;
+reg        ifr_attached = 0;
 reg        rom_loading, rom_loaded = 0;
 reg        drv_loading, drv_loaded = 0;
 
-wire       rom_download = rom_loading & ioctl_download;
-wire       drv_download = drv_loading & ioctl_download;
-
 // SDRAM layout
-// -- all blocks must be aligned on that block's size boundaries unless specified otherwise, 
+// -- all blocks must be aligned on that block's size boundaries unless specified otherwise,
 //    so a 64k block must start at a 64k boundary, etc.
 localparam RAM_ADDR = 25'h0000000;  // System RAM: 256k
 localparam CRM_ADDR = 25'h0040000;  // Cartridge RAM: 64k
@@ -809,13 +807,15 @@ localparam DRV_SIZE = 25'h0030000;  // max size of boot1.rom
 localparam EFR_SIZE = 25'h0008000;  // max size of external function rom
 localparam IFR_SIZE = 25'h0100000;  // max size of internal function rom
 
-wire skip_rom = bootrom ? (
-      (                                   ioctl_addr < ROM_SIZE                   && rom_loaded)
-   // || (ioctl_addr >= IFR_ADDR-ROM_ADDR && ioctl_addr < IFR_ADDR-ROM_ADDR+EFR_SIZE && |cart_int_rom)
-   || (ioctl_addr >= DRV_ADDR-ROM_ADDR && ioctl_addr < DRV_ADDR-ROM_ADDR+DRV_SIZE && drv_loaded)
-   || (ioctl_addr >= CRT_ADDR-ROM_ADDR && ioctl_addr < CRT_ADDR-ROM_ADDR+EFR_SIZE && (cart_attached || |cart_ext_rom))
-   || (ioctl_addr >= CRT_ADDR-ROM_ADDR+EFR_SIZE)
-) : (ioctl_addr >= ROM_SIZE);
+// MRA layout
+localparam MRA_ROM_START = 25'h0;
+localparam MRA_ROM_END   = MRA_ROM_START+ROM_SIZE;
+localparam MRA_DRV_START = MRA_ROM_END;
+localparam MRA_DRV_END   = MRA_DRV_START+DRV_SIZE;
+localparam MRA_EFR_START = MRA_ROM_START+CRT_ADDR-ROM_ADDR;
+localparam MRA_EFR_END   = MRA_EFR_START+EFR_SIZE;
+localparam MRA_IFR_START = MRA_EFR_END;
+localparam MRA_IFR_END   = MRA_IFR_START+IFR_SIZE;
 
 always @(posedge clk_sys) begin
    reg  [4:0] erase_to;
@@ -826,20 +826,11 @@ always @(posedge clk_sys) begin
    reg [15:0] inj_end;
    reg  [7:0] inj_meminit_data;
    reg        prg_reseting;
-   reg        rom_download_d;
-   reg        drv_download_d;
+   reg        ioctl_ignore;
 
    old_download <= ioctl_download;
    io_cycleD <= io_cycle;
    cart_hdr_wr <= 0;
-
-   rom_download_d <= rom_download;
-   if (rom_download_d && !rom_download)
-      rom_loading <= 0;
-   
-   drv_download_d <= drv_download;
-   if (drv_download_d && !drv_download)
-      drv_loading <= 0;
 
    if (~io_cycle & io_cycleD) begin
       io_cycle_ce <= 1;
@@ -852,47 +843,82 @@ always @(posedge clk_sys) begin
 
       if (ioctl_req_wr) begin
          ioctl_req_wr <= 0;
-         io_cycle_we <= 1;
-         io_cycle_addr <= ioctl_load_addr;
          ioctl_load_addr <= ioctl_load_addr + 1'b1;
-         if (erasing) io_cycle_data <= {8{ioctl_load_addr[6]}};
-         else if (inj_meminit) io_cycle_data <= inj_meminit_data;
-         else io_cycle_data <= ioctl_data;
+         if (!load_rom || !ioctl_ignore) begin
+            io_cycle_we <= 1;
+            io_cycle_addr <= ioctl_load_addr;
+            if (erasing) io_cycle_data <= {8{ioctl_load_addr[6]}};
+            else if (inj_meminit) io_cycle_data <= inj_meminit_data;
+            else io_cycle_data <= ioctl_data;
+         end
       end
    end
 
    if (io_cycle & io_cycleD) {io_cycle_ce, io_cycle_we} <= 0;
 
    if (ioctl_wr) begin
-      if (load_rom && !skip_rom) begin
-         if (ioctl_addr == 0) begin
-            rom_loading <= 1;
-            rom_loaded <= 0;
+      if (load_rom) begin
+         if (ioctl_addr == MRA_ROM_START) begin
+            ioctl_load_addr <= ROM_ADDR;
+            if (bootrom && rom_loaded) begin
+               ioctl_ignore = 1;
+            end
+            else begin
+               ioctl_ignore = 0;
+               rom_loaded <= 0;
+               rom_loading <= 1;
+            end
          end
 
-         if (ioctl_addr == ROM_SIZE-1)
-            rom_loaded <= 1;
+         if (ioctl_addr == MRA_ROM_END)
+            ioctl_ignore = 1;
 
-         if (ioctl_addr == DRV_ADDR-ROM_ADDR) begin
-            drv_loading <= 1;
-            drv_loaded <= 0;
+         if (ioctl_addr == MRA_DRV_START && bootrom) begin
+            ioctl_load_addr <= DRV_ADDR;
+            ioctl_ignore = drv_loaded;
+            drv_loading <= ~drv_loaded;
          end
 
-         if (ioctl_addr == DRV_ADDR-ROM_ADDR+DRV_SIZE-1)
-            drv_loaded <= 1;
+         if (ioctl_addr == MRA_DRV_END)
+            ioctl_ignore = 1;
 
-         if (ioctl_addr == CRT_ADDR-ROM_ADDR) begin
-            cart_attached <= 0;
-            cart_ext_rom <= 0;
-            cart_c128 <= 1;
-            cart_id <= 0;
+         if (ioctl_addr == MRA_EFR_START && bootrom) begin
+            ioctl_load_addr <= CRT_ADDR;
+            ioctl_ignore = cart_attached;
+            if (!cart_attached) begin
+               cart_ext_rom <= 0;
+               cart_c128 <= 1;
+               cart_id <= 0;
+            end
          end
 
-         if (|ioctl_data && ~&ioctl_data) begin
-            if (ioctl_addr[24:15] == {10'((CRT_ADDR-ROM_ADDR)>>15)}) cart_ext_rom[ioctl_addr[14]] <= 1;
+         if (ioctl_addr == MRA_EFR_END)
+            ioctl_ignore = 1;
+
+         if (ioctl_addr == MRA_IFR_START && bootrom) begin
+            ioctl_load_addr <= IFR_ADDR;
+            ioctl_ignore = ifr_attached;
+            if (!ifr_attached) begin
+               cart_int_rom <= 0;
+            end
          end
 
-         ioctl_load_addr <= ioctl_addr + ROM_ADDR;
+         if (ioctl_addr == MRA_IFR_END)
+            ioctl_ignore = 1;
+
+         if (|ioctl_data && ~&ioctl_data && !ioctl_ignore) begin
+            if (ioctl_addr >= MRA_EFR_START              && ioctl_addr < MRA_EFR_END) cart_ext_rom[0] <= 1;
+            if (ioctl_addr >= MRA_EFR_START + 25'h004000 && ioctl_addr < MRA_EFR_END) cart_ext_rom[1] <= 1;
+
+            if (ioctl_addr >= MRA_IFR_START              && ioctl_addr < MRA_IFR_END) cart_int_rom[0] <= 1;
+            if (ioctl_addr >= MRA_IFR_START + 25'h004000 && ioctl_addr < MRA_IFR_END) cart_int_rom[1] <= 1;
+            if (ioctl_addr >= MRA_IFR_START + 25'h008000 && ioctl_addr < MRA_IFR_END) cart_int_rom[2] <= 1;
+            if (ioctl_addr >= MRA_IFR_START + 25'h010000 && ioctl_addr < MRA_IFR_END) cart_int_rom[3] <= 1;
+            if (ioctl_addr >= MRA_IFR_START + 25'h020000 && ioctl_addr < MRA_IFR_END) cart_int_rom[4] <= 1;
+            if (ioctl_addr >= MRA_IFR_START + 25'h040000 && ioctl_addr < MRA_IFR_END) cart_int_rom[5] <= 1;
+            if (ioctl_addr >= MRA_IFR_START + 25'h080000 && ioctl_addr < MRA_IFR_END) cart_int_rom[6] <= 1;
+         end
+
          ioctl_req_wr <= 1;
       end
 
@@ -903,9 +929,6 @@ always @(posedge clk_sys) begin
             drv_loaded <= 0;
          end
 
-         if (ioctl_addr == DRV_SIZE-1)
-            drv_loaded <= 1;
-
          if (ioctl_addr < DRV_SIZE)
             ioctl_req_wr <= 1;
       end
@@ -913,35 +936,38 @@ always @(posedge clk_sys) begin
       if (load_ifr) begin
          if (ioctl_addr == 0) begin
             ioctl_load_addr <= IFR_ADDR;
-            cart_int_rom <= 7'h1;
+            ifr_attached <= 0;
+            cart_int_rom <= 7'b1;
          end
-         if (ioctl_addr < IFR_SIZE) begin
-            if (|ioctl_data && ~&ioctl_data) begin
-               if (ioctl_addr[14]) cart_int_rom[1] <= 1;
-               if (ioctl_addr[15]) cart_int_rom[2] <= 1;
-               if (ioctl_addr[16]) cart_int_rom[3] <= 1;
-               if (ioctl_addr[17]) cart_int_rom[4] <= 1;
-               if (ioctl_addr[18]) cart_int_rom[5] <= 1;
-               if (ioctl_addr[19]) cart_int_rom[6] <= 1;
-            end
+
+         if (ioctl_addr < IFR_SIZE && |ioctl_data && ~&ioctl_data) begin
+            if (ioctl_addr[14]) cart_int_rom[1:0] <= ~0;
+            if (ioctl_addr[15]) cart_int_rom[2:0] <= ~0;
+            if (ioctl_addr[16]) cart_int_rom[3:0] <= ~0;
+            if (ioctl_addr[17]) cart_int_rom[4:0] <= ~0;
+            if (ioctl_addr[18]) cart_int_rom[5:0] <= ~0;
+            if (ioctl_addr[19]) cart_int_rom[6:0] <= ~0;
+         end
+
+         if (ioctl_addr < IFR_SIZE)
             ioctl_req_wr <= 1;
-         end
       end
 
       if (load_efr) begin
          if (ioctl_addr == 0) begin
             ioctl_load_addr <= CRT_ADDR;
             cart_attached <= 0;
-            cart_ext_rom <= 2'h1;
+            cart_ext_rom <= 2'b1;
             cart_c128 <= 1;
             cart_id <= 0;
          end
-         if (ioctl_addr < EFR_SIZE) begin
-            if (|ioctl_data && ~&ioctl_data) begin
-               if (ioctl_addr[14]) cart_ext_rom[1] <= 1;
-            end
-            ioctl_req_wr <= 1;
+
+         if (ioctl_addr < EFR_SIZE && |ioctl_data && ~&ioctl_data) begin
+            if (ioctl_addr[14]) cart_ext_rom[1:0] <= ~0;
          end
+
+         if (ioctl_addr < EFR_SIZE)
+            ioctl_req_wr <= 1;
       end
 
       if (load_cfg) begin
@@ -1000,7 +1026,7 @@ always @(posedge clk_sys) begin
                      ioctl_load_addr[12:0] <= 0;
                      ioctl_load_addr[24:13] <= ioctl_load_addr[24:13] + 1'b1;
                   end
-            end 
+            end
             else if (cart_hdr_cnt != 0) begin
                cart_hdr_cnt <= cart_hdr_cnt + 1'b1;
                if (cart_hdr_cnt == 4)  cart_blk_len[31:24]  <= ioctl_data;
@@ -1037,9 +1063,23 @@ always @(posedge clk_sys) begin
       end
    end
 
-   if (old_download && !ioctl_download && (load_rom || load_efr || load_crt)) begin
-      cart_attached <= |cart_ext_rom;
-      erase_cram <= |cart_ext_rom;
+   if (old_download && !ioctl_download) begin
+      rom_loading <= 0;
+      drv_loading <= 0;
+
+      if (load_rom && ioctl_addr >= ROM_SIZE && rom_loading) begin
+         rom_loaded <= 1;
+      end
+      if (((load_rom && ioctl_addr >= MRA_DRV_END) || (load_drv && ioctl_addr >= DRV_SIZE)) && drv_loading) begin
+         drv_loaded <= 1;
+      end
+      if (load_rom || load_crt || load_efr) begin
+         erase_cram <= |cart_ext_rom;
+         cart_attached <= |cart_ext_rom;
+      end
+      if (load_rom || load_ifr) begin
+         ifr_attached <= |cart_int_rom;
+      end
    end
 
    // Wait for PRG reset to finish
@@ -1129,6 +1169,7 @@ always @(posedge clk_sys) begin
    end
 
    if (status[82]) begin
+      ifr_attached <= 0;
       cart_int_rom <= 0;
    end
 
@@ -1334,7 +1375,7 @@ fpga64_sid_iec #(
    .go64(go64),
    .ps2_key(key),
    .kbd_reset((~reset_n & ~status[1]) | reset_keys),
-	.shift_mod(~status[60:59]),
+   .shift_mod(~status[60:59]),
    .cpslk_mode(cpslk_mode),
    .sftlk_sense(sftlk_sense),
    .cpslk_sense(cpslk_sense),
@@ -1421,9 +1462,9 @@ fpga64_sid_iec #(
    .sid_mode(status[21:20]),
    .sid_filter(2'b11),
    .sid_ver(sidVersion),
-	.sid_cfg({status[68:67],status[65:64]}),
-	.sid_fc_off_l(status[66] ? (13'h600 - {status[72:70],7'd0}) : 13'd0),
-	.sid_fc_off_r(status[69] ? (13'h600 - {status[75:73],7'd0}) : 13'd0),
+   .sid_cfg({status[68:67],status[65:64]}),
+   .sid_fc_off_l(status[66] ? (13'h600 - {status[72:70],7'd0}) : 13'd0),
+   .sid_fc_off_r(status[69] ? (13'h600 - {status[75:73],7'd0}) : 13'd0),
    .audio_l(audio_l),
    .audio_r(audio_r),
 
