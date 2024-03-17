@@ -206,14 +206,6 @@ assign VGA_SCALER = 0;
 `include "build_id.v"
 localparam CONF_STR = {
    "C128;UART9600:2400;",
-   // XXXXXXXXXXXXXXXXXXXXXXXXXXXX
-`ifdef VDC_XRAY
-   "HAO[127],VDC XRay,Off,On;",
-   "HA-;",
-`endif
-   "HAO[100:99],Video out,Follow 40/80,VIC,VDC;",
-   "HAO[98],40/80 Display,40 col,80 col;",
-   "HA-;",
    "H7S0,D64G64D71G71D81T64,Mount #8                    ;",
    "H0S1,D64G64D71G71D81T64,Mount #9                    ;",
    "-;",
@@ -225,7 +217,11 @@ localparam CONF_STR = {
    "-;",
 
    "P1,Audio & Video;",
+   "HAP1O[100:99],Video out,Follow 40/80,VIC,VDC;",
+   "HAP1O[98],40/80 Display,40 col,80 col;",
+   "HAP1-;",
    "P1O[2],Video Standard,PAL,NTSC;",
+   "P1-;",
    "P1O[5:4],Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
    "P1O[10:8],Scandoubler Fx,None,HQ2x-320,HQ2x-160,CRT 25%,CRT 50%,CRT 75%;",
    "d1P1O[32],Vertical Crop,No,Yes;",
@@ -235,6 +231,9 @@ localparam CONF_STR = {
    "P1O[95:94],VIC-II Jailbars,Off,Low,Medium,High;",
    "HAP1-;",
    "HAP1O[81:80],VDC Model,Auto,8563R9,8568;",
+`ifdef VDC_XRAY
+   "HAP1O[127],VDC XRay,Off,On;",
+`endif
 `ifndef REDUCE_VDC_RAM
    "HAH6P1O[88],VDC memory,16k,64k;",
 `endif
