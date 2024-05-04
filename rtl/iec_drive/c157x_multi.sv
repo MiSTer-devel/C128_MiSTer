@@ -29,6 +29,7 @@ module c157x_multi #(parameter PARPORT=1,DRIVES=2)
 	input   [N:0] img_mfm,
 
 	output  [N:0] led,
+	output		  disk_ready,
 
 	input         iec_atn_i,
 	input         iec_data_i,
@@ -180,7 +181,7 @@ end
 // always @(posedge clk) begin
 // 	reg [2:0] state;
 // 	reg [14:0] mem_d;
-	
+
 // 	if(~&state)  state <= state + 1'd1;
 // 	if(ph2_f[1]) state <= 0;
 
@@ -210,6 +211,9 @@ end
 wire [N:0] led_drv;
 assign     led = led_drv & ~reset_drv;
 
+wire [N:0] i_disk_ready;
+assign     disk_ready = &(i_disk_ready | reset_drv);
+
 generate
 	genvar i;
 	for(i=0; i<NDR; i=i+1) begin :drives
@@ -232,6 +236,7 @@ generate
 			.img_mfm(img_mfm[i]),
 
 			.led(led_drv[i]),
+			.disk_ready(i_disk_ready[i]),
 
 			.iec_atn_i(iec_atn),
 			.iec_data_i(iec_data & iec_data_o),

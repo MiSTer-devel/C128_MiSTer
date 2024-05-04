@@ -21,7 +21,9 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
    input         img_readonly,
    input  [31:0] img_size,
    input   [3:0] img_type,
+
    output  [N:0] led,
+   output        disk_ready,
 
    input         iec_atn_i,
    input         iec_data_i,
@@ -66,7 +68,7 @@ reg [N:0] img_gcr;       // gcr enabled disk image (d64/g64/d71/g71)
 reg [N:0] img_mfm;       // mfm enabled disk image (g64/g71)
 reg [N:0] img_hd;        // HD (3.5") disk image (d81)
 reg [3:0] rom_bank[NDR]; // ROM bank selector
-always @(posedge clk_sys) 
+always @(posedge clk_sys)
    for(int i=0; i<NDR; i=i+1) begin
       if(img_mounted[i] && img_size)
          {img_hd[i], img_mfm[i], img_gcr[i], img_ds[i]} = img_type;
@@ -75,7 +77,7 @@ always @(posedge clk_sys)
          rom_bank[i] = 4'((2*NDR)+i);  // 1581 ROM
       else if (drv_mode[i] == 2'b00)
          rom_bank[i] = 4'((0*NDR)+i);  // 1541 ROM
-      else 
+      else
          rom_bank[i] = 4'((1*NDR)+i);  // 1571 ROM
    end
 
@@ -165,6 +167,7 @@ c157x_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c157x
    .iec_fclk_o(c157x_iec_fclk),
 
    .led(c157x_led),
+   .disk_ready(disk_ready),
 
    .par_data_i(par_data_i),
    .par_stb_i(par_stb_i),

@@ -35,6 +35,8 @@ module c157x_drv #(parameter DRIVE)
 	input         img_mounted,
 	input         img_readonly,
 	input  [31:0] img_size,
+	output reg    disk_ready,
+
 	input         img_ds,
 	input         img_gcr,
 	input         img_mfm,
@@ -89,6 +91,7 @@ always @(posedge clk) begin
 
 	if(ce && ch_timeout > 0) ch_timeout <= ch_timeout - 1'd1;
 	if(!ch_timeout) disk_present <= present;
+	disk_ready <= !ch_timeout;
 
 	old_mounted <= img_mounted;
 	if (~old_mounted & img_mounted) begin
@@ -203,7 +206,7 @@ iecdrv_sync busy_sync(clk, busy, sd_busy);
 // (
 // 	.clk(clk),
 // 	.ce(ce & ~gcr_mode),
-	
+
 // 	.dout(gcr_do),
 // 	.din(gcr_di),
 // 	.mode(mode),
@@ -232,7 +235,7 @@ iecdrv_sync busy_sync(clk, busy, sd_busy);
 // 	.clk(clk),
 // 	.ce(ce /*& gcr_mode*/),
 // 	.reset(reset_drv),
-	
+
 // 	// .dout(dgcr_do),
 // 	// .din(gcr_di),
 // 	.mode(mode),
@@ -302,7 +305,7 @@ c157x_track c157x_track
 	.sd_ack(sd_ack),
 
 	.freq(freq),
-	
+
 	.save_track(save_track),
 	.change(img_mounted),
 	.track(track),
