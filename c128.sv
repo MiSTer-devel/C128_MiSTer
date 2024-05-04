@@ -194,7 +194,7 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXX XX  X  XXXXXXXxxxXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXX XX  XX XXXXXXXxxxXXXXXXXXXXXX
 
 //                                      1         1         1
 // 6     7         8         9          0         1         2
@@ -249,6 +249,7 @@ localparam CONF_STR = {
    "D4D8P1O[72:70],Left Fc Offset,0,1,2,3,4,5;",
    "D5D9P1O[75:73],Right Fc Offset,0,1,2,3,4,5;",
    "P1O[21:20],Right SID Port,Same,D420,DE00,DF00;",
+	"P1O[37],8580 Digifix,On,Off;",
    "P1FC7,FLT,Load Custom Filters;",
    "P1-;",
    "P1O[12],Sound Expander,Disabled,OPL2;",
@@ -1467,6 +1468,7 @@ fpga64_sid_iec #(
    .sid_cfg({status[68:67],status[65:64]}),
    .sid_fc_off_l(status[66] ? (13'h600 - {status[72:70],7'd0}) : 13'd0),
    .sid_fc_off_r(status[69] ? (13'h600 - {status[75:73],7'd0}) : 13'd0),
+	.sid_digifix(~status[37]),
    .audio_l(audio_l),
    .audio_r(audio_r),
 
