@@ -1,6 +1,6 @@
 /********************************************************************************
  * Commodore 128 VDC
- * 
+ *
  * for the C128 MiSTer FPGA core, by Erik Scheffers
  *
  * - timing based on the excellent analysis by @remark on the C128 forum
@@ -73,7 +73,7 @@ typedef enum bit[2:0] {RA_IDLE, RA_CHAR, RA_SCRN, RA_ATTR, RA_CPU, RA_RFSH} rAct
 cAction_t  cpuAction;
 rAction_t  ramAction;
 
-reg	       ram_rd;
+reg        ram_rd;
 reg        ram_we;
 reg [15:0] ram_addr;
 reg  [7:0] ram_di;
@@ -86,8 +86,8 @@ function [RAM_ADDR_BITS-1:0] shuffleAddr;
 begin
 	if (RAM_ADDR_BITS > 14)
 		shuffleAddr = RAM_ADDR_BITS'(
-			ena64k ? {has64k & addr[15], addr[14:9], has64k & addr[8], addr[7:0]} 
-				   : {has64k & addr[15], addr[13:8], has64k & addr[8], addr[7:0]}
+			ena64k ? {has64k & addr[15], addr[14:9], has64k & addr[8], addr[7:0]}
+			       : {has64k & addr[15], addr[13:8], has64k & addr[8], addr[7:0]}
 		);
 	else
 		shuffleAddr = RAM_ADDR_BITS'(ena64k ? {addr[14:9], addr[7:0]} : addr[13:0]);
@@ -104,7 +104,7 @@ vdcram #(8, RAM_ADDR_BITS) ram
 	.dao(ram_do)
 );
 
-wire en_rfsh = col >= reg_hd && col < reg_hd+reg_drr;
+wire en_rfsh = col >= reg_hd && col <= reg_hd+reg_drr;
 wire en_int = col < 2 || col >= reg_ht-8'd2;
 
 wire [7:0] attrlen = lastRow ? 8'd2 : reg_hd;
@@ -128,7 +128,7 @@ always @(posedge clk) begin
 	integer    i;
 
 	busy = erasing || start_erase || reset || cpuAction != CA_IDLE;
-	
+
 	ram_rd <= 0;
 	ram_we <= 0;
 
@@ -139,7 +139,7 @@ always @(posedge clk) begin
 
 		wc     <= 0;
 		wda    <= 0;
-		cda	   <= 0;
+		cda	 <= 0;
 		reg_ua <= 0;
 		reg_wc <= 0;
 		reg_da <= 0;
@@ -178,17 +178,17 @@ always @(posedge clk) begin
 
 					// Updating WC starts a COPY (from BA to UA) or FILL (to UA) for WC items
 					// Does *not* change WC or DA
-					30: begin 
+					30: begin
 						reg_wc    <= db_in;
 						wc        <= db_in;
 						cpuAction <= reg_copy ? CA_COPY0 : CA_FILL;
-					end 
+					end
 
 					// Updating DA writes databus to UA and loads next value into DA
-					31: begin 
+					31: begin
 						wda       <= db_in;
 						cpuAction <= CA_WRITE;
-					end 
+					end
 
 					// Updating BA does not change state
 					32: reg_ba[15:8] <= db_in;
@@ -214,7 +214,7 @@ always @(posedge clk) begin
 				ram_addr <= ram_addr + 16'd1;
 				ram_we   <= 1;
 			end
-		end 
+		end
 		else if (enable && endCol) begin
 			charbuf[ci] <= ramAction == RA_IDLE && debug ? 8'h00 : ram_do;
 			ci = C_LATCH_BITS'((ci + 1) % C_LATCH_WIDTH);
@@ -291,7 +291,7 @@ always @(posedge clk) begin
 				end
 
 				if (fetchRow || (reg_text && fetchLine)) begin
-					scrnaddr = (reg_text && firstLine) ? reg_ds : scrnaddr + reg_hd + reg_ai;
+					scrnaddr = (fetchFrame || (reg_text && firstLine)) ? reg_ds : scrnaddr + reg_hd + reg_ai;
 					firstLine <= 0;
 				end
 			end
@@ -329,7 +329,7 @@ always @(posedge clk) begin
 				ramAction <= RA_SCRN;
 				ram_addr  <= scrnaddr + si;
 				ram_rd    <= 1;
-			end 
+			end
 			else if (!en_int && ai < attrlen) begin
 				// fetch attribute data
 				ramAction <= RA_ATTR;

@@ -36,10 +36,6 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 
 Features marked in **bold** are unique to the C128 core, the other features are inherited from the C64 core.
 
-### Known issues
-
-- VDC non-standard high resolution modes (e.g. VGA-like modes) do not display correctly.
-
 ## Usage
 
 ### System and drive ROMs
@@ -70,7 +66,7 @@ There are two optional boot roms:
 #### Using MRA files
 *(Experimental)*
 
-MRA files make it possible to create multiple ROM configurations and easily switch between them using the MiSTer interface. Each configuration will show as a separate item in the Computer cores menu. MRA files were designed for use with the arcade cores, but they also work with computer cores. 
+MRA files make it possible to create multiple ROM configurations and easily switch between them using the MiSTer interface. Each configuration will show as a separate item in the Computer cores menu. MRA files were designed for use with the arcade cores, but they also work with computer cores.
 
 The MRA file configures all system and drive roms as well as (optionally) the internal and external function ROMs. It also contains a configuration parameter that configures the "auto" choice of the CIA, SID and VDC chips and how the Caps Lock key is configured, making it possible to quickly switch between a 1985 flat C128 and a C128DCR hardware setup, the multitude of international language versions of the C128, and even a "pure" C64 mode.
 
@@ -141,7 +137,7 @@ Considering default button maps **RLDU**, **Fire1**, **Fire2**,**Fire3**, **Padd
 In the *OSD*->*Hardware* menu, internal memory size can be selected as 128K or 256K. The latter activates RAM in banks 2 and 3. C128 basic does not detect or use this memory however, so it will still show 122365 bytes free.
 
 ### Video mode
-On a C128, the <kbd>40/80 Display</kbd> switch on the keyboard selects which video mode the system will boot on, or switch to when pressing the <kbd>Run stop</kbd>+<kbd>Restore</kbd> key combination. 
+On a C128, the <kbd>40/80 Display</kbd> switch on the keyboard selects which video mode the system will boot on, or switch to when pressing the <kbd>Run stop</kbd>+<kbd>Restore</kbd> key combination.
 
 Since the MiSTer has a single video output, the video mode being shown needs to be selectable. The video output can be selected from the OSD menu or using the keyboard. Use the *OSD*->*Video Output* option to either make the video output follow the <kbd>40/80 Display</kbd> state, or select the VIC or VDC video outputs independent of the state of the <kbd>40/80 Display</kbd> switch.
 
@@ -158,7 +154,7 @@ There are four colour palettes selectable for the VDC:
 The VDC can be programmed to generate non-standard video modes that the MiSTer video scaler does not handle very well. These modes would not work with most monitors on a real C128 either. They can cause the scaler to stop working (it will usually recover when switching video output to the VIC) or produce extreme flickering on the video output.
 
 ## Cartridges
-To load a cartridge from the OSD menu it must be in .CRT format. C64 and C128 cartridges will be detected based on the CRT header and the core will start in the correct mode. 
+To load a cartridge from the OSD menu it must be in .CRT format. C64 and C128 cartridges will be detected based on the CRT header and the core will start in the correct mode.
 
 To convert a binary ROM image into a .CRT, the [cartconv](https://vice-emu.sourceforge.io/vice_15.html) tool from Vice can be used, usually like this:
 
@@ -169,7 +165,7 @@ The `-t c128` option is needed for C128 cartridges to add the header indicating 
 The `-l 0x8000` option is needed to indicate the image should be located at address $8000. Some external ROMs might need to be located at $C000, in that case `-l 0xC000` should be used.
 
 #### Autoload a Cartridge or Internal Function ROM
-In *OSD*->*Hardware* page you can choose *Boot Cartridge* or *Internal Function* ROM, so everytime the core is loaded, this cartridge or ROM will be loaded too. 
+In *OSD*->*Hardware* page you can choose *Boot Cartridge* or *Internal Function* ROM, so everytime the core is loaded, this cartridge or ROM will be loaded too.
 
 ### Turbo modes
 
@@ -181,7 +177,7 @@ Turbo mode can be enabled separately for each CPU. Turbo modes are mostly useful
 
 ### RS232
 
-Primary function of RS232 is emulated dial-up connection to old-fashioned BBS. 
+Primary function of RS232 is emulated dial-up connection to old-fashioned BBS.
 
 **Note:** Most turbo drive ROM kernals have no RS232 routines so most RS232 software don't work with these kernals!
 

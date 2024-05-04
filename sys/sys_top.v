@@ -40,7 +40,7 @@ module sys_top
 	output [23:0] HDMI_TX_D,
 	output        HDMI_TX_HS,
 	output        HDMI_TX_VS,
-	
+
 	input         HDMI_TX_INT,
 
 	//////////// SDR ///////////
@@ -493,8 +493,8 @@ always@(posedge clk_sys) begin
 
 `ifndef MISTER_DEBUG_NOHDMI
 	fb_crc <= {LFB_EN, FB_EN, FB_FMT}
-				^ FB_WIDTH[7:0]  ^ FB_WIDTH[11:8] 
-				^ FB_HEIGHT[7:0] ^ FB_HEIGHT[11:8] 
+				^ FB_WIDTH[7:0]  ^ FB_WIDTH[11:8]
+				^ FB_HEIGHT[7:0] ^ FB_HEIGHT[11:8]
 				^ arx[7:0] ^ arx[11:8] ^ arxy
 				^ ary[7:0] ^ ary[11:8];
 `endif
@@ -659,7 +659,7 @@ wire         freeze;
 `ifndef MISTER_DEBUG_NOHDMI
 wire clk_hdmi  = hdmi_clk_out;
 
-ascal 
+ascal
 #(
 	.RAMBASE(32'h20000000),
 `ifdef MISTER_SMALL_VBUF
@@ -874,7 +874,7 @@ always @(posedge clk_vid) begin
 		ary  <= ARY[11:0];
 		arxy <= ARX[12] | ARY[12];
 	end
-	
+
 	ar_md_start <= 0;
 	state <= state + 1'd1;
 	case(state)
@@ -930,7 +930,7 @@ always @(posedge clk_vid) begin
 				vmaxi <= ((HEIGHT - videoh)>>1) + videoh - 1'd1;
 			end
 	endcase
-	
+
 	hmin <= hmini;
 	hmax <= hmaxi;
 	vmin <= vmini;
@@ -974,7 +974,7 @@ always @(posedge clk_pal) begin
 
 	old_vs1 <= hdmi_vs;
 	old_vs2 <= old_vs1;
-	
+
 	if(~old_vs2 & old_vs1 & ~FB_FMT[2] & FB_FMT[1] & FB_FMT[0] & FB_EN) pal_req <= ~pal_req;
 end
 
@@ -1045,9 +1045,9 @@ always @(posedge FPGA_CLK1_50) begin
 
 	gotd  <= cfg_got;
 	gotd2 <= gotd;
-	
+
 	adj_write <= 0;
-	
+
 	custd <= cfg_custom_t;
 	custd2 <= custd;
 	if(custd2 != custd & ~gotd) begin
@@ -1177,7 +1177,7 @@ always @(posedge clk_vid) begin
 				vcnt_ll <= vcnt_l;
 			end
 			if(old_vs & ~dv_vs_osd) vcnt <= 0;
-			
+
 			if(vcnt == 1) vde <= 1;
 			if(vcnt == vsz - 3) vde <= 0;
 		end
@@ -1209,7 +1209,7 @@ assign {dv_data_osd, dv_hs_osd, dv_vs_osd, dv_cs_osd } = {vga_data_osd, vga_hs_o
 wire hdmi_tx_clk;
 `ifndef MISTER_DEBUG_NOHDMI
 cyclonev_clkselect hdmi_clk_sw
-( 
+(
 	.clkselect({1'b1, ~vga_fb & direct_video}),
 	.inclk({clk_vid, hdmi_clk_out, 2'b00}),
 	.outclk(hdmi_tx_clk)
@@ -1254,12 +1254,12 @@ always @(posedge hdmi_tx_clk) begin
 
 	reg hs,vs,de;
 	reg [23:0] d;
-	
+
 	hdmi_dv_data <= dv_data;
 	hdmi_dv_hs   <= dv_hs;
 	hdmi_dv_vs   <= dv_vs;
 	hdmi_dv_de   <= dv_de;
-	
+
 	hs <= (~vga_fb & direct_video) ? hdmi_dv_hs   : (direct_video & csync_en) ? hdmi_cs_osd : hdmi_hs_osd;
 	vs <= (~vga_fb & direct_video) ? hdmi_dv_vs   : hdmi_vs_osd;
 	de <= (~vga_fb & direct_video) ? hdmi_dv_de   : hdmi_de_osd;
@@ -1412,7 +1412,7 @@ always @(posedge clk_vid) begin
 		video_sync <= (sync_line == line_cnt);
 
 		line_cnt <= line_cnt + 1'd1;
-		if(~hs_cnt[1]) begin	
+		if(~hs_cnt[1]) begin
 			hs_cnt <= hs_cnt + 1'd1;
 			if(hs_cnt[0]) begin
 				sync_line <= (line_cnt - vs_line);
@@ -1629,10 +1629,11 @@ always @(posedge clk_sys) sl_r <= FB_EN ? 2'b00 : scanlines;
 emu emu
 (
 	.CLK_50M(FPGA_CLK2_50),
+	.CLK3_50M(FPGA_CLK3_50),
 	.RESET(reset),
-	.HPS_BUS({fb_en, sl, f1, HDMI_TX_VS, 
+	.HPS_BUS({fb_en, sl, f1, HDMI_TX_VS,
 				 clk_100m, clk_ihdmi,
-				 ce_hpix, hde_emu, hhs_fix, hvs_fix, 
+				 ce_hpix, hde_emu, hhs_fix, hvs_fix,
 				 io_wait, clk_sys, io_fpga, io_uio, io_strobe, io_wide, io_din, io_dout}),
 
 	.VGA_R(r_out),
@@ -1757,7 +1758,7 @@ endmodule
 module sync_fix
 (
 	input clk,
-	
+
 	input sync_in,
 	output sync_out
 );
@@ -1832,10 +1833,10 @@ always @(posedge clk) begin
 		end
 		else hs_len <= h_cnt;
 	end
-	
+
 	if (~vsync) csync_hs <= hsync;
 	else if(h_cnt == line_len) csync_hs <= 1;
-	
+
 	csync_vs <= vsync;
 end
 

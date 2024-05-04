@@ -7,19 +7,19 @@
 module vdc_video #(
 	parameter 	 	 S_LATCH_WIDTH,
 	parameter 	 	 C_LATCH_WIDTH
-)(  
+)(
 	input            debug,
-  
+
 	input            clk,
 	input            reset,
 	input            enable,
-  
+
 	input      [7:0] reg_hd,                     // horizontal displayed
 	input      [3:0] reg_cth,                    // character total horizontal (minus 1)
 	input      [3:0] reg_cdh,                    // character displayed horizontal
 	input      [4:0] reg_cdv,                    // character displayed vertical
 	input      [3:0] reg_hss,                    // horizontal smooth scroll
-  
+
 	input      [4:0] reg_ul,                     // underline position
 	input            reg_cbrate,                 // character blink rate
 	input            reg_text,                   // text/bitmap mode
@@ -29,15 +29,15 @@ module vdc_video #(
 	input            reg_rvs,                    // reverse video
 	input      [3:0] reg_fg,                     // foreground color
 	input      [3:0] reg_bg,                     // background color
-  
+
 	input      [1:0] reg_cm,                     // cursor mode
 	input     [15:0] reg_cp,                     // cursor position
-  
+
 	input            fetchFrame,                 // start of new frame
 	input            fetchLine,                  // start of new visible line
 	input            fetchRow,                   // start of new visible row
 	input            cursorV,                    // show cursor on current line
-  
+
 	input            hVisible,                   // in visible part of display (horizontal)
 	input            vVisible,                   // in visible part of display (vertical)
 	input            hdispen,                    // horizontal display enable
@@ -47,10 +47,10 @@ module vdc_video #(
 	input      [7:0] col,                        // current column
 	input      [3:0] pixel,                      // current pixel
 	input      [4:0] line,                       // current line
-  
+
 `ifdef VERILATOR
-	input      [7:0] attrbuf, 
-	input      [7:0] charbuf, 
+	input      [7:0] attrbuf,
+	input      [7:0] charbuf,
 `else
 	input      [7:0] attrbuf[2][S_LATCH_WIDTH],  // latch for attributes for current and next row
 	input      [7:0] charbuf[C_LATCH_WIDTH],     // character data for current line
@@ -102,20 +102,13 @@ always @(*) begin
 	end
 end
 
+`ifdef VDC_XRAY
+wire showFetch = debug && col == 4;
+`endif
+
 always @(posedge clk) begin
 	reg [7:0] bitmap;
 	reg       enbitm;
-`ifdef VDC_XRAY
-	reg [1:0] showFetch; 
-	reg [7:0] lcol;
-
-	lcol <= col;
-
-	if (showFetch)
-		showFetch <= showFetch - 2'd1;
-	else if (debug && !col && lcol)
-		showFetch <= 2'd3;
-`endif 
 
 	if (reset) begin
 		bitmap <= 0;
@@ -150,21 +143,23 @@ always @(posedge clk) begin
 		if (vVisible && hVisible)
 			rgbi <= (
 				(bl <= 5'(reg_cth))
-					? (((~(ca[0] & blink[reg_cbrate]) & ((ca[1] && line == reg_ul) | bitmap[7])) ^ reg_rvs ^ ca[2] ^ cursor) ? fg : bg) 
+					? (((~(ca[0] & blink[reg_cbrate]) & ((ca[1] && line == reg_ul) | bitmap[7])) ^ reg_rvs ^ ca[2] ^ cursor) ? fg : bg)
 					: 4'd0
 			);
 `ifdef VDC_XRAY
-		else if (|showFetch && ~&showFetch)
-			rgbi <= rgbi;
-		else if (|showFetch && fetchFrame)
+		else if (showFetch && fetchFrame)
 			rgbi <= 4'b1111;
-		else if (|showFetch && fetchRow)
+		else if (showFetch && pixel == 0 && line[1])
+			rgbi <= 4'b1111;
+		else if (showFetch && pixel == 1 && line[0])
+			rgbi <= 4'b1111;
+		else if (showFetch && fetchRow)
 			rgbi <= 4'b0011;
-		else if (|showFetch && fetchLine)
+		else if (showFetch && fetchLine)
 			rgbi <= 4'b0010;
 		else if (debug && bitmap[7])
 			rgbi <= 0;
-`endif 
+`endif
 		else if (blank || !(debug || hdispen))
 			rgbi <= 0;
 		else

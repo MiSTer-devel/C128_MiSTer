@@ -1,6 +1,6 @@
 /********************************************************************************
  * Commodore 128 VDC
- * 
+ *
  * for the C128 MiSTer FPGA core, by Erik Scheffers
  ********************************************************************************/
 
@@ -8,7 +8,7 @@ module vdc_signals_v (
 	input            clk,
 	input            reset,
 	input            enable,
- 
+
 	input      [3:0] reg_vw,         // R3[7:4]     4 4       Vertical sync width
 	input      [7:0] reg_vt,         // R4      20/27 32/39   Vertical total (minus 1) [32 for NTSC, 39 for PAL]
 	input      [4:0] reg_va,         // R5         00 0       Vertical total adjust
@@ -20,12 +20,13 @@ module vdc_signals_v (
 	input      [4:0] reg_ce,         // R11        07 7       Cursor scanline end (plus 1?)
 	input      [4:0] reg_vss,        // R24[4:0]   00 0       Vertical smooth scroll
 	input            reg_text,       // R25[7]      0 text    Mode select (text/bitmap)
-	
+
 	input            lineStart,
 	input            displayStart,
 	input            half1End,
 	input            half2Start,
 	input            hSyncStart,
+	input      [1:0] vSyncStart,
 	input            lineEnd,
 
 	output reg       fetchFrame,     // indicates start of a new frame (only valid at lineStart)
@@ -33,10 +34,9 @@ module vdc_signals_v (
 	output reg       fetchLine,      // indicates start of a new visible line (only valid at lineStart)
 	output reg       cursor,         // show cursor vertically
 
-	output reg       field,          // 0=first half, 1=second half
 	output reg       lastRow,
 	output reg [7:0] row,            // current row
-	output reg [4:0] line,           // current row line 
+	output reg [4:0] line,           // current row line
 
 	output reg       vVisible,       // visible line
 
@@ -48,22 +48,33 @@ module vdc_signals_v (
 // control signals
 
 reg  [7:0] crow, srow;
-reg  [4:0] ncline, nsline;
-reg  [4:0] ctv;
-reg        cfield;
+reg  [5:0] ncline, nsline;
+reg        cfield, ncfield;
 reg        newsrow;
 
-wire       ncfield = reg_im[0] & ~cfield;
-wire [4:0] vw = (|reg_vw ? reg_vw : 5'd16) >> reg_im[0];
-wire [5:0] va = reg_va+(ncfield ? 6'd1 : 6'd0);
-wire [7:0] fh = reg_vt+(|va ? 8'd1 : 8'd0);
-wire [4:0] rh = srow==reg_vt+1 ? 5'(va-6'd1) : ctv;
-wire [4:0] el = rh; //srow==reg_vt+1 ? 5'(va-(~va[0] && &reg_im ? 6'd0 : 6'd1)) : ctv;
-wire [7:0] frr = reg_vd-(|reg_vss ? 8'd0 : 8'd1);
-// wire [7:0] ffr = reg_vd+1;
+wire [7:0] vd = 8'(reg_vd - (|reg_vss ? 0 : 1));
+
+function [5:0] firstRowHeight;
+   input [4:0] ctv;
+
+	if (cfield && (ctv[0]|reg_vt[0]) != reg_va[0])
+		return ctv + reg_va - 1;
+	else
+		return ctv + reg_va;
+endfunction
+
+function [5:0] lastRowHeight;
+   input [4:0] ctv;
+
+	if (cfield && (ctv[0]|reg_vt[0]) != reg_va[0])
+		return ctv - 1;
+	else
+		return ctv;
+endfunction
 
 always @(posedge clk) begin
-	reg frameFetched;
+	reg [4:0] ctv;
+	reg       frameFetched;
 
 	if (reset) begin
 		row <= 0;
@@ -71,6 +82,7 @@ always @(posedge clk) begin
 		srow <= 0;
 
 		cfield <= 0;
+		ncfield <= 0;
 		nsline <= 0;
 
 		ncline <= 0;
@@ -91,82 +103,106 @@ always @(posedge clk) begin
 		updateBlink <= 0;
 
 		if (half1End) begin
-			fetchLine <= 0;
 			fetchRow <= 0;
 			fetchFrame <= 0;
 			lastRow <= 0;
 			newsrow <= 0;
 		end
 
-		if (lineEnd || (&reg_im && half1End)) begin
+		if (lineEnd)
 			ctv <= reg_ctv;
 
-			if (srow==fh && nsline==el) begin
-				if (lineEnd) begin
+		if (lineEnd || (&reg_im && half1End)) begin
+			if (srow==reg_vt && nsline==lastRowHeight(ctv)) begin
+				if (lineEnd || ncfield) begin
 					cfield <= ncfield;
+					ncfield <= reg_im[0] & ~ncfield;
 
-					if (&reg_im && ncfield) begin
-						nsline <= 5'd1;
-						ncline <= reg_vss==reg_ctv ? 5'd0 : reg_vss+5'd1;
-						line   <= reg_vss==reg_ctv ? 5'd0 : reg_vss+5'd1;
-					end
-					else begin
-						nsline <= 0;
-						ncline <= reg_vss;
-						line   <= reg_vss;
-					end
+					nsline <= 0;
+					ncline <= reg_vss;
+					if (lineEnd)
+						line <= reg_vss;
 
 					crow <= 0;
 					srow <= 0;
 					newsrow <= 1;
-					frameFetched <= 0;
-					fetchFrame <= ~frameFetched;
 
-					// if (crow==ffr && /*ncline==ctv &&*/ reg_vss==0 && (cfield || ~&reg_im || !reg_text))
-					// 	fetchFrame <= 1;
+					frameFetched <= 0;
+					if (~&reg_im || cfield || !reg_text)
+						fetchFrame <= ~frameFetched;
+
+					fetchLine <= cfield & reg_text & |ctv;
 				end
 			end
 			else begin
-				// update row/line
-				if (ncline==ctv) begin
-					crow <= crow+8'd1;
-					ncline <= 0;
+				if (!crow) begin
+					if (ncline==firstRowHeight(ctv)) begin
+						crow <= 8'd1;
+						ncline <= 0;
 
-					if (lineEnd)
-						line <= 0;
+						if (lineEnd)
+							line <= 0;
 
-					if (crow<=frr)
 						fetchRow <= 1;
-					else if (!frameFetched) begin
-						fetchFrame <= 1;
-						frameFetched <= 1;
 					end
+					else begin
+						ncline <= ncline+1'd1;
 
-					if (crow==frr)
-						lastRow <= 1;
-
-					// if (crow==ffr && (cfield || ~&reg_im || !reg_text))
-					// 	fetchFrame <= 1;
+						if (lineEnd)
+							line <= 5'(ncline+1'd1);
+					end
 				end
 				else begin
-					ncline <= ncline+5'd1;
-					if (lineEnd)
-						line <= ncline+5'd1;
+					if (ncline==ctv) begin
+						crow <= crow+1'd1;
+						ncline <= 0;
+
+						if (lineEnd)
+							line <= 0;
+
+						if (crow<=vd)
+							fetchRow <= 1;
+						else if (!frameFetched && (~&reg_im || ncfield || !reg_text)) begin
+							fetchFrame <= 1;
+							frameFetched <= 1;
+						end
+
+						if (crow==vd)
+							lastRow <= 1;
+					end
+					else begin
+						ncline <= 5'(ncline+1'd1);
+
+						if (lineEnd)
+							line <= 5'(ncline+1'd1);
+					end
 				end
 
-				if (nsline==el) begin
-					newsrow <= 1;
-					srow <= srow+8'd1;
-					nsline <= 0;
+				if (!srow) begin
+					if (nsline==firstRowHeight(ctv)) begin
+						newsrow <= 1;
+						srow <= 8'd1;
+						nsline <= 0;
+						fetchLine <= |ctv;
+					end
+					else begin
+						nsline <= nsline+1'd1;
 
-					if (srow<reg_vd)
-						fetchLine <= 1;
+						if (nsline==reg_va)
+							fetchLine <= 0;
+					end
 				end
 				else begin
-					nsline <= nsline+5'd1;
+					if (nsline==ctv) begin
+						newsrow <= 1;
+						srow <= srow+1'd1;
+						nsline <= 0;
 
-					if (|srow && srow<=reg_vd)
-						fetchLine <= 1;
+						if (srow==reg_vd)
+							fetchLine <= 0;
+					end
+					else
+						nsline <= 5'(nsline+1'd1);
 				end
 			end
 		end
@@ -178,7 +214,7 @@ always @(posedge clk) begin
 			if (srow==1 && |ctv)
 				vVisible <= 1;
 
-			if (srow==reg_vd+1)
+			if (srow==reg_vd+1 || srow==0)
 				vVisible <= 0;
 
 			if (srow==reg_vp+1)
@@ -190,56 +226,58 @@ end
 // vsync
 
 reg [4:0] vsCount;
-
-assign vsync  = |vsCount;
+assign vsync = |vsCount;
 
 always @(posedge clk) begin
-	reg       vsDetect; 
-	reg       vbStart;
-	reg [1:0] vsStart;
+	reg [4:0] ctv;
+	reg       vsBegin;
 
 	if (reset) begin
 		vsCount <= 0;
-		vsDetect <= 0;
-		field <= 0;
-	end 
+	end
 	else if (enable) begin
-		if ((half1End || hSyncStart) && (vsDetect || (srow == reg_vp && nsline == 0))) begin
-			vsDetect <= half1End;
-			if (hSyncStart) begin
-				vbStart <= 1;
-				field <= ncfield;
-			end
-		end
+		if (newsrow && lineStart)
+			ctv <= reg_ctv;
 
-		if (vbStart && half2Start) begin
-			vbStart <= 0;
-			vsStart <= 2'd2;
-		end
+		if (vSyncStart[0] || (reg_im[0] && vSyncStart[1])) begin
+			vsBegin <= 0;
 
-		if (|vsStart && hSyncStart) begin
-			vsStart <= vsStart-1'd1;
-			if (vsStart==1)
-				vsCount <= vw - 5'(field ? 1 : 0);
-		end
+			if (srow == reg_vp-1 && nsline == ctv)
+				vsBegin <= 1;
 
-		if (|vsCount && hSyncStart)
-			vsCount <= vsCount-1'd1;
+			if (vsBegin)
+				vsCount <= {~|reg_vw, reg_vw};
+			else if (|vsCount)
+				vsCount <= vsCount-1'd1;
+		end
 	end
 end
 
 // cursor
 
 always @(posedge clk) begin
-	if (reset)
+   reg cursorSet, cursorReset;
+
+	if (reset) begin
 		cursor <= 0;
-	else if (enable && (lineStart || (&reg_im && half2Start))) begin
-		// todo only change `cursor` at lineStart
+		cursorSet = 0;
+		cursorReset = 0;
+	end
+
+	if (enable && (lineStart || (&reg_im && half2Start))) begin
 		if (ncline==reg_cs)
-			cursor <= 1;
+			cursorSet = 1;
 
 		if (ncline==reg_ce)
-			cursor <= 0;
+			cursorReset = 1;
+	end
+
+	if (lineStart) begin
+		if (cursorSet)   cursor <= 1;
+		if (cursorReset) cursor <= 0;
+
+		cursorSet = 0;
+		cursorReset = 0;
 	end
 end
 

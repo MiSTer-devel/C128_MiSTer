@@ -26,8 +26,9 @@
 
 module emu
 (
-   //Master input clock
+   //Master input clocks
    input         CLK_50M,
+   input         CLK3_50M,
 
    //Async reset from top-level module.
    //Can be used as initial reset.
@@ -198,7 +199,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX XXXXXX                         X
+// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX XXXXXXX                        X
 
 // bits  0.. 79 keep in sync with C64 core (X: identical, x: different use)
 // bits 80..127 C128 core options
@@ -217,7 +218,7 @@ localparam CONF_STR = {
    "-;",
 
    "P1,Audio & Video;",
-   "HAP1O[100:99],Video out,Follow 40/80,VIC,VDC;",
+   "HAP1O[100:99],Video Out,Follow 40/80,VIC,VDC;",
    "HAP1O[98],40/80 Display,40 col,80 col;",
    "HAP1-;",
    "P1O[2],Video Standard,PAL,NTSC;",
@@ -227,18 +228,19 @@ localparam CONF_STR = {
    "d1P1O[32],Vertical Crop,No,Yes;",
    "P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
    "P1-;",
-   "hDP1O[35:34],VIC-II variant,656x,856x,Early 856x;",
+   "hDP1O[35:34],VIC-II Variant,656x,856x,Early 856x;",
    "P1O[95:94],VIC-II Jailbars,Off,Low,Medium,High;",
    "HAP1-;",
-   "HAP1O[81:80],VDC Model,Auto,8563R9,8568;",
+   "HAP1O[81:80],VDC Variant,Auto,8563R9,8568;",
+   "HAP1O[122],VDC Position,Centered,Original;",
 `ifdef VDC_XRAY
    "HAP1O[127],VDC XRay,Off,On;",
 `endif
 `ifndef REDUCE_VDC_RAM
-   "HAH6P1O[88],VDC memory,16k,64k;",
+   "HAH6P1O[88],VDC Memory,16k,64k;",
 `endif
-   "HAP1O[92:91],VDC palette,Default,Analogue,Monochrome,Composite;",
-   "HAh2P1O[90:89],VDC colour,White,Green,Amber,Red;",
+   "HAP1O[92:91],VDC Palette,Default,Analogue,Monochrome,Composite;",
+   "HAh2P1O[90:89],VDC Mono Colour,White,Green,Amber,Red;",
    "P1-;",
    "P1O[14:13],Left SID,Auto,6581,8580;",
    "P1O[16:15],Right SID,Auto,6581,8580;",
@@ -264,7 +266,7 @@ localparam CONF_STR = {
    "P2O[25],External IEC,Disabled,Enabled;",
    "P2R[6],Reset Disk Drives;",
    "P2-;",
-   "HAP2O[87],Internal memory,128K,256K;",
+   "HAP2O[87],Internal Memory,128K,256K;",
    "P2O[52],GeoRAM,Disabled,4MB;",
    "P2O[54:53],REU,Disabled,512KB,2MB (512KB wrap),16MB;",
    "P2-;",
@@ -314,7 +316,7 @@ localparam CONF_STR = {
    "V,v",`BUILD_DATE
 };
 
-wire pll_locked;
+wire pll_sys_locked;
 wire clk_sys;
 wire clk64;
 wire clk48;
@@ -327,7 +329,7 @@ pll pll
    .outclk_2(clk_sys),
    .reconfig_to_pll(reconfig_to_pll),
    .reconfig_from_pll(reconfig_from_pll),
-   .locked(pll_locked)
+   .locked(pll_sys_locked)
 );
 
 wire [63:0] reconfig_to_pll;
@@ -351,18 +353,30 @@ pll_cfg pll_cfg
    .reconfig_from_pll(reconfig_from_pll)
 );
 
+wire pll_vdc_locked;
+wire clk_vdc;
+
+pll_vdc pll_vdc
+(
+   .refclk(CLK3_50M),
+   .outclk_0(clk_vdc),
+   .locked(pll_vdc_locked)
+);
+
+wire pll_locked = pll_sys_locked & pll_vdc_locked;
+
 always @(posedge CLK_50M) begin
    reg ntscd = 0, ntscd2 = 0;
    reg [2:0] state = 0;
    reg ntsc_r;
 
+   cfg_write <= 0;
+
    ntscd <= ntsc;
    ntscd2 <= ntscd;
-
-   cfg_write <= 0;
-   if(ntscd2 == ntscd && ntscd2 != ntsc_r) begin
-      state <= 1;
+   if (ntscd2 == ntscd && ntscd2 != ntsc_r) begin
       ntsc_r <= ntscd2;
+      state <= 1;
    end
 
    if(!cfg_waitrequest) begin
@@ -373,19 +387,12 @@ always @(posedge CLK_50M) begin
                cfg_data <= 0;
                cfg_write <= 1;
             end
-            /*
          3: begin
-               cfg_address <= 4;
-               cfg_data <= ntsc_r ? 'h20504 : 'h404;
-               cfg_write <= 1;
-            end
-            */
-         5: begin
                cfg_address <= 7;
                cfg_data <= ntsc_r ? 3357876127 : 1503512573;
                cfg_write <= 1;
             end
-         7: begin
+         5: begin
                cfg_address <= 2;
                cfg_data <= 0;
                cfg_write <= 1;
@@ -561,7 +568,7 @@ wire       ciaVersion = auto_config(status[46:45], cfg_chipset);
 wire [1:0] sidVersion = {auto_config(status[16:15], cfg_chipset), auto_config(status[14:13], cfg_chipset)};
 wire       vdcVersion = auto_config(status[81:80], cfg_chipset);
 wire       cpslk_mode = auto_config(status[97:96], cfg_cpslk);
-wire       video_out  = ~auto_config(status[100:99], status[98]);
+wire       video_mode = ~auto_config(status[100:99], status[98]);
 wire       pure64     = cfg_force64 | (c128_n & status[93]);
 
 always @(posedge clk_sys) begin
@@ -940,12 +947,12 @@ always @(posedge clk_sys) begin
          end
 
          if (ioctl_addr < IFR_SIZE && |ioctl_data && ~&ioctl_data) begin
-            if (ioctl_addr[14]) cart_int_rom[1:0] <= ~0;
-            if (ioctl_addr[15]) cart_int_rom[2:0] <= ~0;
-            if (ioctl_addr[16]) cart_int_rom[3:0] <= ~0;
-            if (ioctl_addr[17]) cart_int_rom[4:0] <= ~0;
-            if (ioctl_addr[18]) cart_int_rom[5:0] <= ~0;
-            if (ioctl_addr[19]) cart_int_rom[6:0] <= ~0;
+            if (ioctl_addr[14]) cart_int_rom[1:0] <= '1;
+            if (ioctl_addr[15]) cart_int_rom[2:0] <= '1;
+            if (ioctl_addr[16]) cart_int_rom[3:0] <= '1;
+            if (ioctl_addr[17]) cart_int_rom[4:0] <= '1;
+            if (ioctl_addr[18]) cart_int_rom[5:0] <= '1;
+            if (ioctl_addr[19]) cart_int_rom[6:0] <= '1;
          end
 
          if (ioctl_addr < IFR_SIZE)
@@ -962,7 +969,7 @@ always @(posedge clk_sys) begin
          end
 
          if (ioctl_addr < EFR_SIZE && |ioctl_data && ~&ioctl_data) begin
-            if (ioctl_addr[14]) cart_ext_rom[1:0] <= ~0;
+            if (ioctl_addr[14]) cart_ext_rom[1:0] <= '1;
          end
 
          if (ioctl_addr < EFR_SIZE)
@@ -1326,9 +1333,7 @@ wire        ntsc = status[2];
 wire        vicHsync, vicVsync;
 wire  [7:0] vicR, vicG, vicB;
 
-wire        vdcPixClk;
 wire        vdcHsync, vdcVsync;
-wire        vdcIlace, vdcF1, vdcDisable;
 wire  [7:0] vdcR, vdcG, vdcB;
 
 wire        c64_iec_atn;
@@ -1347,6 +1352,8 @@ fpga64_sid_iec #(
 `endif
 ) fpga64 (
    .clk32(clk_sys),
+   .clk_vdc(clk_vdc),
+
    .reset_n(reset_n),
    .pause(freeze),
    .pause_out(c64_pause),
@@ -1398,12 +1405,8 @@ fpga64_sid_iec #(
    .vicG(vicG),
    .vicB(vicB),
 
-   .vdcPixClk(vdcPixClk),
    .vdcHsync(vdcHsync),
    .vdcVsync(vdcVsync),
-   .vdcIlace(vdcIlace),
-   .vdcF1(vdcF1),
-   .vdcDisable(vdcDisable),
    .vdcR(vdcR),
    .vdcG(vdcG),
    .vdcB(vdcB),
@@ -1705,90 +1708,59 @@ iec_io iec_io_srq_n
 assign USER_OUT[3] = (reset_n & ~status[6]) | ~ext_iec_en;
 assign USER_OUT[5] = c64_iec_atn | ~ext_iec_en;
 
-wire vicHblank, vicVblank;
-wire vicHsync_out, vicVsync_out;
-video_sync videoSyncVIC
+wire hblank;
+wire vblank;
+wire ilace;
+wire hsync_out;
+wire vsync_out;
+wire ce_pix;
+wire video_sel;
+wire [7:0] r, g, b;
+
+video_switch video_switch
 (
-   .clk32(clk_sys),
-   .video_out(1),
-   .bypass(0),
-   .pause(c64_pause),
+   .RESET(RESET),
+   .CLK_50M(CLK_50M),
+   .clk_sys(clk_sys),
+   .clk_vdc(clk_vdc),
+
+   .reset_n(reset_n),
+   .c64_pause(c64_pause),
+   .ntsc(ntsc),
    .wide(wide),
-   .hsync(vicHsync),
-   .vsync(vicVsync),
-   .hsync_out(vicHsync_out),
-   .vsync_out(vicVsync_out),
-   .hblank(vicHblank),
-   .vblank(vicVblank)
+   .mode(video_mode),
+   .scandoubler_fx(status[10:8]),
+   .vdc_position(status[122]),
+
+   .vicHsync(vicHsync),
+   .vicVsync(vicVsync),
+   .vicR(vicR),
+   .vicG(vicG),
+   .vicB(vicB),
+
+   .vdcHsync(vdcHsync),
+   .vdcVsync(vdcVsync),
+   .vdcR(vdcR),
+   .vdcG(vdcG),
+   .vdcB(vdcB),
+
+   .clk_video(CLK_VIDEO),
+   .ce_pix(ce_pix),
+   .selected(video_sel),
+   .vga_disable(VGA_DISABLE),
+   .hsync(hsync_out),
+   .vsync(vsync_out),
+   .hblank(hblank),
+   .vblank(vblank),
+   .ilace(ilace),
+   .field1(VGA_F1),
+   .r(r),
+   .g(g),
+   .b(b)
 );
 
-wire vdcHblank, vdcVblank;
-wire vdcHsync_out, vdcVsync_out;
-video_sync videoSyncVDC
-(
-   .clk32(clk_sys),
-   .video_out(0),
-   .bypass(vdcIlace),
-   .pause(c64_pause),
-   .wide(wide),
-   .hsync(vdcHsync),
-   .vsync(vdcVsync),
-   .hsync_out(vdcHsync_out),
-   .vsync_out(vdcVsync_out),
-   .hblank(vdcHblank),
-   .vblank(vdcVblank)
-);
+wire scandoubler = video_sel && (status[10:8] || forced_scandoubler);
 
-wire       hsync_out   = video_out ? vicHsync_out : vdcHsync_out;
-wire       vsync_out   = video_out ? vicVsync_out : vdcVsync_out;
-wire       hblank      = video_out ? vicHblank : vdcHblank;
-wire       vblank      = video_out ? vicVblank : vdcVblank;
-wire       ilace       = ~video_out & vdcIlace;
-assign     VGA_F1      = ~video_out & vdcF1;
-assign     VGA_DISABLE = ~video_out & vdcDisable;
-
-wire [7:0] r           = video_out ? vicR : vdcR;
-wire [7:0] g           = video_out ? vicG : vdcG;
-wire [7:0] b           = video_out ? vicB : vdcB;
-
-reg hq2x160;
-reg hq2x320;
-always @(posedge clk_sys) begin
-   reg old_vsync;
-
-   old_vsync <= vsync_out;
-   if (!old_vsync && vsync_out) begin
-      hq2x320 <= (status[10:8] == 1);
-      hq2x160 <= (status[10:8] == 2);
-   end
-end
-
-reg ce_pix;
-always @(posedge CLK_VIDEO) begin
-   reg       last_video_out;
-   reg [1:0] div;
-   reg [1:0] lores;
-
-   last_video_out <= video_out;
-   if (last_video_out != video_out) begin
-      div <= 0;
-      lores <= 0;
-      ce_pix <= 0;
-   end
-   else if (video_out) begin
-      div <= div + 1'd1;
-      if (&div) lores <= lores + 1'd1;
-      ce_pix <= (~|lores | ~hq2x160) && (~lores[0] | ~hq2x320) && !div;
-   end
-   else begin
-      div <= vdcPixClk ? div + 1'd1 : 1'd0;
-      ce_pix <= !div[0] && vdcPixClk;
-   end
-end
-
-wire scandoubler = video_out && (status[10:8] || forced_scandoubler);
-
-assign CLK_VIDEO = clk64;
 assign VGA_SL    = status[10:8] > 2 ? status[9:8] - 2'd2 : 2'd0;
 
 reg [9:0] vcrop;
@@ -1811,7 +1783,6 @@ always @(posedge CLK_VIDEO) begin
       if(HDMI_HEIGHT == 1536) vcrop <= 256;
    end
 end
-
 
 wire [1:0] ar = status[5:4];
 wire vcrop_en = status[32];
@@ -1842,14 +1813,14 @@ video_mixer #(.GAMMA(1)) video_mixer
 (
    .CLK_VIDEO(CLK_VIDEO),
 
-   .hq2x(video_out & ~status[10] & (status[9] ^ status[8])),
+   .hq2x(video_sel & ~status[10] & (status[9] ^ status[8])),
    .scandoubler(scandoubler),
    .gamma_bus(gamma_bus),
 
    .ce_pix(ce_pix),
-   .R(r),
-   .G(g),
-   .B(b),
+	.R(r),
+	.G(g),
+	.B(b),
    .HSync(hsync_out),
    .VSync(vsync_out),
    .HBlank(hblank),

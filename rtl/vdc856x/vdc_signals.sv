@@ -1,6 +1,6 @@
 /********************************************************************************
  * Commodore 128 VDC
- * 
+ *
  * for the C128 MiSTer FPGA core, by Erik Scheffers
  ********************************************************************************/
 
@@ -10,10 +10,10 @@ module vdc_signals (
 	input            enable,
 
 	input      [7:0] db_in,
- 
+
 	input      [7:0] reg_ht,         // R0      7E/7F 126/127 Horizontal total (minus 1) [126 for original ROM, 127 for PAL on DCR]
 	input      [7:0] reg_hd,         // R1         50 80      Horizontal displayed
-	input      [7:0] reg_hp,         // R2         66 102     Horizontal sync position 
+	input      [7:0] reg_hp,         // R2         66 102     Horizontal sync position
 	input      [3:0] reg_vw,         // R3[7:4]     4 4       Vertical sync width
 	input      [3:0] reg_hw,         // R3[3:0]     9 9       Horizontal sync width (plus 1)
 	input      [7:0] reg_vt,         // R4      20/27 32/39   Vertical total (minus 1) [32 for NTSC, 39 for PAL]
@@ -29,10 +29,10 @@ module vdc_signals (
 	input            reg_text,       // R25[7]      0 text    Mode select (text/bitmap)
 	input            reg_atr,        // R25[6]      1 on      Attribute enable
 	input            reg_dbl,        // R25[4]      0 off     Pixel double width
-	input      [7:0] reg_ai,	     // R27        00 0       Address increment per row
+	input      [7:0] reg_ai,	      // R27        00 0       Address increment per row
 	input      [7:0] reg_deb,        // R34        7D 125     Display enable begin
 	input      [7:0] reg_dee,        // R35        64 100     Display enable end
-   
+
 	output reg       fetchFrame,     // pulses at the start of a new frame
 	output reg       fetchRow,       // pulses at the start of a new visible row
 	output reg       fetchLine,      // pulses at the start of a new visible line
@@ -45,7 +45,7 @@ module vdc_signals (
 	output reg [7:0] col,            // current column
 	output reg [7:0] row,            // current row
 	output reg [3:0] pixel,          // current column pixel
-	output reg [4:0] line,           // current row line 
+	output reg [4:0] line,           // current row line
 
 	output reg       hVisible,       // visible column
 	output reg       vVisible,       // visible line
@@ -53,8 +53,7 @@ module vdc_signals (
 	output reg [1:0] blink,          // blink state. blink[0]=1/16, blink[1]=1/30
 
 	output reg       hsync,          // horizontal sync
-	output reg       vsync,          // vertical sync
-	output reg       field           // 0=first half, 1=second half
+	output reg       vsync           // vertical sync
 );
 
 vdc_signals_h signals_h (
@@ -87,11 +86,14 @@ vdc_signals_h signals_h (
 	.hsync(hsync)
 );
 
+wire [7:0] hp = (reg_hp ? reg_hp-8'd1 : reg_ht);
+
 wire lineStart    = newCol && col==0;
 wire displayStart = endCol && col==7;
 wire half1End     = endCol && col==(reg_ht/2)-1;
 wire half2Start   = newCol && col==reg_ht/2;
-wire hSyncStart   = endCol && col==(|reg_hp ? reg_hp-1 : reg_ht);
+wire hSyncStart   = endCol && col==hp;
+wire vSyncStartF1 = endCol && col==(hp + (reg_ht>>1) - 1) % reg_ht;
 wire lineEnd      = endCol && col==reg_ht;
 
 reg  updateBlink;
@@ -118,6 +120,7 @@ vdc_signals_v signals_v (
 	.half1End(half1End),
 	.half2Start(half2Start),
 	.hSyncStart(hSyncStart),
+	.vSyncStart({vSyncStartF1, hSyncStart}),
 	.lineEnd(lineEnd),
 
 	.fetchFrame(fetchFrame),
@@ -132,7 +135,6 @@ vdc_signals_v signals_v (
 	.vVisible(vVisible),
 
 	.vsync(vsync),
-	.field(field),
 
 	.updateBlink(updateBlink)
 );
@@ -147,7 +149,7 @@ always @(posedge clk) begin
 		blink <= '0;
 		bcnt16 <= 0;
 		bcnt30 <= 0;
-	end 
+	end
 	else if (enable && updateBlink) begin
 		{blink[0], bcnt16} <= {blink[0], bcnt16}+4'd1;
 

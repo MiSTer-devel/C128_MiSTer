@@ -1,22 +1,17 @@
 /********************************************************************************
  * Commodore 128 VDC
- * 
+ *
  * for the C128 MiSTer FPGA core, by Erik Scheffers
  ********************************************************************************/
 
 module vdc_top #(
 	parameter RAM_ADDR_BITS = 16,
 	parameter C_LATCH_WIDTH = 8,
-	parameter S_LATCH_WIDTH = 82,
-	parameter SYSCLK_PAL = 31527954,
-	parameter SYSCLK_NTSC = 32727266,
-	parameter VDCCLK = 16009968,
-	parameter SYNC_CLOCKS = 1  // 1=sync clock on hsync, this results in a slight timing difference with real hw but prevents HDMI jitter
+	parameter S_LATCH_WIDTH = 82
 )(
 	input          version,   // 0=8563R9, 1=8568
 	input          ram64k,    // 0=16K RAM, 1=64K RAM
 	input          initRam,   // 1=initialize RAM on reset
-	input          ntsc,      // Base clock: 1=NTSC, 0=PAL
 	input          debug,     // 1=enable debug video output
 
 	input          clk,
@@ -27,54 +22,22 @@ module vdc_top #(
 	input          cs,        // chip select
 	input          rs,        // register select
 	input          we,        // write enable
-	input          lp_n,      // light pen
-
 	input    [7:0] db_in,     // data in
 	output   [7:0] db_out,    // data out
 
-	output         pixelclk,
+	input          lp_n,      // light pen
+
 	output         vsync,
 	output         hsync,
-	output         ilace,
-	output		   field,
-	output		   disableVideo,
-	output   [3:0] rgbi		  
+	output   [3:0] rgbi
 );
-
-localparam CLK_BITS = $clog2(SYSCLK_NTSC+VDCCLK);
-
-wire [CLK_BITS-1:0] sysclk = ntsc ? CLK_BITS'(SYSCLK_NTSC) : CLK_BITS'(SYSCLK_PAL);
 
 reg enable;
 always @(posedge clk) begin
-   reg [CLK_BITS-1:0] sum = 0;
-	reg hsync_r;
-   reg div;
+	reg [1:0] clkdiv = 0;
 
-   enable <= 0;
-   pixelclk <= 0;
-	hsync_r <= hsync;
-
-	if (hsync && !hsync_r && SYNC_CLOCKS) begin
-		if (sum >= CLK_BITS'(VDCCLK*2)) begin
-			sum = CLK_BITS'(VDCCLK*2);
-		end
-		else if (sum >= CLK_BITS'(VDCCLK)) begin
-			sum = CLK_BITS'(VDCCLK);
-		end
-		else begin
-			sum = 0;
-		end
-	end
-
-	sum = sum + CLK_BITS'(VDCCLK);
-   if (sum >= sysclk) begin
-   	sum = sum - sysclk;
-
-		pixelclk <= 1;
-		div <= ~div & reg_dbl;
-		enable <= div | ~reg_dbl;
-   end
+	clkdiv <= clkdiv + 1'd1;
+	enable <= ~(reg_dbl & clkdiv[1]) & clkdiv[0];
 end
 
 // Register file
@@ -107,7 +70,7 @@ reg         reg_copy;       // R24[7]      0 off     Block copy mode
 reg         reg_rvs;        // R24[6]      0 off     Reverse screen
 reg         reg_cbrate;     // R24[5]      1 1/30    Character blink rate
 reg   [4:0] reg_vss;        // R24[4:0]   00 0       Vertical smooth scroll
-reg         reg_text;       // R25[7]      0 text    Mode select (text/bitmap)
+reg         reg_text;       // R25[7]      0 text    Mode select (0=text/1=bitmap)
 reg         reg_atr;        // R25[6]      1 on      Attribute enable
 reg         reg_semi;       // R25[5]      0 off     Semi-graphic mode
 reg         reg_dbl;        // R25[4]      0 off     Pixel double width
@@ -155,15 +118,12 @@ wire  		hVisible, vVisible, hdispen;
 
 assign      vsync = vsync_pos ^ (~version & reg_vspol);
 assign      hsync = hsync_pos ^ (~version & reg_hspol);
-assign      ilace = reg_im[0];
-
-assign      disableVideo = 0;
 
 vdc_signals signals (
 	.clk(clk),
 	.reset(reset || init),
 	.enable(enable),
-	
+
 	.db_in(db_in),
 
 	.reg_ht(reg_ht),
@@ -207,8 +167,7 @@ vdc_signals signals (
 	.blink(blink),
 
 	.vsync(vsync_pos),
-	.hsync(hsync_pos),
-	.field(field)
+	.hsync(hsync_pos)
 );
 
 vdc_ramiface #(
@@ -294,7 +253,7 @@ vdc_video #(
 
 	.reg_cm(reg_cm),
 	.reg_cp(reg_cp),
-	
+
 	.fetchFrame(fetchFrame),
 	.fetchLine(fetchLine),
 	.fetchRow(fetchRow),
@@ -315,7 +274,7 @@ vdc_video #(
 	.rgbi(rgbi)
 );
 
-// Internal registers
+// Registers
 always @(posedge clk) begin
 	reg lp_n0;
 
@@ -372,7 +331,7 @@ always @(posedge clk) begin
 			if (enableBus) begin
 				if (!rs)
 					regSel <= db_in[5:0];
-				else 
+				else
 					case (regSel)
 						0: reg_ht       <= db_in;
 						1: reg_hd       <= db_in;
@@ -441,9 +400,8 @@ always @(posedge clk) begin
 			end
 		end
 		else begin
-			if (!rs) begin
+			if (!rs)
 				db_out <= {~busy, lpStatus, ~vVisible, 3'b000, version, ~version};
-			end
 			else
 				case (regSel)
 					 0: db_out <= reg_ht;
@@ -462,8 +420,8 @@ always @(posedge clk) begin
 					13: db_out <= reg_ds[7:0];
 					14: db_out <= reg_cp[15:8];
 					15: db_out <= reg_cp[7:0];
-					16: begin db_out <= reg_lpv; lpStatus <= 0; end
-					17: begin db_out <= reg_lph; lpStatus <= 0; end
+					16: begin db_out <= reg_lpv; if (enableBus) lpStatus <= 0; end
+					17: begin db_out <= reg_lph; if (enableBus) lpStatus <= 0; end
 					18: db_out <= reg_ua[15:8];
 					19: db_out <= reg_ua[7:0];
 					20: db_out <= reg_aa[15:8];

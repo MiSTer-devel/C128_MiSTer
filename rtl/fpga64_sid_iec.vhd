@@ -50,6 +50,7 @@ generic (
 );
 port(
    clk32       : in  std_logic;
+   clk_vdc     : in  std_logic;
    reset_n     : in  std_logic;
 
    pause       : in  std_logic := '0';
@@ -94,10 +95,6 @@ port(
 
    vdcHsync    : out std_logic;
    vdcVsync    : out std_logic;
-   vdcPixClk   : out std_logic;
-   vdcF1       : out std_logic;
-   vdcIlace    : out std_logic;
-   vdcDisable  : out std_logic;
    vdcR        : out unsigned(7 downto 0);
    vdcG        : out unsigned(7 downto 0);
    vdcB        : out unsigned(7 downto 0);
@@ -158,7 +155,7 @@ port(
 	sid_ld_addr : in  std_logic_vector(11 downto 0);
 	sid_ld_data : in  std_logic_vector(15 downto 0);
 	sid_ld_wr   : in  std_logic;
-	
+
 	-- USER
 	pb_i        : in  unsigned(7 downto 0);
 	pb_o        : out unsigned(7 downto 0);
@@ -251,6 +248,7 @@ signal cpucycT65    : std_logic;
 signal cpucycT80    : std_logic;
 signal enableVic    : std_logic;
 signal enableVdc    : std_logic;
+signal enableVdc_sl : std_logic_vector(1 downto 0);
 signal enablePixel  : std_logic;
 signal enableSid    : std_logic;
 signal enable8502   : std_logic;
@@ -362,6 +360,10 @@ signal turbo_state  : std_logic;
 signal vicKo        : unsigned(2 downto 0);
 
 -- VDC signals
+signal vdcCs        : std_logic;
+signal vdcWe        : std_logic;
+signal vdcRs        : std_logic;
+signal vdcDi        : unsigned(7 downto 0);
 signal vdcRGBI      : unsigned(3 downto 0);
 signal vdcData      : unsigned(7 downto 0);
 
@@ -467,7 +469,6 @@ component vdc_top
       version       : in  std_logic;
       ram64k        : in  std_logic;
       initRam       : in  std_logic;
-      ntsc          : in  std_logic;
       debug         : in  std_logic;
 
       clk           : in  std_logic;
@@ -477,32 +478,28 @@ component vdc_top
       enableBus     : in  std_logic;
       cs            : in  std_logic;
       we            : in  std_logic;
-      lp_n			  : in  std_logic;
-
       rs            : in  std_logic;
       db_in         : in  unsigned(7 downto 0);
       db_out        : out unsigned(7 downto 0);
 
-      pixelclk      : out std_logic;
+      lp_n			  : in  std_logic;
+
       hsync         : out std_logic;
       vsync         : out std_logic;
-      ilace         : out std_logic;
-      field         : out std_logic;
-      disableVideo  : out std_logic;
       rgbi          : out unsigned(3 downto 0)
    );
 end component;
 
 component video_vicIIe_jb
    PORT (
-      clk           : in  std_logic; 
+      clk           : in  std_logic;
       mode          : in  std_logic_vector(1 downto 0);
-   
+
       hsync         : in  std_logic;
       Ri            : in  unsigned(7 downto 0);
       Gi            : in  unsigned(7 downto 0);
       Bi            : in  unsigned(7 downto 0);
-   
+
       Ro            : out unsigned(7 downto 0);
       Go            : out unsigned(7 downto 0);
       Bo            : out unsigned(7 downto 0)
@@ -558,7 +555,7 @@ end process;
 -- phi0 & bus arbitration
 
 phi0_cpu <= '1' when (sysCycle >= CYCLE_EXT4 and sysCycle <= CYCLE_CPU7) else '0';
-vicCycle <= '1' when ((sysCycle >= CYCLE_VIC0 and sysCycle <= CYCLE_VIC3) 
+vicCycle <= '1' when ((sysCycle >= CYCLE_VIC0 and sysCycle <= CYCLE_VIC3)
                    or (sysCycle >= CYCLE_CPU4 and sysCycle <= CYCLE_CPU7)) else '0';
 cpuCycle <= '1' when (sysCycle >= CYCLE_CPU0 and sysCycle <= CYCLE_CPUF) else '0';
 
@@ -569,7 +566,6 @@ process(clk32)
 begin
    if rising_edge(clk32) then
       enableVic <= '0';
-      enableVdc <= '0';
       enableCia_n <= '0';
       enableCia_p <= '0';
       enableSid <= '0';
@@ -581,7 +577,6 @@ begin
          enableCia_n <= '1';
       when CYCLE_CPU6 =>
          enableVic <= '1';
-         enableVdc <= '1';
       when CYCLE_CPU7 =>
          enableCia_p <= '1';
          enableSid <= '1';
@@ -838,7 +833,7 @@ begin
 end process;
 
 -- VIC bank to address lines
--- 
+--
 -- The glue logic on a C64C will generate a glitch during 10 <-> 01
 -- generating 00 (in other words, bank 3) for one cycle.
 --
@@ -879,6 +874,34 @@ end process;
 -- VDC 80-col video display controller
 -- -----------------------------------------------------------------------
 
+process(clk32)
+begin
+   if rising_edge(clk32) then
+      if sysCycle = sysCycleDef'low then
+         vdcCs <= cs_vdc and cs_enable;
+         vdcWe <= cpuWe;
+         vdcRs <= tAddr(0);
+         vdcDi <= cpuDo;
+      end if;
+
+      if sysCycle = sysCycleDef'pred(CYCLE_CPU0) then
+         enableVdc <= '1';
+      end if;
+
+      if enableVdc_sl(0) = '1' then
+         enableVdc <= '0';
+      end if;
+   end if;
+end process;
+
+process(clk_vdc)
+begin
+   if rising_edge(clk_vdc) then
+      enableVdc_sl(1) <= enableVdc_sl(0);
+      enableVdc_sl(0) <= enableVdc;
+   end if;
+end process;
+
 vdc: vdc_top
 generic map (
    RAM_ADDR_BITS => VDC_ADDR_BITS
@@ -887,28 +910,24 @@ port map (
    version => vdcVersion,
    ram64k => vdc64k,
    initRam => vdcInitRam,
-   ntsc => ntscMode,
    debug => vdcDebug,
 
-   clk => clk32,
+   clk => clk_vdc,
    reset => reset,
    init => '0',
 
-   enableBus => enableVdc,
-   cs => cs_vdc and cs_enable,
-   we => cpuWe,
-   lp_n => cia1_pbi(4),
-
-   rs => tAddr(0),
-   db_in => cpuDo,
+   enableBus => enableVdc_sl(0) and not enableVdc_sl(1),
+   cs => vdcCs,
+   we => vdcWe,
+   rs => vdcRs,
+   db_in => vdcDi,
    db_out => vdcData,
 
-   pixelclk => vdcPixClk,
+   lp_n => cia1_pbi(4),
+
    hsync => vdcHsync,
    vsync => vdcVsync,
-   ilace => vdcIlace,
-   field => vdcF1,
-   disableVideo => vdcDisable,
+
    rgbi => vdcRGBI
 );
 
@@ -961,7 +980,7 @@ port map (
 	filter_en => sid_filter,
 	mode    => sid_ver,
 	cfg     => sid_cfg,
-	
+
 	fc_offset_l => sid_fc_off_l,
 	fc_offset_r => sid_fc_off_r,
 
@@ -1173,7 +1192,7 @@ t65_cyc <= (not t65_cyc_s) when
            (sysCycle = CYCLE_CPU4 and (io_enable = '1'      or cs_ram = '1')) or
            (sysCycle = CYCLE_CPU8 and t65_turbo_m(1) = '1' and cs_ram = '1') or
            (sysCycle = CYCLE_CPUC and t65_turbo_m(2) = '1' and ((turbo_std = '1' and aec = '0') or (turbo_std = '0' and cs_ram = '1'))) else '0';
-t80_cyc <= '1' when 
+t80_cyc <= '1' when
            (sysCycle = CYCLE_CPU0 and io_enable = '1') or
            (sysCycle = CYCLE_CPU8 and t80_turbo_m = '1' and cs_ram = '1') else '0';
 
@@ -1191,16 +1210,16 @@ begin
    if rising_edge(clk32) then
       cpucycT65 <= '0';
       case sysCycle is
-         when CYCLE_CPU0 | CYCLE_CPU4 | CYCLE_CPU8 | CYCLE_CPUC 
+         when CYCLE_CPU0 | CYCLE_CPU4 | CYCLE_CPU8 | CYCLE_CPUC
             => t65_cyc_s <= t65_cyc;
 
-         when CYCLE_CPU2 | CYCLE_CPU6 | CYCLE_CPUA | CYCLE_CPUE 
+         when CYCLE_CPU2 | CYCLE_CPU6 | CYCLE_CPUA | CYCLE_CPUE
             => if cs_io = '0' or sysCycle = CYCLE_CPU6 then
                   cpucycT65 <= t65_cyc_s;
                   t65_cyc_s <= '0';
                end if;
 
-         when CYCLE_CPU3 | CYCLE_CPU7 | CYCLE_CPUB | CYCLE_CPUF 
+         when CYCLE_CPU3 | CYCLE_CPU7 | CYCLE_CPUB | CYCLE_CPUF
             => if cpuactT65 = '1' then
                   cpuWe_l <= cpuWe;
                   if cpucycT65 = '1' then
@@ -1222,7 +1241,7 @@ begin
                      when others => null;
                   end case;
                end if;
-                  
+
          when others => null;
       end case;
 
@@ -1232,10 +1251,10 @@ begin
 
                if cpuactT65 = '0' and cpuCycT80 = '1' and cpuRd_T80 = '1' and cpuIO_T80 = '1' then
                   cpuDi_l <= cpuDi;
-               end if;            
-         
+               end if;
+
          when CYCLE_CPU7 | CYCLE_CPUF
-            => if cpuactT65 = '0' then 
+            => if cpuactT65 = '0' then
                   cpuWe_l <= cpuWe;
                   if sysCycle = CYCLE_CPU7 or t80_cyc_s = '1' then
                      if cpuRd_T80 = '1' then

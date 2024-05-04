@@ -3,6 +3,7 @@ set_global_assignment -name QIP_FILE rtl/opl3/opl3.qip
 set_global_assignment -name QIP_FILE rtl/iec_drive/iec_drive.qip
 set_global_assignment -name QIP_FILE rtl/t65/t65.qip
 set_global_assignment -name QIP_FILE rtl/t80/t80.qip
+set_global_assignment -name QIP_FILE rtl/pll_vdc.qip
 set_global_assignment -name QIP_FILE rtl/vdc856x/vdc.qip
 set_global_assignment -name VHDL_FILE rtl/cpu_6510.vhd
 set_global_assignment -name VHDL_FILE rtl/cpu_z80.vhd
@@ -15,6 +16,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/cartridge.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/reu.sv
 set_global_assignment -name VHDL_FILE rtl/c1530.vhd
 set_global_assignment -name VERILOG_FILE rtl/c1351.v
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/video_switch.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/video_sync.sv
 set_global_assignment -name VHDL_FILE rtl/video_vicII_656x.vhd
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/video_vicIIe_jb.sv
@@ -25,4 +27,6 @@ set_global_assignment -name VHDL_FILE rtl/fpga64_sid_iec.vhd
 set_global_assignment -name VHDL_FILE rtl/rgbicolor.vhd
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/osdinfo.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/iec_io.sv
+set_global_assignment -name QIP_FILE rtl/pll_video.qip
+set_global_assignment -name QIP_FILE rtl/pll_video_cfg.qip
 set_global_assignment -name SYSTEMVERILOG_FILE c128.sv
