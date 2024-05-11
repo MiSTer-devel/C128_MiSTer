@@ -801,7 +801,7 @@ reg        drv_loading, drv_loaded = 0;
 //    so a 64k block must start at a 64k boundary, etc.
 localparam RAM_ADDR = 25'h0000000;  // System RAM: 256k
 localparam CRM_ADDR = 25'h0040000;  // Cartridge RAM: 64k
-localparam ROM_ADDR = 25'h0060000;  // System ROM: 96k (align on 128k)       loaded from boot0.rom or MRA (required)
+localparam ROM_ADDR = 25'h0060000;  // System ROM: 72k (align on 128k)       loaded from boot0.rom or MRA (required)
 localparam DRV_ADDR = 25'h0080000;  // Drive ROM: 512k                       loaded from boot0.rom, boot1.rom or MRA (required)
 localparam CRT_ADDR = 25'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
 localparam IFR_ADDR = 25'h0200000;  // Internal function ROM: 1M             can be loaded from boot2.rom or MRA (optional)
@@ -809,19 +809,19 @@ localparam TAP_ADDR = 25'h0300000;  // Tape buffer (not aligned)
 localparam GEO_ADDR = 25'h0C00000;  // GeoRAM: 4M
 localparam REU_ADDR = 25'h1000000;  // REU: 16M
 
-localparam ROM_SIZE = 25'h0012000;  // min size of boot0.rom
-localparam DRV_SIZE = 25'h0030000;  // max size of boot1.rom
+localparam ROM_SIZE = 25'h0012000;  // expected size of boot0.rom
+localparam DRV_SIZE = 25'h0060000;  // max size of boot1.rom
 localparam EFR_SIZE = 25'h0008000;  // max size of external function rom
 localparam IFR_SIZE = 25'h0100000;  // max size of internal function rom
 
 // MRA layout
 localparam MRA_ROM_START = 25'h0;
 localparam MRA_ROM_END   = MRA_ROM_START+ROM_SIZE;
-localparam MRA_DRV_START = MRA_ROM_END;
-localparam MRA_DRV_END   = MRA_DRV_START+DRV_SIZE;
-localparam MRA_EFR_START = MRA_ROM_START+CRT_ADDR-ROM_ADDR;
+localparam MRA_EFR_START = 25'h18000;
 localparam MRA_EFR_END   = MRA_EFR_START+EFR_SIZE;
-localparam MRA_IFR_START = MRA_EFR_END;
+localparam MRA_DRV_START = 25'h20000;
+localparam MRA_DRV_END   = MRA_DRV_START+DRV_SIZE;
+localparam MRA_IFR_START = 25'h80000;
 localparam MRA_IFR_END   = MRA_IFR_START+IFR_SIZE;
 
 always @(posedge clk_sys) begin
@@ -876,20 +876,12 @@ always @(posedge clk_sys) begin
                rom_loading <= 1;
             end
          end
-
-         if (ioctl_addr == MRA_ROM_END)
-            ioctl_ignore = 1;
-
-         if (ioctl_addr == MRA_DRV_START && bootrom) begin
+         else if (ioctl_addr == MRA_DRV_START && bootrom) begin
             ioctl_load_addr <= DRV_ADDR;
             ioctl_ignore = drv_loaded;
             drv_loading <= ~drv_loaded;
          end
-
-         if (ioctl_addr == MRA_DRV_END)
-            ioctl_ignore = 1;
-
-         if (ioctl_addr == MRA_EFR_START && bootrom) begin
+         else if (ioctl_addr == MRA_EFR_START && bootrom) begin
             ioctl_load_addr <= CRT_ADDR;
             ioctl_ignore = cart_attached;
             if (!cart_attached) begin
@@ -898,19 +890,14 @@ always @(posedge clk_sys) begin
                cart_id <= 0;
             end
          end
-
-         if (ioctl_addr == MRA_EFR_END)
-            ioctl_ignore = 1;
-
-         if (ioctl_addr == MRA_IFR_START && bootrom) begin
+         else if (ioctl_addr == MRA_IFR_START && bootrom) begin
             ioctl_load_addr <= IFR_ADDR;
             ioctl_ignore = ifr_attached;
             if (!ifr_attached) begin
                cart_int_rom <= 0;
             end
          end
-
-         if (ioctl_addr == MRA_IFR_END)
+         else if (ioctl_addr == MRA_ROM_END || ioctl_addr == MRA_DRV_END || ioctl_addr == MRA_EFR_END || ioctl_addr == MRA_IFR_END)
             ioctl_ignore = 1;
 
          if (|ioctl_data && ~&ioctl_data && !ioctl_ignore) begin
@@ -1077,7 +1064,7 @@ always @(posedge clk_sys) begin
       if (load_rom && ioctl_addr >= ROM_SIZE && rom_loading) begin
          rom_loaded <= 1;
       end
-      if (((load_rom && ioctl_addr >= MRA_DRV_END) || (load_drv && ioctl_addr >= DRV_SIZE)) && drv_loading) begin
+      if ((load_rom || load_drv) && drv_loading) begin
          drv_loaded <= 1;
       end
       if (load_rom || load_crt || load_efr) begin

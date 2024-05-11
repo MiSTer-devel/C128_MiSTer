@@ -20,17 +20,17 @@
         10000 - 11FFF: Character ROM
           10000: C64/ASCII
           11000: C128/DIN
-        12000 - 1FFFF: unused
+        12000 - 17FFF: unused
+      18000 - 1FFFF: External function ROM (optional, 32k)
       20000 - 9FFFF: Drive ROMs
         20000 - 2FFFF: 1541 (two copies of each drive rom, separate roms for devices 8 and 9 -- if the ROM is 16k repeat it twice per device)
         30000 - 3FFFF: 1571
         40000 - 4FFFF: 1581
-        50000 - 9FFFF: unused
-      A0000 -  A7FFF: External function ROM (optional, 32k)
-      A8000 -       : Internal function ROM (optional, max 1M) 
+        50000 - 7FFFF: unused
+      80000 -       : Internal function ROM (optional, max 1M)
 
     Index 1: Variant options
-      bit 0: Chipset: 0=original (6526/6581/8563) 1=CR version (8521/8580/8568) 
+      bit 0: Chipset: 0=original (6526/6581/8563) 1=CR version (8521/8580/8568)
       bit 1: Operating mode: 0=C128 1="Pure" C64 (disables Z80/MMU/VDC)
       bit 2: Caps lock key: 0=Caps Lock 1=ASCII/DIN
   </romstruct>
@@ -41,10 +41,10 @@
     <part name="basic.318022-02.bin"/>
     <part name="characters.390059-01.bin"/>
     <part repeat="0xE000">00</part>
-    <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/> 
-    <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/> 
-    <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/> 
-    <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/> 
+    <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/>
+    <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/>
+    <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/>
+    <part name="JiffyDOS_1541-II.bin" zip="C128JiffyDOS.zip"/>
     <part name="JiffyDOS_1571_repl310654.bin" zip="C128JiffyDOS.zip"/>
     <part name="JiffyDOS_1571_repl310654.bin" zip="C128JiffyDOS.zip"/>
     <part name="JiffyDOS_1581.bin" zip="C128JiffyDOS.zip"/>
