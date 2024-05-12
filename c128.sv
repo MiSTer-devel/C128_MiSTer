@@ -228,7 +228,7 @@ localparam CONF_STR = {
    "d1P1O[32],Vertical Crop,No,Yes;",
    "P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
    "P1-;",
-   "hDP1O[35:34],VIC-II Variant,656x,856x,Early 856x;",
+   "hAP1O[35:34],VIC-II Variant,656x,856x,Early 856x;",
    "P1O[95:94],VIC-II Jailbars,Off,Low,Medium,High;",
    "HAP1-;",
    "HAP1O[81:80],VDC Variant,Auto,8563R9,8568;",
@@ -505,7 +505,6 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 
    .status(status),
    .status_menumask({
-      /* D */ pure64,
       /* C */ ifr_attached,
       /* B */ cart_attached,
       /* A */ cfg_force64,
@@ -1383,7 +1382,7 @@ fpga64_sid_iec #(
    .ramCE(ram_ce),
    .ramWE(ram_we),
 
-   .vic_variant(pure64 ? status[35:34] : 2'b01),
+   .vic_variant(cfg_force64 ? status[35:34] : 2'b01),
    .ntscmode(ntsc),
    .vicJailbars(status[95:94]),
 
