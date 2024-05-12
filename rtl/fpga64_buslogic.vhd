@@ -51,7 +51,7 @@ entity fpga64_buslogic is
 		-- From MMU
 		z80_n       : in std_logic;             -- "0" Z80, "1" 8502
 		c128_n      : in std_logic;             -- "0" C128, "1" C64
-		mmu_rombank : in unsigned(1 downto 0);  
+		mmu_rombank : in unsigned(1 downto 0);
 		mmu_iosel   : in std_logic;
 		tAddr       : in unsigned(15 downto 0); -- Translated address bus
 		cpuBank     : in unsigned(1 downto 0);
@@ -261,7 +261,7 @@ begin
 								cs_vicLoc <= '1';
 							when X"4" =>
 								cs_sidLoc <= not z80m1;
-							when X"5" => 
+							when X"5" =>
 								if mmu_iosel = '0' then
 									cs_mmuLLoc <= '1';
 								end if;
@@ -317,7 +317,7 @@ begin
 					else
 						cs_ramLoc <= '1';
 					end if;
-				when X"1" => 
+				when X"1" =>
 					if cpuAddr(11 downto 10) = B"00" and z80_n = '0' and mmu_iosel = '0' then
 						cs_colorLoc <= '1';
 					else
@@ -362,25 +362,25 @@ begin
 							when X"0" | X"1" | X"2" | X"3" =>
 								cs_vicLoc <= '1';
 							when X"4" =>
-								cs_sidLoc <= not z80m1;
+								cs_sidLoc <= pure64 or not z80m1;
 							when X"5" =>
-								cs_sidLoc <= pure64 and not z80m1;
+								cs_sidLoc <= pure64;
 							when X"6" =>
 								cs_vdcLoc <= not pure64 and not z80m1;
-								cs_sidLoc <= pure64 and not z80m1;
+								cs_sidLoc <= pure64;
 							when X"7" =>
-								cs_io7Loc <= not z80m1;
-								cs_sidLoc <= pure64 and not z80m1;
+								cs_io7Loc <= pure64 or not z80m1;
+								cs_sidLoc <= pure64;
 							when X"8" | X"9" | X"A" | X"B" =>
 								cs_colorLoc <= '1';
 							when X"C" =>
-								cs_cia1Loc <= not z80m1;
+								cs_cia1Loc <= pure64 or not z80m1;
 							when X"D" =>
-								cs_cia2Loc <= not z80m1;
+								cs_cia2Loc <= pure64 or not z80m1;
 							when X"E" =>
-								cs_ioELoc <= not z80m1;
+								cs_ioELoc <= pure64 or not z80m1;
 							when X"F" =>
-								cs_ioFLoc <= not z80m1;
+								cs_ioFLoc <= pure64 or not z80m1;
 							when others =>
 								null;
 						end case;
@@ -417,7 +417,7 @@ begin
 					else
 						cs_ramLoc <= '1';
 					end if;
-				when X"1" => 
+				when X"1" =>
 					if cpuAddr(11 downto 10) = B"00" and z80_n = '0' and mmu_iosel = '0' then
 						cs_colorLoc <= '1';
 					else
