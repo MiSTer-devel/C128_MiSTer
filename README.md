@@ -32,7 +32,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - Smart Turbo mode (up to 4x speed) for the 8502.
 - **Smart Turbo mode (2x speed) for the Z80.**
 - Real-time clock.
-- *(Experimental)* **Support for easy configuration of ROMs and hardware options using MRA files**.
+- *(Optional)* **Multiple ROM sets and hardware variants using MRA files**.
 
 Features marked in **bold** are unique to the C128 core, the other features are inherited from the C64 core.
 
@@ -64,19 +64,21 @@ There are two optional boot roms:
   * This is different from a cartridge (`.CRT`) file, it should be a plain ROM image without the cartridge headers
 
 #### Using MRA files
-*(Experimental)*
+*(Advanced)*
 
-MRA files make it possible to create multiple ROM configurations and easily switch between them using the MiSTer interface. Each configuration will show as a separate item in the Computer cores menu. MRA files were designed for use with the arcade cores, but they also work with computer cores.
+MRA files make it possible to create multiple ROM and hardware configurations and easily switch between them using the MiSTer main menu. Each configuration will show as a separate item in the Computer cores menu. MRA files were designed for use with the arcade cores, but they also work with computer cores.
 
-The MRA file configures all system and drive roms as well as (optionally) the internal and external function ROMs. It also contains a configuration parameter that configures the "auto" choice of the CIA, SID and VDC chips and how the Caps Lock key is configured, making it possible to quickly switch between a 1985 flat C128 and a C128DCR hardware setup, the multitude of international language versions of the C128, and even a "pure" C64 mode.
+Using MRA files requires the user to make manual changes to the MiSTer file layout as currently the update script does not support MRA files for computer cores.
 
-Using MRA files is the more convenient way to use multiple ROM configurations with the C128 core, but requires the user to make manual changes to the MiSTer file layout as currently the `update_all` script does not support MRA files for computer cores.
+An MRA file configures all system and drive roms as well as (optionally) the internal and external function ROMs. It also contains a configuration parameter that configures the "auto" choice of the CIA, SID and VDC chips and how the Caps Lock key is configured, making it possible to quickly switch between a 1985 flat C128 and a C128DCR hardware setup and the multitude of international language versions of the C128.
 
-The following changes need to be made on the MiSTer SD-CARD or USB drive to use the MRA files:
+The following changes need to be made on the MiSTer SD-CARD or USB drive to use MRA files:
 
-* Move the core's `C128_XXXXXXXX.rbf` file from the `/_Computer/` folder to a (new) `/_Computer/cores/` folder,
+* Copy the latest `C128_XXXXXXXX.rbf` file from the `/_Computer/` folder to a (new) `/_Computer/cores/` folder,
 * Download (some of) the `*.mra` files from the [mra directory](https://github.com/mister-devel/C128_MiSTer/tree/master/mra) and place them in the `/_Computer/` folder,
-* Download [C128rom.zip](https://github.com/mister-devel/C128_MiSTer/blob/master/mra/C128rom.zip) and place that in the `/games/mame/` folder,
+* Download [C128rom.zip](https://github.com/mister-devel/C128_MiSTer/blob/master/mra/C128rom.zip) and place that in the `/games/mame/` folder.
+
+The above steps need to be repeated when a new version of the core is released, as the update script will not update the `*.rbf` in the `/_Computer/cores/` folder, and also the `*.mra` files might have been updated in the repository.
 
 #### Loadable ROM
 ROMs can also be loaded from the OSD via *Hardware*->*System ROMs* and *Hardware*->*Drive ROMs* menu options. These expect a ROM file with the same layout as `boot0.rom` and `boot1.rom` as described above respectively.
