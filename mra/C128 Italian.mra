@@ -33,6 +33,7 @@
       bit 0: Chipset: 0=original (6526/6581/8563) 1=CR version (8521/8580/8568)
       bit 1: Operating mode: 0=C128 1="Pure" C64 (disables Z80/MMU/VDC)
       bit 2: Caps lock key: 0=Caps Lock 1=ASCII/DIN
+      bit 3: DIN mode keyboard layout: 0=QWERTY/QWERTZ, 1=AZERTY/QZERTY
   </romstruct>
   <rom index="0" zip="C128rom.zip" md5="fe57e1dc9ce4ae6415c5a6398bb61d14">
     <part name="c64-basic.901226-01.bin"/>
@@ -54,6 +55,6 @@
     <part name="1581.318045-02.bin"/>
   </rom>
   <rom index="1">
-    <part>04</part>
+    <part>0C</part>
   </rom>
 </misterromdescription>

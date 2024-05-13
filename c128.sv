@@ -453,10 +453,11 @@ wire   [7:0] ioctl_data;
 wire   [9:0] ioctl_index;
 wire         ioctl_download;
 
-reg    [2:0] sysconfig=3'b001;
+reg    [3:0] sysconfig=4'b0001;
 wire         cfg_chipset=sysconfig[0];
 wire         cfg_force64=sysconfig[1];
 wire         cfg_cpslk=sysconfig[2];
+wire         cfg_azerty=sysconfig[3];
 
 wire  [31:0] sd_lba[2];
 wire   [5:0] sd_blk_cnt[2];
@@ -964,7 +965,7 @@ always @(posedge clk_sys) begin
       end
 
       if (load_cfg) begin
-         sysconfig <= ioctl_data[2:0];
+         sysconfig <= ioctl_data[3:0];
       end
 
       if (load_prg) begin
@@ -1369,6 +1370,7 @@ fpga64_sid_iec #(
    .ps2_key(key),
    .kbd_reset((~reset_n & ~status[1]) | reset_keys),
    .shift_mod(~status[60:59]),
+   .azerty(cfg_azerty),
    .cpslk_mode(cpslk_mode),
    .sftlk_sense(sftlk_sense),
    .cpslk_sense(cpslk_sense),

@@ -60,6 +60,7 @@ port(
    ps2_key     : in  std_logic_vector(10 downto 0);
    kbd_reset   : in  std_logic := '0';
    shift_mod   : in  std_logic_vector(1 downto 0);
+   azerty      : in  std_logic;
    cpslk_mode  : in  std_logic;
    sftlk_sense : out std_logic;
    cpslk_sense : out std_logic;
@@ -1333,6 +1334,7 @@ port map (
    clk => clk32,
    reset => kbd_reset,
    pure64 => pure64,
+   c128_n => mmu_c128_n,
 
    ps2_key => ps2_key,
    go64 => go64,
@@ -1347,6 +1349,7 @@ port map (
 
    alt_crsr => not mmu_z80_n,
    shift_mod => shift_mod,
+   azerty => azerty,
 
    restore_key => freeze_key,
    tape_play => tape_play,

@@ -40,14 +40,16 @@ entity fpga64_keyboard is
 		clk         : in std_logic;
 		reset       : in std_logic;
 		pure64      : in std_logic;
-    
+		c128_n      : in std_logic;
+
 		go64        : in std_logic;
 		ps2_key     : in std_logic_vector(10 downto 0);
 		joyA        : in unsigned(6 downto 0);
 		joyB        : in unsigned(6 downto 0);
-		    
+
 		alt_crsr    : in std_logic;  -- when set, uses top-row cursor keys as default and FN switches to the original cursor keys
 		shift_mod   : in std_logic_vector(1 downto 0);
+		azerty      : in std_logic;  -- when set, modify layout for AZERTY keyboard in DIN mode
 
 		pai         : in unsigned(7 downto 0);
 		pbi         : in unsigned(7 downto 0);
@@ -208,9 +210,11 @@ architecture rtl of fpga64_keyboard is
 	signal last_key : std_logic_vector(10 downto 0);
 
 	signal key_fn_crsr : std_logic;
+	signal shift_num_mod : std_logic;
 
 begin
 	delay_end <= '1' when delay_cnt = 0 else '0';
+	shift_num_mod <= c128_n or capslock_state or not azerty;
 
 	capslock <= key_capslock or (key_F4 and key_fn);
 	capslock_toggle: process(clk)
@@ -305,7 +309,7 @@ begin
 				(pbi(6) or not key_E) and
 				(pbi(7) or not (
 					((key_inst
-						or ((key_left or key_up) and not key_fn_crsr) 
+						or ((key_left or key_up) and not key_fn_crsr)
 						or ((key_F2 or key_F4 or key_F6 or key_F8) and not key_fn)
 					) and shift_mod(1))
 					or ((key_shiftl or shift_lock_state) and not key_8s)
@@ -358,7 +362,7 @@ begin
 				(pbi(3) or not key_home) and
 				(pbi(4) or not (
 					((key_inst
-						or ((key_left or key_up) and not key_fn_crsr) 
+						or ((key_left or key_up) and not key_fn_crsr)
 						or ((key_F2 or key_F4 or key_F6 or key_F8) and not key_fn)
 					) and shift_mod(0))
 					or (key_shiftr and not key_8s)
@@ -435,7 +439,7 @@ begin
 				(pai(5) or not (key_dot and not key_fn)) and
 				(pai(6) or not (
 					((
-						key_inst 
+						key_inst
 						or ((key_left or key_up) and not key_fn_crsr)
 						or ((key_F2 or key_F4 or key_F6 or key_F8) and not key_fn)
 					) and shift_mod(0))
@@ -473,9 +477,9 @@ begin
 				(pai(0) or not ((key_up or key_down) and not key_fn_crsr)) and
 				(pai(1) or not (
 					((
-						key_inst 
-						or ((key_left or key_up) and not key_fn_crsr) 
-						or ((key_F2 or key_F4 or key_F6 or key_F8) and not key_fn) 
+						key_inst
+						or ((key_left or key_up) and not key_fn_crsr)
+						or ((key_F2 or key_F4 or key_F6 or key_F8) and not key_fn)
 					) and shift_mod(1))
 					or ((key_shiftl or shift_lock_state) and not key_8s)
 				)) and
@@ -529,24 +533,24 @@ begin
 					when "0" & X"33" => key_H <= pressed;
 					when "0" & X"34" => key_G <= pressed;
 					when "0" & X"35" => key_Y <= pressed;
-					when "0" & X"36" => key_7 <= pressed and     key_shift;
-							 		        key_6 <= pressed and not key_shift;
+					when "0" & X"36" => key_7 <= pressed and      key_shift and shift_num_mod;
+											  key_6 <= pressed and not (key_shift and shift_num_mod);
 					when "0" & X"3A" => key_M <= pressed;
 					when "0" & X"3B" => key_J <= pressed;
 					when "0" & X"3C" => key_U <= pressed;
-					when "0" & X"3D" => key_6 <= pressed and     key_shift;
-									        key_7 <= pressed and not key_shift;
-					when "0" & X"3E" => key_8s <= pressed and    key_shift;
-									        key_8 <= pressed and not key_shift;
+					when "0" & X"3D" => key_6 <= pressed and      key_shift and shift_num_mod;
+									        key_7 <= pressed and not (key_shift and shift_num_mod);
+					when "0" & X"3E" => key_8s <= pressed and     key_shift and shift_num_mod;
+									        key_8 <= pressed and not (key_shift and shift_num_mod);
 									        delay_cnt <= 300000;
 					when "0" & X"41" => key_comma <= pressed;
 					when "0" & X"42" => key_K <= pressed;
 					when "0" & X"43" => key_I <= pressed;
 					when "0" & X"44" => key_O <= pressed;
-					when "0" & X"45" => key_9 <= pressed and     key_shift;
-											  key_0 <= pressed and not key_shift;
-					when "0" & X"46" => key_8 <= pressed and     key_shift;
-									  		  key_9 <= pressed and not key_shift;
+					when "0" & X"45" => key_9 <= pressed and      key_shift and shift_num_mod;
+											  key_0 <= pressed and not (key_shift and shift_num_mod);
+					when "0" & X"46" => key_8 <= pressed and      key_shift and shift_num_mod;
+									  		  key_9 <= pressed and not (key_shift and shift_num_mod);
 					when "0" & X"49" => key_dot <= pressed;
 					when "0" & X"4A" => key_slash <= pressed;
 					when "0" & X"4B" => key_L <= pressed;
@@ -594,18 +598,18 @@ begin
 					when "1" & X"72" => key_down <= pressed;
 					when "1" & X"74" => key_right <= pressed;
 					when "1" & X"75" => key_up <= pressed;
-					when "1" & X"77" => if pure64 = '0' and pressed = '1' and ps2_key /= last_key then 
+					when "1" & X"77" => if pure64 = '0' and pressed = '1' and ps2_key /= last_key then
 						if noscroll_lock = '1' then
 							noscroll_lock <= '0';
-							key_noscroll <= '0'; 
+							key_noscroll <= '0';
 						elsif noscroll_delay /= 0 then
 							if key_noscroll = '1' then
 								noscroll_lock <= '1';
 							end if;
 						else
-							key_noscroll <= '1'; 
+							key_noscroll <= '1';
 						end if;
-						noscroll_delay <= C_NOSCROLL_DELAY; 
+						noscroll_delay <= C_NOSCROLL_DELAY;
 					end if;
 					when "1" & X"7A" => if pure64 = '0' then key_linefd <= pressed; else key_arrowup <= pressed; end if;
 					when "1" & X"7C" => key_d4080 <= pressed;
