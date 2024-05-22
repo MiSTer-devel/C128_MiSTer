@@ -13,6 +13,18 @@ module  pll_video_0002(
 	// interface 'locked'
 	output wire locked,
 
+	// interface 'phase_en'
+	input wire phase_en,
+
+	// interface 'updn'
+	input wire updn,
+
+	// interface 'cntsel'
+	input wire [4:0] cntsel,
+
+	// interface 'phase_done'
+	output wire phase_done,
+
 	// interface 'reconfig_to_pll'
 	input wire [63:0] reconfig_to_pll,
 
@@ -82,7 +94,7 @@ module  pll_video_0002(
 		.phase_shift17("0 ps"),
 		.duty_cycle17(50),
 		.pll_type("Cyclone V"),
-		.pll_subtype("Reconfigurable"),
+		.pll_subtype("ReconfDPS"),
 		.m_cnt_hi_div(6),
 		.m_cnt_lo_div(5),
 		.n_cnt_hi_div(256),
@@ -229,12 +241,16 @@ module  pll_video_0002(
 		.pll_slf_rst("true")
 	) altera_pll_i (
 		.rst	(rst),
-		.outclk	({outclk_0}),
 		.locked	(locked),
-		.reconfig_to_pll	(reconfig_to_pll),
 		.fboutclk	( ),
 		.fbclk	(1'b0),
+		.phase_done	(phase_done),
+		.reconfig_to_pll	(reconfig_to_pll),
 		.refclk	(refclk),
+		.cntsel	(cntsel),
+		.outclk	({outclk_0}),
+		.phase_en	(phase_en),
+		.updn	(updn),
 		.reconfig_from_pll	(reconfig_from_pll)
 	);
 endmodule

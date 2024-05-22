@@ -10,6 +10,10 @@ module pll_video (
 		input  wire        rst,               //             reset.reset
 		output wire        outclk_0,          //           outclk0.clk
 		output wire        locked,            //            locked.export
+		input  wire        phase_en,          //          phase_en.phase_en
+		input  wire        updn,              //              updn.updn
+		input  wire [4:0]  cntsel,            //            cntsel.cntsel
+		output wire        phase_done,        //        phase_done.phase_done
 		input  wire [63:0] reconfig_to_pll,   //   reconfig_to_pll.reconfig_to_pll
 		output wire [63:0] reconfig_from_pll  // reconfig_from_pll.reconfig_from_pll
 	);
@@ -19,6 +23,10 @@ module pll_video (
 		.rst               (rst),               //             reset.reset
 		.outclk_0          (outclk_0),          //           outclk0.clk
 		.locked            (locked),            //            locked.export
+		.phase_en          (phase_en),          //          phase_en.phase_en
+		.updn              (updn),              //              updn.updn
+		.cntsel            (cntsel),            //            cntsel.cntsel
+		.phase_done        (phase_done),        //        phase_done.phase_done
 		.reconfig_to_pll   (reconfig_to_pll),   //   reconfig_to_pll.reconfig_to_pll
 		.reconfig_from_pll (reconfig_from_pll)  // reconfig_from_pll.reconfig_from_pll
 	);
@@ -234,7 +242,7 @@ endmodule
 // Retrieval info: 	<generic name="gui_pll_auto_reset" value="On" />
 // Retrieval info: 	<generic name="gui_pll_bandwidth_preset" value="Auto" />
 // Retrieval info: 	<generic name="gui_en_reconf" value="true" />
-// Retrieval info: 	<generic name="gui_en_dps_ports" value="false" />
+// Retrieval info: 	<generic name="gui_en_dps_ports" value="true" />
 // Retrieval info: 	<generic name="gui_en_phout_ports" value="false" />
 // Retrieval info: 	<generic name="gui_phout_division" value="1" />
 // Retrieval info: 	<generic name="gui_mif_generate" value="false" />

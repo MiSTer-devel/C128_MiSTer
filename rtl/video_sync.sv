@@ -5,14 +5,10 @@
 //
 //============================================================================
 
-module video_sync #(
-   parameter MAX_PIXEL_RATE = 4
-)(
+module video_sync (
    input        reset,
 	input        clk32,
    input        pause,
-
-   input [$clog2(MAX_PIXEL_RATE+1)-1:0] pixelrate,
 
    input [11:0] hshift_r60,
    input [11:0] hshift_l60,
@@ -230,20 +226,20 @@ always @(posedge clk32) begin
    end
 end
 
-wire ce_sync = vsync_cnt == 1 && hsync_out;
+reg [1:0] ce_cnt;
 
-reg [MAX_PIXEL_RATE:0] pixel_div;
-
-assign ce = pixel_div[pixelrate];
+assign ce = ce_cnt[1];
 
 always @(posedge clk32) begin
-   reg old_ce_sync;
+   reg old_vsync;
 
-   old_ce_sync <= ce_sync;
-   if (reset || (!old_ce_sync && ce_sync))
-      pixel_div <= 0;
+   old_vsync <= vsync_out;
+   if (reset)
+      ce_cnt <= 0;
+   else if (!field && !old_vsync && vsync_out)
+      ce_cnt <= {~ce_cnt[1], 1'b0};
    else
-      pixel_div <= pixel_div + 1'd1;
+      ce_cnt <= ce_cnt + 1'd1;
 
 end
 

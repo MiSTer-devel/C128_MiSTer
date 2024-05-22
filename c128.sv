@@ -194,7 +194,7 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXX XX  XX XXXXXXXxxxXXXXXXXXXXXX
+// XXXXXXXXXX XXXXXXXXXXX XXXXXXXXX XX  XX XXXXXXXxxxXXXXXXXXXXXX
 
 //                                      1         1         1
 // 6     7         8         9          0         1         2
@@ -224,7 +224,7 @@ localparam CONF_STR = {
    "P1O[2],Video Standard,PAL,NTSC;",
    "P1-;",
    "P1O[5:4],Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
-   "P1O[10:8],Scandoubler Fx,None,HQ2x-320,HQ2x-160,CRT 25%,CRT 50%,CRT 75%;",
+   "P1O[9:8],Scandoubler Fx,None,CRT 25%,CRT 50%,CRT 75%;",
    "d1P1O[32],Vertical Crop,No,Yes;",
    "P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
    "P1-;",
@@ -1713,23 +1713,22 @@ video_switch video_switch
 (
    .RESET(RESET),
    .CLK_50M(CLK_50M),
-   .clk_sys(clk_sys),
-   .clk_vdc(clk_vdc),
 
    .reset_n(reset_n),
    .c64_pause(c64_pause),
    .ntsc(ntsc),
    .wide(wide),
    .mode(video_mode),
-   .scandoubler_fx(status[10:8]),
    .vdc_position(status[122]),
 
+   .clk_vic(clk_sys),
    .vicHsync(vicHsync),
    .vicVsync(vicVsync),
    .vicR(vicR),
    .vicG(vicG),
    .vicB(vicB),
 
+   .clk_vdc(clk_vdc),
    .vdcHsync(vdcHsync),
    .vdcVsync(vdcVsync),
    .vdcR(vdcR),
@@ -1751,9 +1750,9 @@ video_switch video_switch
    .b(b)
 );
 
-wire scandoubler = video_sel && (status[10:8] || forced_scandoubler);
+wire scandoubler = status[9:8] || forced_scandoubler;
 
-assign VGA_SL    = status[10:8] > 2 ? status[9:8] - 2'd2 : 2'd0;
+assign VGA_SL    = status[9:8];
 
 reg [9:0] vcrop;
 reg wide;
@@ -1805,7 +1804,7 @@ video_mixer #(.GAMMA(1)) video_mixer
 (
    .CLK_VIDEO(CLK_VIDEO),
 
-   .hq2x(video_sel & ~status[10] & (status[9] ^ status[8])),
+   .hq2x(0),
    .scandoubler(scandoubler),
    .gamma_bus(gamma_bus),
 
