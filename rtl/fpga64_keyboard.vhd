@@ -586,8 +586,8 @@ begin
 
 					when "1" & X"11" => key_fn <= pressed;  -- AltGr (right)
 					when "1" & X"14" => key_ctrl <= pressed; -- Ctrl (right)
-					when "1" & X"1F" => key_commodore <= pressed; -- Meta (left)
-					when "1" & X"27" => key_commodore <= pressed; -- Meta (right)
+					when "1" & X"1F" => key_commodore <= pressed; -- Super (left)
+					when "1" & X"27" => key_commodore <= pressed; -- Super (right)
 					when "1" & X"4A" => if pure64 = '0' then null                   ; else key_slash   <= pressed; end if;
 					when "1" & X"5A" => if pure64 = '0' then key_enter    <= pressed; else key_return  <= pressed; end if;
 					when "1" & X"69" => key_runstop <= pressed;

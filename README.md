@@ -91,7 +91,7 @@ The Internal Function ROM can also be loaded from the OSD via *Hardware*->*Inter
 * <kbd>F9</kbd> - <kbd>&#129145;</kbd> key.
 * <kbd>F10</kbd> - <kbd>=</kbd> key.
 * <kbd>F11</kbd> - <kbd>Restore</kbd> key, or <kbd>Freeze</kbd> key for some cartridges (e.g. Action Replay).
-* Meta keys (Win/Apple) - <kbd>C=</kbd> key.
+* Super keys (Win/Apple) - <kbd>C=</kbd> key.
 * <kbd>PgUp</kbd> - Tape play/pause
 * <kbd>PgDn</kbd> - <kbd>Line feed</kbd>
 * <kbd>Print Screen</kbd> - <kbd>Display 40/80</kbd>
