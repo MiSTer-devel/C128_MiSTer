@@ -206,7 +206,7 @@ GeoRAM and REU don't conflict each other and can be both enabled.
 
 All signals are 3.3V LVTTL and must be properly converted to required levels!
 
-The IEC /SRQ (USER_IO6) line is required for IEC fast serial operation with an external 1571 or 1581 drive. You will need a MiSTer user port adapter that connects the /SRQ line. Assume a MiSTer user port to IEC adapter for does not connect this line unless it is explicitly stated that it supports the C128 fast serial protocol.
+The IEC /SRQ (USER_IO6) line is required for IEC fast serial operation with an external 1571 or 1581 drive. You will need a MiSTer user port adapter that connects the /SRQ line. Assume a MiSTer user port to IEC adapter does not connect this line unless it is explicitly stated that it supports the C128 fast serial protocol.
 
 ### Real-time clock
 
