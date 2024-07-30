@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------
 -- Commodore 128 MMU
--- 
+--
 -- for the C128 MiSTer FPGA core, by Erik Scheffers
 ---------------------------------------------------------------------------------
 
@@ -40,10 +40,10 @@ entity mmu8722 is
 		fsdiro: out std_logic;
 
 		-- system config
-		c128_n: out std_logic;       		  -- "0" C128, "1" C64
-		z80_n: out std_logic;       	 	  -- "0" Z80, "1" 8502
-		rombank: out unsigned(1 downto 0);	  -- "00" system rom  "01" internal rom "10" external rom "11" ram
-		iosel: out std_logic;             	  -- "0" select IO  "1" select rom/ram according to rombank
+		c128_n: out std_logic;              -- "0" C128, "1" C64
+		z80_n: out std_logic;       	 	  	-- "0" Z80, "1" 8502
+		rombank: out unsigned(1 downto 0);	-- "00" system rom  "01" internal rom "10" external rom "11" ram
+		iosel: out std_logic;             	-- "0" select IO  "1" select rom/ram according to rombank
 
 		-- translated address bus
 		tAddr: out unsigned(15 downto 0);
@@ -223,9 +223,9 @@ begin
 		when "11" => rombank <= reg_cr(5 downto 4);
 		when "10" => rombank <= reg_cr(3 downto 2);
 		when "01" => rombank <= reg_cr(1) & reg_cr(1);
-		when "00" => rombank <= bank;
+		when "00" => rombank <= reg_cr(7 downto 6);
 		end case;
-		
+
 		tAddr <= tPage & addr(7 downto 0);
 	end process;
 
