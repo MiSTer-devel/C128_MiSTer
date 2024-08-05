@@ -300,6 +300,9 @@ begin
 						end case;
 					else
 						cs_ramLoc <= '1';
+						if cpuAddr(11 downto 8) = X"5" and mmu_iosel = '0' then
+							cs_mmuLLoc <= '1';
+						end if;
 					end if;
 				when X"4" | X"5" | X"6" | X"7" | X"8" | X"9" | X"A" | X"B" =>
 					if cpuWe = '0' and z80io = '0' then
