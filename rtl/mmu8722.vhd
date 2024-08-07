@@ -19,6 +19,7 @@ entity mmu8722 is
 		-- bus
 		clk: in std_logic;
 		reset: in std_logic;
+		enable: in std_logic;
 
 		cs_io: in std_logic;  -- select IO registers at $D50x
 		cs_lr: in std_logic;  -- select Load registers at $FF0x
@@ -122,7 +123,7 @@ begin
 				reg_p1hb <= (others => '0');
 				reg_p1h <= (others => '0');
 				reg_p1l <= X"01";
-			elsif (we = '1') then
+			elsif (we = '1' and enable = '1') then
 				if (cs_lr = '1') then
 					case addr(2 downto 0) is
 					when "000" => reg_cr <= di;
