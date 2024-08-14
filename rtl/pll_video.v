@@ -75,7 +75,7 @@ endmodule
 // Retrieval info: 	<generic name="gui_en_adv_params" value="true" />
 // Retrieval info: 	<generic name="gui_number_of_clocks" value="1" />
 // Retrieval info: 	<generic name="gui_multiply_factor" value="11" />
-// Retrieval info: 	<generic name="gui_frac_multiply_factor" value="1503512573" />
+// Retrieval info: 	<generic name="gui_frac_multiply_factor" value="2233382994" />
 // Retrieval info: 	<generic name="gui_divide_factor_n" value="1" />
 // Retrieval info: 	<generic name="gui_cascade_counter0" value="false" />
 // Retrieval info: 	<generic name="gui_output_clock_frequency0" value="64.0" />
