@@ -1,6 +1,6 @@
 <misterromdescription>
   <name>C128 DCR Basic 8</name>
-  <mratimestamp>20230205</mratimestamp>
+  <mratimestamp>20240820</mratimestamp>
   <year>1989</year>
   <manufacturer>Commodore/Walrusoft Inc.</manufacturer>
   <rbf>C128</rbf>
@@ -35,7 +35,7 @@
       bit 2: Caps lock key: 0=Caps Lock 1=ASCII/DIN
       bit 3: DIN mode keyboard layout: 0=QWERTY/QWERTZ, 1=AZERTY/QZERTY
   </romstruct>
-  <rom index="0" zip="C128rom.zip" md5="32766ac5ab3a9ceb534412bacc85e82c">
+  <rom index="0" zip="C128rom.zip" md5="76f85cda9ac3e39403576d1ec12ed56e">
     <part name="c64-basic.901226-01.bin"/>
     <part name="c64-kernal.901227-03.bin"/>
     <part name="editor.318020-05.bin"/>
@@ -53,7 +53,7 @@
     <part name="1581.318045-02.bin"/>
     <part name="1581.318045-02.bin"/>
     <part repeat="0x30000">00</part>
-    <part name="basic-8-dst.bin" zip="C128Basic8.zip"/>
+    <part name="basic-8-rom.bin" zip="basic-8-rom.zip"/>
   </rom>
   <rom index="1">
     <part>01</part>
