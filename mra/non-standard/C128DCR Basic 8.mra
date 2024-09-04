@@ -35,7 +35,7 @@
       bit 2: Caps lock key: 0=Caps Lock 1=ASCII/DIN
       bit 3: DIN mode keyboard layout: 0=QWERTY/QWERTZ, 1=AZERTY/QZERTY
   </romstruct>
-  <rom index="0" zip="C128rom.zip" md5="76f85cda9ac3e39403576d1ec12ed56e">
+  <rom index="0" zip="C128rom.zip">
     <part name="c64-basic.901226-01.bin"/>
     <part name="c64-kernal.901227-03.bin"/>
     <part name="editor.318020-05.bin"/>

@@ -1,6 +1,7 @@
-The MRA files in this folder depend on copyrighted ROMs.
+This folder contains some examples on how to create your own MRA files for the core.
 
-You will need to acquired these ROM images yourself if you want to use these MRA files.
+The provided examples depend on copyrighted ROM images, you will need to acquired these 
+ROM images yourself if you want to use these MRA examples.
 
 # C128DCR Basic 8
 

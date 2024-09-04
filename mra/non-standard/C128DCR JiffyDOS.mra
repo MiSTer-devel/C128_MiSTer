@@ -35,7 +35,7 @@
       bit 2: Caps lock key: 0=Caps Lock 1=ASCII/DIN
       bit 3: DIN mode keyboard layout: 0=QWERTY/QWERTZ, 1=AZERTY/QZERTY
   </romstruct>
-  <rom index="0" zip="C128rom.zip" md5="1f373a92d9da62fad6b07c063e7712d6">
+  <rom index="0" zip="C128rom.zip">
     <part name="c64-basic.901226-01.bin"/>
     <part name="JiffyDOS_C64.bin" zip="C128JiffyDOS.zip"/>
     <part name="JiffyDOS_C128.bin" zip="C128JiffyDOS.zip"/>
