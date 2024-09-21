@@ -63,6 +63,7 @@ module emu
    input  [11:0] HDMI_WIDTH,
    input  [11:0] HDMI_HEIGHT,
    output        HDMI_FREEZE,
+   output        HDMI_BLACKOUT,
 
 `ifdef MISTER_FB
    // Use framebuffer in DDRAM
@@ -1799,6 +1800,7 @@ always @(posedge clk_sys) begin
 end
 
 assign HDMI_FREEZE = freeze;
+assign HDMI_BLACKOUT = 0;
 
 video_mixer #(.GAMMA(1)) video_mixer
 (
