@@ -149,6 +149,7 @@ reg  reu_map;
 reg  clock_port;
 reg  rom_kbb;
 reg  force_ultimax;
+reg  [7:0] last_ioe;
 
 // 0018 - EXROM line status
 // 0019 - GAME line status
@@ -172,6 +173,9 @@ always @(posedge clk32) begin
 	old_id <= cart_id;
 	old_c128 <= cart_c128;
 
+	if (ioe_wr)
+		last_ioe <= data_in;
+
 	if(~reset_n || (old_id != cart_id) || (old_c128 != cart_c128)) begin
 		cart_disable <= 0;
 		bank_lo_en <= 0;
@@ -193,6 +197,7 @@ always @(posedge clk32) begin
 		game_overide <= 1;
 		rom_kbb <= 0;
 		geo_bank <= 0;
+		last_ioe <= 0;
 	end
 	else if (cart_id == 255) begin
 		bank_lo_en <= 0;
@@ -236,19 +241,19 @@ always @(posedge clk32) begin
 			// Comal80 128
 			// 6 banks of 16KiB mapped to ROMH
 			3: begin
-					bank_hi_en <= 1;
-
 					if(!init_n) begin
+						bank_hi_en <= 1;
 						bank_hi <= 0;
 					end
 
 					if(ioe_wr) begin
+						bank_hi_en <= data_in[6:5] != 2'b01;
 						bank_hi[0] <= data_in[4];
 						case(data_in[6:5])
-							2'b00: bank_hi[2:1] <= 2'd0;
-							2'b01: bank_hi[2:1] <= 2'd1;
-							2'b10: bank_hi[2:1] <= 2'd0; 
-							2'b11: bank_hi[2:1] <= 2'd2;
+							2'b00: bank_hi[2:1] <= 2'b00;
+							2'b01: bank_hi[2:1] <= 2'bXX;
+							2'b10: bank_hi[2:1] <= 2'b01;
+							2'b11: bank_hi[2:1] <= 2'b10;
 						endcase
 					end
 				end
@@ -892,7 +897,16 @@ always begin
 				addr_out[24:8] = {3'(GEO_ADDR>>22), geo_bank};
 			end
 		end
-		else if (!cart_c128)
+		else if (cart_c128) 
+			case(cart_id)
+				3: // Comal80 128
+					if(IOE) begin
+						IOE_rd = 1;
+						IO_data = {last_ioe[7:4], data_in[3:0]};
+					end
+				default:;
+			endcase
+		else 
 			case(cart_id)
 				36: if(IOE && !(addr_in[7:0] & (clock_port ? 8'hF0 : 8'hFE)) && !cart_disable) begin
 						mem_write_out = 0;
