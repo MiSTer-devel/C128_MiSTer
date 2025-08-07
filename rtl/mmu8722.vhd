@@ -178,7 +178,7 @@ begin
 
 	systemMask <= sys256k & "1";
 	commonPageMask <= "11111100" when reg_commonSz = "00" else  -- 00..03 / FC..FF = 1k
-	                  "11110000" when reg_commonSz = "01" else  -- 00..0F / F0..FF = 4k
+							"11110000" when reg_commonSz = "01" else  -- 00..0F / F0..FF = 4k
 							"11100000" when reg_commonSz = "10" else  -- 00..1F / E0..FF = 8k
 							"11000000";                               -- 00..3F / C0..FF =16k
 
@@ -191,42 +191,51 @@ begin
 
 	c128_n <= reg_os;
 	z80_n <= reg_cpu;
-	iosel <= reg_cr(0);
 
 	translate_addr: process(crBank, cpuMask, reg_cr, reg_cpu, reg_os, reg_p0h, reg_p0l, reg_p1h, reg_p1l, page, addr, we)
-	variable bank: unsigned(1 downto 0);
+	variable rBank: unsigned(1 downto 0);
 	variable tPage: unsigned(15 downto 8);
 	begin
-		bank := crBank(1 downto 0);
-		tPage := page;
-
-		if reg_cr(7 downto 6) = "00" and addr(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
-			-- When reading from $00xxx in Z80 mode, translate to $0Dxxx. Buslogic will enable ROM
-			bank := "00";
+		if reg_cr(7 downto 6) = "00" and page(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
+			-- When reading from $00xxx in Z80 mode, translate to $0Dxxx. Buslogic will enable ROM 4
+			cpuBank <= "00";
 			tPage := X"D" & page(11 downto 8);
+			rBank :=  "00";
+			iosel <= '1';
 		elsif page = X"01" and reg_os = '0' then
-			bank := reg_p1h(1 downto 0) and cpuMask;
+			cpuBank <= reg_p1h(1 downto 0) and cpuMask;
 			tPage := reg_p1l;
+			rBank :=  "11";
+			iosel <= '1';
 		elsif page = X"00" and reg_os = '0' then
-			bank := reg_p0h(1 downto 0) and cpuMask;
+			cpuBank <= reg_p0h(1 downto 0) and cpuMask;
 			tPage := reg_p0l;
-		elsif crBank = reg_p1h and page = reg_p1l then
-			bank := reg_p1h(1 downto 0) and cpuMask;
-			tPage := X"01";
-		elsif crBank = reg_p0h and page = reg_p0l then
-			bank := reg_p0h(1 downto 0) and cpuMask;
-			tPage := X"00";
+			rBank :=  "11";
+			iosel <= '1';
+		else 
+			case addr(15 downto 14) is
+			when "11" => rBank := reg_cr(5 downto 4);
+			when "10" => rBank := reg_cr(3 downto 2);
+			when "01" => rBank := reg_cr(1) & reg_cr(1);
+			when "00" => rBank := "11";
+			end case;
+
+			if crBank = reg_p1h and page = reg_p1l and rBank = "11" and (page(15 downto 12) /= X"D" or reg_cr(0)='1') then
+				cpuBank <= reg_p1h(1 downto 0) and cpuMask;
+				tPage := X"01";
+				iosel <= '1';
+			elsif crBank = reg_p0h and page = reg_p0l and rBank = "11" and (page(15 downto 12) /= X"D" or reg_cr(0)='1') then
+				cpuBank <= reg_p0h(1 downto 0) and cpuMask;
+				tPage := X"00";
+				iosel <= '1';
+			else
+				cpuBank <= crBank(1 downto 0);
+				tPage := addr(15 downto 8);
+				iosel <= reg_cr(0);
+			end if;
 		end if;
 
-		cpuBank <= bank;
-
-		case addr(15 downto 14) is
-		when "11" => rombank <= reg_cr(5 downto 4);
-		when "10" => rombank <= reg_cr(3 downto 2);
-		when "01" => rombank <= reg_cr(1) & reg_cr(1);
-		when "00" => rombank <= reg_cr(7 downto 6);
-		end case;
-
+		romBank <= rBank;
 		tAddr <= tPage & addr(7 downto 0);
 	end process;
 

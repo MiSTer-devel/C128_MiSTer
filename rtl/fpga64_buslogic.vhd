@@ -144,7 +144,7 @@ architecture rtl of fpga64_buslogic is
 	signal currentAddr    : unsigned(17 downto 0);
 
 begin
-	rom1Bank  <= "000" & (cpuAddr(14) and cpuAddr(13)) & cpuAddr(12);
+	rom1Bank  <= "000" & (cpuAddr(14) and cpuAddr(13)) & tAddr(12);
 	rom4Bank  <= "001" & cpuAddr(13) & tAddr(12);
 	rom23Bank <= "01"  & not cpuAddr(14) & cpuAddr(13) & cpuAddr(12);
 	romCBank  <= "1000" & not ((not cpslk_mode and c128_n) or (cpslk_mode and cpslk_sense));
@@ -234,114 +234,111 @@ begin
 			if c128_n = '0' then
 				-- C128
 
-				-- Using untranslated address
-				case cpuAddr(15 downto 12) is
-				when X"C" | X"E" | X"F" =>
-					if cpuAddr(15 downto 4) = X"FF0" and cpuAddr(3 downto 0) < X"5" then
-						cs_mmuHLoc <= '1';
-					elsif cpuWe = '0' and z80io = '0' then
-						case mmu_rombank is
-							when B"00" =>
-								cs_sysRomLoc <= '1';
-								sysRomBank <= rom4Bank;
-							when B"01" =>
-							   cs_romFHLoc <= '1';
-							when B"10" =>
-								cs_romHLoc <= '1';
-							when B"11" =>
-								cs_ramLoc <= '1';
-						end case;
-					else
-						cs_ramLoc <= '1';
-					end if;
-				when X"D" =>
-					if (z80_n = '1' and mmu_iosel = '0') or z80io = '1' then
-						case cpuAddr(11 downto 8) is
-							when X"0" | X"1" | X"2" | X"3" =>
-								cs_vicLoc <= '1';
-							when X"4" =>
-								cs_sidLoc <= not z80m1;
-							when X"5" =>
-								if mmu_iosel = '0' then
-									cs_mmuLLoc <= '1';
-								end if;
-							when X"6" =>
-								cs_vdcLoc <= not z80m1;
-							when X"7" =>
-								cs_io7Loc <= not z80m1;
-							when X"8" | X"9" | X"A" | X"B" =>
-								cs_colorLoc <= '1';
-							when X"C" =>
-								cs_cia1Loc <= not z80m1;
-							when X"D" =>
-								cs_cia2Loc <= not z80m1;
-							when X"E" =>
-								cs_ioELoc <= not z80m1;
-							when X"F" =>
-								cs_ioFLoc <= not z80m1;
-							when others =>
-								null;
-						end case;
-					elsif cpuWe = '0' then
-						case mmu_rombank is
-							when B"00" =>
-								if z80_n = '1' then
+				if cpuAddr(15 downto 4) = X"FF0" and cpuAddr(3 downto 0) < X"5" then
+					cs_mmuHLoc <= '1';
+				else
+					case tAddr(15 downto 12) is
+					when X"C" | X"E" | X"F" =>
+						if cpuWe = '0' and z80io = '0' then
+							case mmu_rombank is
+								when B"00" =>
 									cs_sysRomLoc <= '1';
-									sysRomBank <= romCBank;
-								else
+									sysRomBank <= rom4Bank;
+								when B"01" =>
+									cs_romFHLoc <= '1';
+								when B"10" =>
+									cs_romHLoc <= '1';
+								when B"11" =>
 									cs_ramLoc <= '1';
-								end if;
-							when B"01" =>
-								cs_romFHLoc <= '1';
-							when B"10" =>
-								cs_romHLoc <= '1';
-							when B"11" =>
-								cs_ramLoc <= '1';
-						end case;
-					else
-						cs_ramLoc <= '1';
-						if cpuAddr(11 downto 8) = X"5" and mmu_iosel = '0' then
-							cs_mmuLLoc <= '1';
+							end case;
+						else
+							cs_ramLoc <= '1';
 						end if;
-					end if;
-				when X"4" | X"5" | X"6" | X"7" | X"8" | X"9" | X"A" | X"B" =>
-					if cpuWe = '0' and z80io = '0' then
-						case mmu_rombank is
-							when B"00" =>
-								cs_sysRomLoc <= '1';
-								sysRomBank <= rom23Bank;
-							when B"01" =>
-								cs_romFLLoc <= '1';
-							when B"10" =>
-								cs_romLLoc <= '1';
-							when B"11" =>
-								cs_ramLoc <= '1';
-						end case;
-					else
+					when X"D" =>
+						if z80_n = '0' and z80io = '0' and mmu_rombank = B"00" and cpuWe = '0' then
+							cs_sysRomLoc <= '1';
+							sysRomBank <= rom4Bank;
+						elsif (z80_n = '1' and mmu_iosel = '0') or z80io = '1' then
+							case cpuAddr(11 downto 8) is
+								when X"0" | X"1" | X"2" | X"3" =>
+									cs_vicLoc <= '1';
+								when X"4" =>
+									cs_sidLoc <= not z80m1;
+								when X"5" =>
+									if mmu_iosel = '0' then
+										cs_mmuLLoc <= '1';
+									end if;
+								when X"6" =>
+									cs_vdcLoc <= not z80m1;
+								when X"7" =>
+									cs_io7Loc <= not z80m1;
+								when X"8" | X"9" | X"A" | X"B" =>
+									cs_colorLoc <= '1';
+								when X"C" =>
+									cs_cia1Loc <= not z80m1;
+								when X"D" =>
+									cs_cia2Loc <= not z80m1;
+								when X"E" =>
+									cs_ioELoc <= not z80m1;
+								when X"F" =>
+									cs_ioFLoc <= not z80m1;
+								when others =>
+									null;
+							end case;
+						elsif cpuWe = '0' then
+							case mmu_rombank is
+								when B"00" =>
+									if z80_n = '1' then
+										cs_sysRomLoc <= '1';
+										sysRomBank <= romCBank;
+									else
+										cs_ramLoc <= '1';
+									end if;
+								when B"01" =>
+									cs_romFHLoc <= '1';
+								when B"10" =>
+									cs_romHLoc <= '1';
+								when B"11" =>
+									cs_ramLoc <= '1';
+							end case;
+						else
+							cs_ramLoc <= '1';
+							if cpuAddr(11 downto 8) = X"5" and mmu_iosel = '0' then
+								cs_mmuLLoc <= '1';
+							end if;
+						end if;
+					when X"4" | X"5" | X"6" | X"7" | X"8" | X"9" | X"A" | X"B" =>
+						if cpuWe = '0' and z80io = '0' then
+							case mmu_rombank is
+								when B"00" =>
+									cs_sysRomLoc <= '1';
+									sysRomBank <= rom23Bank;
+								when B"01" =>
+									cs_romFLLoc <= '1';
+								when B"10" =>
+									cs_romLLoc <= '1';
+								when B"11" =>
+									cs_ramLoc <= '1';
+							end case;
+						else
+							cs_ramLoc <= '1';
+						end if;
+					when X"1" =>
+						if cpuAddr(11 downto 10) = B"00" and z80_n = '0' and mmu_iosel = '0' then
+							cs_colorLoc <= '1';
+						else
+							cs_ramLoc <= '1';
+						end if;
+					when others =>
 						cs_ramLoc <= '1';
-					end if;
-				when X"1" =>
-					if cpuAddr(11 downto 10) = B"00" and z80_n = '0' and mmu_iosel = '0' then
-						cs_colorLoc <= '1';
-					else
-						cs_ramLoc <= '1';
-					end if;
-				when X"0" =>
-					if z80_n = '0' and z80io = '0' and mmu_rombank = B"00" and cpuWe = '0' then
-						cs_sysRomLoc <= '1';
-						sysRomBank <= rom4Bank;
-					else
-						cs_ramLoc <= '1';
-					end if;
-				when others =>
-					cs_ramLoc <= '1';
-				end case;
+					end case;
+				end if;
 
 				systemWe <= cpuWe;
 			else
 				-- C64 mode
 
-				case cpuAddr(15 downto 12) is
+				case tAddr(15 downto 12) is
 				when X"E" | X"F" =>
 					if ultimax = '1' and cpuWe = '0' then
 						-- ULTIMAX MODE - drop out the kernal - LCA
