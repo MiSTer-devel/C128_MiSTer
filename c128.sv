@@ -60,10 +60,11 @@ module emu
    output        VGA_SCALER, // Force VGA scaler
    output        VGA_DISABLE, // analog out is off
 
-   input  [11:0] HDMI_WIDTH,
-   input  [11:0] HDMI_HEIGHT,
-   output        HDMI_FREEZE,
-   output        HDMI_BLACKOUT,
+	input  [11:0] HDMI_WIDTH,
+	input  [11:0] HDMI_HEIGHT,
+	output        HDMI_FREEZE,
+	output        HDMI_BLACKOUT,
+	output        HDMI_BOB_DEINT,
 
 `ifdef MISTER_FB
    // Use framebuffer in DDRAM
@@ -184,6 +185,7 @@ module emu
 assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
+assign HDMI_BOB_DEINT = 0;
 assign LED_DISK   = 0;
 assign LED_POWER  = 0;
 assign LED_USER   = |drive_led | ioctl_download | tape_led | ~disk_ready;
