@@ -35,7 +35,8 @@ entity fpga64_buslogic is
 		cpslk_mode  : in std_logic;
 
 		cpuHasBus   : in std_logic;
-		vicHasBus   : in std_logic;
+		aec         : in std_logic;
+		dma_active  : in std_logic;
 		z80io       : in std_logic;
 		z80m1       : in std_logic;
 
@@ -135,6 +136,7 @@ architecture rtl of fpga64_buslogic is
 	signal cs_romFHLoc    : std_logic;
 	signal cs_UMAXromHLoc : std_logic;
 	signal cs_UMAXnomapLoc: std_logic;
+	signal c128dma        : std_logic;
 	signal rom1Bank       : unsigned(4 downto 0);
 	signal rom23Bank      : unsigned(4 downto 0);
 	signal rom4Bank       : unsigned(4 downto 0);
@@ -144,6 +146,8 @@ architecture rtl of fpga64_buslogic is
 	signal currentAddr    : unsigned(17 downto 0);
 
 begin
+	c128dma   <= '1' when (c128_n = '0' and dma_active = '1') else '0';
+
 	rom1Bank  <= "000" & (cpuAddr(14) and cpuAddr(13)) & tAddr(12);
 	rom4Bank  <= "001" & cpuAddr(13) & tAddr(12);
 	rom23Bank <= "01"  & not cpuAddr(14) & cpuAddr(13) & cpuAddr(12);
@@ -199,8 +203,8 @@ begin
 	ultimax <= exrom and (not game);
 
 	process(
-		cpuHasBus, vicHasBus, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, vicAddr,
-		pure64, c128_n, z80_n, z80io, z80m1, mmu_rombank, mmu_iosel, cpuBank, vicBank,
+		cpuHasBus, aec, dma_active, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, 
+		vicAddr, pure64, c128_n, z80_n, z80io, z80m1, mmu_rombank, mmu_iosel, cpuBank, vicBank,
       rom1Bank, rom23Bank, rom4Bank, romCBank
 	)
 	begin
@@ -225,16 +229,21 @@ begin
 		cs_romHLoc <= '0'; -- external rom H
 		cs_romFLLoc <= '0'; -- internal function rom L
 		cs_romFHLoc <= '0'; -- internal function rom H
-		cs_UMAXromHLoc <= '0';		-- Ultimax flag for the VIC access - LCA
+		cs_UMAXromHLoc <= '0'; -- Ultimax flag for the VIC access - LCA
 		cs_UMAXnomapLoc <= '0';
 
-		if (cpuHasBus = '1') then
-			currentAddr <= cpuBank & tAddr;
+		if cpuHasBus = '1' or c128dma = '1' then
+			-- CPU or C128 DMA
+			if c128dma = '0' then
+				currentAddr <= cpuBank & tAddr;
+			else
+				currentAddr <= vicBank & tAddr;
+			end if;
 
 			if c128_n = '0' then
 				-- C128
 
-				if cpuAddr(15 downto 4) = X"FF0" and cpuAddr(3 downto 0) < X"5" then
+				if dma_active = '0' and cpuAddr(15 downto 4) = X"FF0" and cpuAddr(3 downto 0) < X"5" then
 					cs_mmuHLoc <= '1';
 				else
 					case tAddr(15 downto 12) is
@@ -437,8 +446,8 @@ begin
 				systemWe <= cpuWe;
 			end if;
 		else
-			-- The VIC-II has the bus, but only when vicHasBus is asserted
-			if vicHasBus = '1' then
+			-- VIC-II or C64 DMA
+			if aec = '1' then
 				currentAddr <= vicBank & vicAddr;
 			else
 				currentAddr <= cpuBank & tAddr;

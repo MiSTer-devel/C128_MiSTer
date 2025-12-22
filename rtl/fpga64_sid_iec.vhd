@@ -237,7 +237,6 @@ signal phi0_cpu     : std_logic;
 signal cpuCycle     : std_logic;
 signal vicCycle     : std_logic;
 signal cpuHasBus    : std_logic;
-signal vicHasBus    : std_logic;
 
 signal baLoc        : std_logic;
 signal ba_dma       : std_logic;
@@ -566,8 +565,7 @@ vicCycle <= '1' when ((sysCycle >= CYCLE_VIC0 and sysCycle <= CYCLE_VIC3)
                    or (sysCycle >= CYCLE_CPU4 and sysCycle <= CYCLE_CPU7)) else '0';
 cpuCycle <= '1' when (sysCycle >= CYCLE_CPU0 and sysCycle <= CYCLE_CPUF) else '0';
 
-vicHasBus <= aec and vicCycle;
-cpuHasBus <= not vicHasBus;
+cpuHasBus <= not (aec and vicCycle);
 
 process(clk32)
 begin
@@ -621,6 +619,7 @@ port map (
    clk => clk32,
    reset => reset,
    enable => enableMmu,
+   dma_active => dma_active,
 
    cs_io => cs_mmuL,
    cs_lr => cs_mmuH,
@@ -667,7 +666,8 @@ port map (
    cpslk_mode => cpslk_mode,
 
    cpuHasBus => cpuHasBus,
-   vicHasBus => vicHasBus,
+   aec => aec,
+   dma_active => dma_active,
 
    bankSwitch => cpuPO(2 downto 0),
    c128_n => mmu_c128_n,
