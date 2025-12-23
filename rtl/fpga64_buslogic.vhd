@@ -349,11 +349,9 @@ begin
 
 				case tAddr(15 downto 12) is
 				when X"E" | X"F" =>
-					if ultimax = '1' and cpuWe = '0' then
-						-- ULTIMAX MODE - drop out the kernal - LCA
+					if ultimax = '1' then
+						-- pass cpuWe to cartridge. Cartridge must block writes if no RAM connected.
 						cs_romHLoc <= '1';
-					elsif ultimax = '1' then
-						cs_UMAXnomapLoc <= '1';
 					elsif cpuWe = '0' and bankSwitch(1) = '1' then
 						-- Read kernal
 						cs_sysRomLoc <= '1';

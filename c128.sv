@@ -186,7 +186,7 @@ assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
 assign LED_DISK   = 0;
 assign LED_POWER  = 0;
-assign LED_USER   = |drive_led | ioctl_download | tape_led | ~disk_ready;
+assign LED_USER   = |drive_led | ioctl_download | ioctl_upload | tape_led | ~disk_ready;
 assign BUTTONS    = 0;
 assign VGA_SCALER = 0;
 
@@ -195,7 +195,7 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXX XXXXXXXXXXX XXXXXXXXX XX  XX XXXXXXXxxxXXXXXXXXXXXX
+// XXXXXXXXXX XXXXXXXXXXX XXXXXXXXX XXXXXXXXXXXXXXxxxXXXXXXXXXXXXX
 
 //                                      1         1         1
 // 6     7         8         9          0         1         2
@@ -212,6 +212,7 @@ localparam CONF_STR = {
    "H0S1,D64G64D71G71D81T64,Mount #9                    ;",
    "-;",
    "F2,PRGCRTREUTAP;",
+   "hAdBR[61],Save cartridge;",
    "h3-;",
    "h3R[7],Tape Play/Pause;",
    "h3R[23],Tape Unload;",
@@ -219,9 +220,9 @@ localparam CONF_STR = {
    "-;",
 
    "P1,Audio & Video;",
-   "HAP1O[100:99],Video Out,Follow 40/80,VIC,VDC;",
-   "HAP1O[98],40/80 Display,40 col,80 col;",
-   "HAP1-;",
+   "HCP1O[100:99],Video Out,Follow 40/80,VIC,VDC;",
+   "HCP1O[98],40/80 Display,40 col,80 col;",
+   "HCP1-;",
    "P1O[2],Video Standard,PAL,NTSC;",
    "P1-;",
    "P1O[5:4],Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
@@ -229,19 +230,19 @@ localparam CONF_STR = {
    "d1P1O[32],Vertical Crop,No,Yes;",
    "P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
    "P1-;",
-   "hAP1O[35:34],VIC-II Variant,656x,856x,Early 856x;",
+   "hCP1O[35:34],VIC-II Variant,656x,856x,Early 856x;",
    "P1O[95:94],VIC-II Jailbars,Off,Low,Medium,High;",
-   "HAP1-;",
-   "HAP1O[81:80],VDC Variant,Auto,8563R9,8568;",
-   "HAP1O[122],VDC Position,Centered,Original;",
+   "HCP1-;",
+   "HCP1O[81:80],VDC Variant,Auto,8563R9,8568;",
+   "HCP1O[122],VDC Position,Centered,Original;",
 `ifdef VDC_XRAY
-   "HAP1O[127],VDC XRay,Off,On;",
+   "HCP1O[127],VDC XRay,Off,On;",
 `endif
 `ifndef REDUCE_VDC_RAM
-   "HAH6P1O[88],VDC Memory,16k,64k;",
+   "HCH6P1O[88],VDC Memory,16k,64k;",
 `endif
-   "HAP1O[92:91],VDC Palette,Default,Analogue,Monochrome,Composite;",
-   "HAh2P1O[90:89],VDC Mono Colour,White,Green,Amber,Red;",
+   "HCP1O[92:91],VDC Palette,Default,Analogue,Monochrome,Composite;",
+   "HCh2P1O[90:89],VDC Mono Colour,White,Green,Amber,Red;",
    "P1-;",
    "P1O[14:13],Left SID,Auto,6581,8580;",
    "P1O[16:15],Right SID,Auto,6581,8580;",
@@ -250,7 +251,7 @@ localparam CONF_STR = {
    "D4D8P1O[72:70],Left Fc Offset,0,1,2,3,4,5;",
    "D5D9P1O[75:73],Right Fc Offset,0,1,2,3,4,5;",
    "P1O[21:20],Right SID Port,Same,D420,DE00,DF00;",
-	"P1O[37],8580 Digifix,On,Off;",
+   "P1O[37],8580 Digifix,On,Off;",
    "P1FC7,FLT,Load Custom Filters;",
    "P1-;",
    "P1O[12],Sound Expander,Disabled,OPL2;",
@@ -258,8 +259,8 @@ localparam CONF_STR = {
    "P1O[19:18],Stereo Mix,None,25%,50%,100%;",
 
    "P2,Hardware;",
-   "HAP2O[93],C64 mode,C128 extensions,Pure C64;",
-   "HAP2-;",
+   "HCP2O[93],C64 mode,C128 extensions,Pure C64;",
+   "HCP2-;",
    "P2O[58:57],Enable Drive #8,If Mounted,Always,Never;",
    "P2O[56:55],Enable Drive #9,If Mounted,Always,Never;",
    "D7P2O[84:83],Drive #8 5.25\" model,Auto,1541,1571;",
@@ -268,7 +269,7 @@ localparam CONF_STR = {
    "P2O[25],External IEC,Disabled,Enabled;",
    "P2R[6],Reset Disk Drives;",
    "P2-;",
-   "HAP2O[87],Internal Memory,128K,256K;",
+   "HCP2O[87],Internal Memory,128K,256K;",
    "P2O[52],GeoRAM,Disabled,4MB;",
    "P2O[54:53],REU,Disabled,512KB,2MB (512KB wrap),16MB;",
    "P2-;",
@@ -282,26 +283,27 @@ localparam CONF_STR = {
    "P2O[29:28],Pot 3/4,Joy 2 Fire 2/3,Mouse,Paddles 3/4;",
    "P2-;",
    "P2O[60:59],Key modifier,L+R Shift,L Shift,R Shift;",
-   "HAP2O[97:96],Caps Lock mode,Auto,Caps Lock,ASCII/DIN;",
+   "HCP2O[97:96],Caps Lock mode,Auto,Caps Lock,ASCII/DIN;",
    "P2-;",
    "P2O[1],Release Keys on Reset,Yes,No;",
    "P2O[24],Clear RAM on Reset,Yes,No;",
    "P2O[50],Reset & Run PRG,Yes,No;",
    "P2O[42],Pause When OSD is Open,No,Yes;",
    "P2O[39],Tape Autoplay,Yes,No;",
+   "P2O[38],Boot EasyFlash,Yes,No;",
    "P2-;",
    "P2FC3,ROMBIN,System ROMs                 ;",
    "P2FC4,ROMBIN,Drive ROMs                  ;",
-   "HAP2FC6,ROMBIN,Internal Function ROM      ;",
+   "HCP2FC6,ROMBIN,Internal Function ROM      ;",
    "P2FC5,CRT,Boot Cartridge              ;",
    "-;",
    "O[3],Swap Joysticks,No,Yes;",
    "-;",
    "O[49:48],8502 Speed,Standard,x2,x3,x4;",
-   "HAO[101],Z80 Speed,Standard,x2;",
+   "HCO[101],Z80 Speed,Standard,x2;",
    "-;",
-   "HAhCR[82],Reset & Remove Int.Func.ROM;",
-   "hBR[17],Reset & Remove Cartridge;",
+   "HChER[82],Reset & Remove Int.Func.ROM;",
+   "hDR[17],Reset & Remove Cartridge;",
    "R[0],Reset;",
    "J,Fire 1,Fire 2,Fire 3,Paddle Btn,Mod1,Mod2;",
    "jn,A,B,Y,X|P,R,L;",
@@ -449,10 +451,13 @@ wire [127:0] status;
 wire         forced_scandoubler;
 
 wire         ioctl_wr;
+wire         ioctl_rd;
 wire  [24:0] ioctl_addr;
 wire   [7:0] ioctl_data;
+wire   [7:0] ioctl_din;
 wire   [9:0] ioctl_index;
 wire         ioctl_download;
+wire         ioctl_upload;
 
 reg    [3:0] sysconfig=4'b0001;
 wire         cfg_chipset=sysconfig[0];
@@ -507,9 +512,11 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
 
    .status(status),
    .status_menumask({
-      /* C */ ifr_attached,
-      /* B */ cart_attached,
-      /* A */ cfg_force64,
+      /* E */ ifr_attached,
+      /* D */ cart_attached,
+      /* C */ cfg_force64,
+      /* B */ ezfl_mod, 
+      /* A */ cart_ezfl,
       /* 9 */ ~status[69],
       /* 8 */ ~status[66],
       /* 7 */ status[58],
@@ -553,7 +560,11 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
    .ioctl_wr(ioctl_wr),
    .ioctl_addr(ioctl_addr),
    .ioctl_dout(ioctl_data),
-   .ioctl_wait(ioctl_req_wr|reset_wait|prg_reset),
+   .ioctl_upload_req(status[61]),
+   .ioctl_upload(ioctl_upload),
+   .ioctl_din(ioctl_din),
+   .ioctl_rd(ioctl_rd),
+   .ioctl_wait(ioctl_req_wr|ioctl_req_rd|reset_wait|prg_reset),
 
    .info_req(info_req),
    .info(info)
@@ -622,8 +633,10 @@ wire nmi;
 wire cart_oe;
 wire IOF_rd;
 wire  [7:0] cart_data;
+wire  [7:0] cart_wrdata;
 wire [24:0] cart_addr;
-wire        cart_floating;
+wire cart_mem_req;
+wire cart_floating;
 
 cartridge #(
    .RAM_ADDR(RAM_ADDR),
@@ -650,6 +663,7 @@ cartridge #(
    .cart_bank_type(cart_bank_type),
    .cart_bank_raddr(ioctl_load_addr),
    .cart_bank_wr(cart_hdr_wr),
+   .cart_boot(~status[38]),
    .cart_bank_int(d7port[4:0]),
 
    .sysRom(sysRom),
@@ -672,12 +686,17 @@ cartridge #(
    .mem_ce(ram_ce),
    .mem_ce_out(cart_ce),
    .mem_write_out(cart_we),
+   .mem_in(sdram_data),
+   .mem_out(cart_wrdata),
+   .mem_addr(cart_addr),
+   .mem_req(cart_mem_req),
+   .mem_cycle(io_cycle),
    .IO_rom(io_rom),
    .IO_rd(cart_oe),
    .IO_data(cart_data),
    .addr_in(c128_addr),
    .data_in(c128_data_out),
-   .addr_out(cart_addr),
+   .data_out(c128_data_in),
    .data_floating(cart_floating),
 
    .freeze_key(freeze_key),
@@ -685,6 +704,13 @@ cartridge #(
    .nmi(nmi),
    .nmi_ack(nmi_ack)
 );
+
+reg ezfl_mod = 0;
+always @(posedge clk_sys) begin
+   if(cart_mem_req) ezfl_mod <= 1;
+   if(ioctl_download && load_crt) ezfl_mod <= 0;
+   if(ioctl_upload) ezfl_mod <= 0;
+end
 
 wire        dma_req;
 wire        dma_cycle;
@@ -764,6 +790,7 @@ wire [1:0] pd34_mode = status[29:28];
 
 reg [24:0] ioctl_load_addr;
 reg        ioctl_req_wr;
+reg        ioctl_req_rd;
 
 reg        cart_c128;
 reg [15:0] cart_id;
@@ -825,6 +852,8 @@ localparam MRA_DRV_END   = MRA_DRV_START+DRV_SIZE;
 localparam MRA_IFR_START = 25'h80000;
 localparam MRA_IFR_END   = MRA_IFR_START+IFR_SIZE;
 
+wire cart_ezfl = cart_attached && !cart_c128 && (cart_id == 32 || cart_id == 33);
+
 always @(posedge clk_sys) begin
    reg  [4:0] erase_to;
    reg        old_download;
@@ -833,6 +862,8 @@ always @(posedge clk_sys) begin
    reg        old_meminit;
    reg [15:0] inj_end;
    reg  [7:0] inj_meminit_data;
+   reg  [2:0] rd_cyc;
+   reg        ioctl_rd_en;
    reg        prg_reseting;
    reg        ioctl_ignore;
 
@@ -860,9 +891,26 @@ always @(posedge clk_sys) begin
             else io_cycle_data <= ioctl_data;
          end
       end
+
+      if(ioctl_req_rd) begin
+         io_cycle_addr <= ioctl_load_addr;
+         ioctl_rd_en <= 1;
+      end
+   end
+   
+   if (io_cycle) {io_cycle_ce, io_cycle_we, ioctl_rd_en} <= 0;
+
+   if (ioctl_rd) begin
+      if(ioctl_addr == 0) ioctl_load_addr <= CRT_ADDR;
+      ioctl_req_rd <= 1;
    end
 
-   if (io_cycle & io_cycleD) {io_cycle_ce, io_cycle_we} <= 0;
+   rd_cyc <= {rd_cyc[1:0], io_cycle & io_cycle_ce & ioctl_rd_en};
+   if(rd_cyc[2]) begin
+      ioctl_din <= sdram_data;
+      ioctl_req_rd <= 0;
+      ioctl_load_addr <= ioctl_load_addr + 1'b1;
+   end
 
    if (ioctl_wr) begin
       if (load_rom) begin
@@ -1261,7 +1309,7 @@ always @(posedge clk_sys) begin
    end
    else begin
       to <= 0;
-		key <= {ps2_key[10], ps2_key[9] & disk_ready, ps2_key[8:0]};
+      key <= {ps2_key[10], ps2_key[9] & disk_ready, ps2_key[8:0]};
    end
    if(start_strk & ~status[50]) begin
       act <= 1;
@@ -1287,14 +1335,15 @@ sdram sdram
    .clk(clk64),
    .init(~pll_locked),
    .refresh(refresh),
-   .addr( io_cycle ? io_cycle_addr : ext_cycle ? reu_ram_addr : cart_addr     ),
-   .ce  ( io_cycle ? io_cycle_ce   : ext_cycle ? reu_ram_ce   : cart_ce       ),
-   .we  ( io_cycle ? io_cycle_we   : ext_cycle ? reu_ram_we   : cart_we       ),
-   .din ( io_cycle ? io_cycle_data : ext_cycle ? reu_ram_dout : c128_data_out ),
+   .addr( io_cycle ? (cart_mem_req ? cart_addr   : io_cycle_addr ) : ext_cycle ? reu_ram_addr : cart_addr     ),
+   .ce  ( io_cycle ? (cart_mem_req ? cart_ce     : io_cycle_ce   ) : ext_cycle ? reu_ram_ce   : cart_ce       ),
+   .we  ( io_cycle ? (cart_mem_req ? cart_we     : io_cycle_we   ) : ext_cycle ? reu_ram_we   : cart_we       ),
+   .din ( io_cycle ? (cart_mem_req ? cart_wrdata : io_cycle_data ) : ext_cycle ? reu_ram_dout : c128_data_out ),
    .dout( sdram_data )
 );
 
 wire  [7:0] c128_data_out;
+wire  [7:0] c128_data_in;
 wire [17:0] c128_addr;
 wire        c64_pause;
 wire        refresh;
@@ -1380,7 +1429,7 @@ fpga64_sid_iec #(
 
    .ramAddr(c128_addr),
    .ramDout(c128_data_out),
-   .ramDin(sdram_data),
+   .ramDin(c128_data_in),
    .ramDinFloat(cart_floating),
    .ramCE(ram_ce),
    .ramWE(ram_we),
@@ -1457,7 +1506,7 @@ fpga64_sid_iec #(
    .sid_cfg({status[68:67],status[65:64]}),
    .sid_fc_off_l(status[66] ? (13'h600 - {status[72:70],7'd0}) : 13'd0),
    .sid_fc_off_r(status[69] ? (13'h600 - {status[75:73],7'd0}) : 13'd0),
-	.sid_digifix(~status[37]),
+   .sid_digifix(~status[37]),
    .audio_l(audio_l),
    .audio_r(audio_r),
 
@@ -1811,9 +1860,9 @@ video_mixer #(.GAMMA(1)) video_mixer
    .gamma_bus(gamma_bus),
 
    .ce_pix(ce_pix),
-	.R(r),
-	.G(g),
-	.B(b),
+   .R(r),
+   .G(g),
+   .B(b),
    .HSync(hsync_out),
    .VSync(vsync_out),
    .HBlank(hblank),
