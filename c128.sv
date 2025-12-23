@@ -195,7 +195,7 @@ assign VGA_SCALER = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXX XXXXXXXXXXX XXXXXXXXX XXXXXXXXXXXXXXxxxXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXX XXXXXXXXXXXXXXxxxXXXXXXXXXXXXXX
 
 //                                      1         1         1
 // 6     7         8         9          0         1         2
@@ -227,7 +227,7 @@ localparam CONF_STR = {
    "P1O[2],Video Standard,PAL,NTSC;",
    "P1-;",
    "P1O[5:4],Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
-   "P1O[9:8],Scandoubler Fx,None,CRT 25%,CRT 50%,CRT 75%;",
+	"P1O[10:8],Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
    "d1P1O[32],Vertical Crop,No,Yes;",
    "P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
    "P1-;",
@@ -1818,9 +1818,9 @@ video_switch video_switch
    .b(b)
 );
 
-wire scandoubler = status[9:8] || forced_scandoubler;
+wire scandoubler = status[10:8] || forced_scandoubler;
 
-assign VGA_SL    = status[9:8];
+assign VGA_SL    = (status[10:8] > 1) ? status[9:8] - 2'd1 : 2'd0;
 
 reg [9:0] vcrop;
 reg wide;
@@ -1873,7 +1873,7 @@ video_mixer #(.GAMMA(1)) video_mixer
 (
    .CLK_VIDEO(CLK_VIDEO),
 
-   .hq2x(0),
+   .hq2x(status[10:8] == 3'b001),
    .scandoubler(scandoubler),
    .gamma_bus(gamma_bus),
 
