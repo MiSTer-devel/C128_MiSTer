@@ -256,7 +256,7 @@ end
 // cursor
 
 always @(posedge clk) begin
-   reg cursorSet, cursorReset;
+	reg cursorSet, cursorReset;
 
 	if (reset) begin
 		cursor <= 0;
@@ -273,11 +273,14 @@ always @(posedge clk) begin
 	end
 
 	if (lineStart) begin
-		if (cursorSet)   cursor <= 1;
-		if (cursorReset) cursor <= 0;
-
-		cursorSet = 0;
-		cursorReset = 0;
+		if (cursorSet) begin
+			cursor <= 1;
+			cursorSet = 0;
+		end
+		else if (cursorReset) begin
+			cursor <= 0;
+			cursorReset = 0;
+		end
 	end
 end
 
