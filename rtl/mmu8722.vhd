@@ -20,7 +20,6 @@ entity mmu8722 is
 		clk: in std_logic;
 		reset: in std_logic;
 		enable: in std_logic;
-		dma_active: in std_logic;
 
 		cs_io: in std_logic;  -- select IO registers at $D50x
 		cs_lr: in std_logic;  -- select Load registers at $FF0x
@@ -193,8 +192,9 @@ begin
 
 	c128_n <= reg_os;
 	z80_n <= reg_cpu;
+	iosel <= reg_cr(0);
 
-	translate_page: process(dma_active, crBank, cpuMask, reg_cr, reg_cpu, reg_os, reg_p0h, reg_p0l, reg_p1h, reg_p1l, page, we)
+	translate_page: process(crBank, cpuMask, reg_cr, reg_cpu, reg_os, reg_p0h, reg_p0l, reg_p1h, reg_p1l, page, we)
 	variable rBank: unsigned(1 downto 0);
 	begin
 		case page(15 downto 14) is
@@ -207,34 +207,26 @@ begin
 		cpuBank <= crBank(1 downto 0);
 		tAddr(15 downto 8) <= page;
 		romBank <= rBank;
-		iosel <= reg_cr(0);
 
-		if dma_active = '0' then
-			if reg_cr(7 downto 6) = "00" and page(15 downto 12) = X"0" and reg_cpu = '0' and we = '0' then
-				-- Z80 Bios
-				cpuBank <= "00";
-				tAddr(15 downto 12) <= X"D";
-				romBank <= "00"; -- System ROM
-				iosel <= '1'; -- No IO
-			elsif page = X"01" and reg_os = '0' then
-				cpuBank <= reg_p1h(1 downto 0) and cpuMask;
-				tAddr(15 downto 8) <= reg_p1l;
-				romBank <= "11"; -- RAM
-				iosel <= '1'; -- No IO
-			elsif page = X"00" and reg_os = '0' then
-				cpuBank <= reg_p0h(1 downto 0) and cpuMask;
-				tAddr(15 downto 8) <= reg_p0l;
-				romBank <= "11"; -- RAM
-				iosel <= '1'; -- No IO
-			elsif crBank = reg_p1h and page = reg_p1l and rBank = "11" and (page(15 downto 12) /= X"D" or reg_cr(0)='1') then
-				cpuBank <= reg_p1h(1 downto 0) and cpuMask;
-				tAddr(15 downto 8) <= X"01";
-				iosel <= '1'; -- No IO
-			elsif crBank = reg_p0h and page = reg_p0l and rBank = "11" and (page(15 downto 12) /= X"D" or reg_cr(0)='1') then
-				cpuBank <= reg_p0h(1 downto 0) and cpuMask;
-				tAddr(15 downto 8) <= X"00";
-				iosel <= '1'; -- No IO
-			end if;
+		if reg_cr(7 downto 6) = "00" and page(15 downto 12) = X"0" and reg_cpu = '0' then
+			-- Z80 Bios
+			cpuBank <= "00";
+			tAddr(15 downto 12) <= X"D";
+			romBank <= "00"; -- System ROM
+		elsif page = X"01" and reg_os = '0' then
+			cpuBank <= reg_p1h(1 downto 0) and cpuMask;
+			tAddr(15 downto 8) <= reg_p1l;
+			romBank <= "11"; -- RAM
+		elsif page = X"00" and reg_os = '0' then
+			cpuBank <= reg_p0h(1 downto 0) and cpuMask;
+			tAddr(15 downto 8) <= reg_p0l;
+			romBank <= "11"; -- RAM
+		elsif crBank = reg_p1h and page = reg_p1l and rBank = "11" and (page(15 downto 12) /= X"D" or reg_cr(0)='1') then
+			cpuBank <= reg_p1h(1 downto 0) and cpuMask;
+			tAddr(15 downto 8) <= X"01";
+		elsif crBank = reg_p0h and page = reg_p0l and rBank = "11" and (page(15 downto 12) /= X"D" or reg_cr(0)='1') then
+			cpuBank <= reg_p0h(1 downto 0) and cpuMask;
+			tAddr(15 downto 8) <= X"00";
 		end if;
 	end process;
 
