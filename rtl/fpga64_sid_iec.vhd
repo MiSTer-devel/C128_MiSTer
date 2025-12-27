@@ -619,7 +619,6 @@ port map (
    clk => clk32,
    reset => reset,
    enable => enableMmu,
-   dma_active => dma_active,
 
    cs_io => cs_mmuL,
    cs_lr => cs_mmuH,
@@ -636,7 +635,7 @@ port map (
 
    tAddr => tAddr,
    cpubank => cpubank,
-   vicbank => vicbank,
+   vicBank => vicBank,
 
    d4080i => d4080_sel,
 
