@@ -1324,7 +1324,7 @@ begin
 end process;
 
 -- When 6510 accesses internal I/O port, databus floats
-cpuDo_T65  <= cpuDo_T65_o when cpuPacc = '0' else vicDi;
+cpuDo_T65  <= cpuDo_T65_o when cpuPacc = '0' else vicDiAec;
 
 cpuAddr_nd <= cpuAddr_T65 when cpuActT65 = '1' else cpuAddr_T80;
 cpuDo_nd   <= cpuDo_T65   when cpuActT65 = '1' else cpuDo_T80;
