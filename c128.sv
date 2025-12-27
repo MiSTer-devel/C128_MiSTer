@@ -64,6 +64,7 @@ module emu
    input  [11:0] HDMI_HEIGHT,
    output        HDMI_FREEZE,
    output        HDMI_BLACKOUT,
+	output        HDMI_BOB_DEINT,
 
 `ifdef MISTER_FB
    // Use framebuffer in DDRAM
@@ -1868,6 +1869,7 @@ end
 
 assign HDMI_FREEZE = freeze;
 assign HDMI_BLACKOUT = 0;
+assign HDMI_BOB_DEINT = 0;
 
 video_mixer #(.GAMMA(1)) video_mixer
 (
