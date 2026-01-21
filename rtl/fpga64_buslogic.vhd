@@ -205,7 +205,7 @@ begin
 	ultimax <= exrom and (not game);
 
 	process(
-		cpuHasBus, aec, dma_active, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, 
+		cpuHasBus, aec, dma_active, cpuAddr, tAddr, ultimax, cpuWe, bankSwitch, exrom, game, c128dma,
 		vicAddr, pure64, c128_n, z80_n, z80io, z80m1, mmu_rombank, mmu_iosel, cpuBank, vicBank,
       rom1Bank, rom23Bank, rom4Bank, romCBank
 	)
@@ -272,7 +272,7 @@ begin
 							when X"4" =>
 								cs_sidLoc <= not z80m1;
 							when X"5" =>
-								if mmu_iosel = '0' then
+								if dma_active = '0' and mmu_iosel = '0' then
 									cs_mmuLLoc <= '1';
 								end if;
 							when X"6" =>
@@ -310,7 +310,7 @@ begin
 						end case;
 					else
 						cs_ramLoc <= '1';
-						if cpuAddr(11 downto 8) = X"5" and mmu_iosel = '0' then
+						if cpuAddr(11 downto 8) = X"5" and dma_active = '0' and mmu_iosel = '0' then
 							cs_mmuLLoc <= '1';
 						end if;
 					end if;

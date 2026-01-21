@@ -236,7 +236,7 @@ begin
 	readRegisters: process(clk)
 	begin
 		if rising_edge(clk) then
-			if we = '0' and (cs_io = '1' or cs_lr = '1') then
+			if cs_io = '1' or cs_lr = '1' then
 				case addr(7 downto 0) is
 				when X"00" => do <= reg_cr;
 				when X"01" => do <= reg_pcr(0);

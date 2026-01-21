@@ -1713,7 +1713,7 @@ always @(posedge clk_sys) begin
    drive_stb_o_old <= drive_stb_o;
 
    if(((c64_iec_clk_old != c64_iec_clk_o) || (drive_iec_clk_old != drive_iec_clk_o)) ||
-      (disk_parport && ((drive_stb_i_old != drive_stb_i) || (drive_stb_o_old != drive_stb_o))))
+      (disk_parport && z80_n && ((drive_stb_i_old != drive_stb_i) || (drive_stb_o_old != drive_stb_o))))
    begin
       disk_access <= 1;
       to <= 16000000; // 0.5s
