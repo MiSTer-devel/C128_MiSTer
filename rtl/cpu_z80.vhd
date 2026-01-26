@@ -14,6 +14,7 @@ entity cpu_z80 is
 	port (
 		clk     : in  std_logic;
 		enable  : in  std_logic;
+		latch   : in  std_logic;
 		reset   : in  std_logic;
 		irq_n   : in  std_logic;
 		io      : out std_logic;
@@ -33,8 +34,6 @@ end cpu_z80;
 
 architecture rtl of cpu_z80 is
 
-signal cycles : std_logic_vector(4 downto 0);
-
 signal localA : std_logic_vector(15 downto 0);
 signal localDo : std_logic_vector(7 downto 0);
 signal localDi : std_logic_vector(7 downto 0);
@@ -50,19 +49,11 @@ signal WR_f : std_logic;
 
 begin
 
-cycles(0) <= enable;
-
-process(clk) begin
-	if rising_edge(clk) then
-		cycles(4 downto 1) <= cycles(3 downto 0);
-	end if;
-end process;
-
 cpu: work.T80pa
 port map (
 	RESET_n => not reset,
 	CLK => clk,
-	CEN_p => cycles(0) or cycles(2),
+	CEN_p => enable,
 	CEN_n => '1',
 	INT_n => irq_n,
 	NMI_n => '1',
@@ -82,7 +73,7 @@ process(clk) begin
 	if rising_edge(clk) then
 		WR_n_l <= WR_n;
 		WR_f <= WR_f or (WR_n_l and not WR_n);
-		if cycles(4) = '1' then
+		if latch = '1' then
 			WR_f <= '0';
 			we <= WR_f or (WR_n_l and not WR_n);
 			io <= not IORQ_n;
