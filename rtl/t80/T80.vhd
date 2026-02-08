@@ -2,6 +2,11 @@
 -- ****
 -- T80(c) core. Attempt to finish all undocumented features and provide
 --              accurate timings.
+--
+-- Version 360.
+-- 02-2026 Erik Scheffers
+--  Remove BUSRQ_n delay when going low for correct bus request timing.
+--
 -- Version 350.
 -- Copyright (c) 2018 Sorgelig
 --  Test passed: ZEXDOC, ZEXALL, Z80Full(*), Z80memptr
@@ -169,7 +174,8 @@ architecture rtl of T80 is
 	signal IntE_FF1             : std_logic;
 	signal IntE_FF2             : std_logic;
 	signal Halt_FF              : std_logic;
-	signal BusReq_s             : std_logic := '0';
+	signal BusReq               : std_logic := '0';
+	signal BUSRQ_n_s            : std_logic := '1';
 	signal BusAck               : std_logic := '0';
 	signal ClkEn                : std_logic;
 	signal NMI_s                : std_logic;
@@ -373,6 +379,8 @@ begin
 			F_In    => F,
 			Q       => ALU_Q,
 			F_Out   => F_Out);
+
+	BusReq <= not (BUSRQ_n and BUSRQ_n_s);
 
 	Really_Wait <= not Wait_n and (Write_i or not NoRead_i);
 
@@ -1235,7 +1243,6 @@ begin
 			Auto_Wait_t1 <= '0';
 			Auto_Wait_t2 <= '0';
 			M1_n <= '1';
-			--BusReq_s <= '0';
 			NMI_s <= '0';
 		elsif rising_edge(CLK_n) then
 			if DIRSet = '1' then
@@ -1248,7 +1255,8 @@ begin
 				OldNMI_n := NMI_n;
 
 				if CEN = '1' then
-					BusReq_s <= not BUSRQ_n;
+					BUSRQ_n_s <= BUSRQ_n;
+
 					Auto_Wait_t2 <= Auto_Wait_t1;
 					if T_Res = '1' then
 						Auto_Wait_t1 <= '0';
@@ -1280,7 +1288,7 @@ begin
 					if MCycle = "001" and TState = 2 and Wait_n = '1' then
 						M1_n <= '1';
 					end if;
-					if BusReq_s = '1' and BusAck = '1' then
+					if BusReq = '1' and BusAck = '1' then
 					else
 						BusAck <= '0';
 						if TState = 2 and Really_Wait = '1' then
@@ -1288,7 +1296,7 @@ begin
 							if Halt = '1' and  ( not(Mode = 3 and INT_n = '0' and IntE_FF1 = '0')) then  -- halt bug when Mode = 3 , INT_n = '0' and IME=0
 								Halt_FF <= '1';
 							end if;
-							if BusReq_s = '1' then
+							if BusReq = '1' then
 								BusAck <= '1';
 							else
 								TState <= "001";

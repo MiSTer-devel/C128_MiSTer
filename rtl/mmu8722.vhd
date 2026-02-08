@@ -61,11 +61,13 @@ architecture rtl of mmu8722 is
 	signal reg_cr : configReg;
 	signal reg_pcr : configStore;
 	signal reg_cpu : std_logic;
+	signal reg_cpu_s : std_logic;
 	signal reg_fsdir : std_logic := '0';
 	signal reg_exrom : std_logic := '0';
 	signal reg_game : std_logic := '0';
 	signal reg_d4080 : std_logic := '0';
 	signal reg_os : std_logic;
+	signal reg_os_s : std_logic;
 	signal reg_unused06 : unsigned(1 downto 0);
 	signal reg_vicbank : unsigned(1 downto 0);
 	signal reg_commonH : std_logic;
@@ -176,6 +178,22 @@ begin
 	fsdir <= fsdiri and reg_fsdir;
 	fsdiro <= fsdir;
 
+	system_control: process(clk)
+	begin
+		if rising_edge(clk) then
+			if (reset = '1') then
+				reg_cpu_s <= cpumode;
+				reg_os_s <= osmode;
+			elsif (enable = '1') then
+				reg_cpu_s <= reg_cpu;
+				reg_os_s  <= reg_os;
+			end if;
+		end if;
+	end process;
+
+	z80_n  <= reg_cpu_s;
+	c128_n <= reg_os_s;
+
 	systemMask <= sys256k & "1";
 	commonPageMask <= "11111100" when reg_commonSz = "00" else  -- 00..03 / FC..FF = 1k
 							"11110000" when reg_commonSz = "01" else  -- 00..0F / F0..FF = 4k
@@ -189,12 +207,9 @@ begin
 	crBank <= "00" & reg_cr(7 downto 6) and cpuMask;
 
 	vicBank <= reg_vicbank and systemMask;
-
-	c128_n <= reg_os;
-	z80_n <= reg_cpu;
 	iosel <= reg_cr(0);
 
-	translate_page: process(crBank, cpuMask, reg_cr, reg_cpu, reg_os, reg_p0h, reg_p0l, reg_p1h, reg_p1l, page, we)
+	translate_page: process(crBank, cpuMask, reg_cr, reg_cpu_s, reg_os, reg_p0h, reg_p0l, reg_p1h, reg_p1l, page, we)
 	variable rBank: unsigned(1 downto 0);
 	begin
 		case page(15 downto 14) is
@@ -208,7 +223,7 @@ begin
 		tAddr(15 downto 8) <= page;
 		romBank <= rBank;
 
-		if reg_cr(7 downto 6) = "00" and page(15 downto 12) = X"0" and reg_cpu = '0' then
+		if reg_cr(7 downto 6) = "00" and page(15 downto 12) = X"0" and reg_cpu_s = '0' then
 			-- Z80 Bios
 			cpuBank <= "00";
 			tAddr(15 downto 12) <= X"D";
