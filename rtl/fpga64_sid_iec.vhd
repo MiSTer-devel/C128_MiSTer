@@ -1275,8 +1275,10 @@ begin
    if rising_edge(clk32) then
       case sysCycle is
          when CYCLE_EXT1 | CYCLE_EXT5
-            => dma_active <= dma_req;
-               dma_pending <= '0';
+            => if cpuWe_T65 = '0' and cpuWe_T80 = '0' then
+                  dma_active <= dma_req;
+                  dma_pending <= '0';
+               end if;
 
          when sysCycleDef'pred(CYCLE_CPU0)
             => dma_cycle <= dma_active and (baLoc or ba_dma);
