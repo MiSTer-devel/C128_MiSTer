@@ -53,7 +53,9 @@ module c1581_drv
    input   [8:0] sd_buff_addr,
    input   [7:0] sd_buff_dout,
    output  [7:0] sd_buff_din,
-   input         sd_buff_wr
+   input         sd_buff_wr,
+   output wire [7:0] out_track,
+   output wire       out_we
 );
 
 assign rom_addr = cpu_a[14:0];
@@ -261,7 +263,12 @@ c1581_fdc1772 #(.IMG_TYPE(1), .EXT_MOTOR(1), .FD_NUM(1)) fdc
    .sd_buff_addr(sd_buff_addr),
    .sd_dout(sd_buff_dout),
    .sd_din(sd_buff_din),
-   .sd_dout_strobe(sd_buff_wr)
+   .sd_dout_strobe(sd_buff_wr),
+   .out_track(track_fdc),
+   .out_we(out_we)
 );
+
+wire [7:0] track_fdc;
+assign out_track = {track_fdc[6:0], 1'b0};
 
 endmodule

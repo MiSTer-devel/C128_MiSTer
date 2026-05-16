@@ -267,6 +267,7 @@ localparam CONF_STR = {
    "P2O[56:55],Enable Drive #9,If Mounted,Always,Never;",
    "D7P2O[84:83],Drive #8 5.25\" model,Auto,1541,1571;",
    "D0P2O[86:85],Drive #9 5.25\" model,Auto,1541,1571;",
+   "P2O[62:61],Drive OSD,Activity Only,If Mounted,Always,Off;",
    "P2O[44],Parallel port,Enabled,Disabled;",
    "P2O[25],External IEC,Disabled,Enabled;",
    "P2R[6],Reset Disk Drives;",
@@ -1621,6 +1622,9 @@ wire        drive_rom_req;
 wire [18:0] drive_rom_addr;
 reg         drive_rom_wr;
 
+wire [7:0] drive_track[2];
+wire [1:0] drive_we;
+
 iec_drive iec_drive
 (
    .clk(clk_sys),
@@ -1664,6 +1668,9 @@ iec_drive iec_drive
    .sd_buff_dout(sd_buff_dout),
    .sd_buff_din(sd_buff_din),
    .sd_buff_wr(sd_buff_wr),
+
+   .out_track(drive_track),
+   .out_we(drive_we),
 
    .rom_loading(drv_loading),
    .rom_req(drive_rom_req),
@@ -1875,6 +1882,25 @@ assign HDMI_FREEZE = freeze;
 assign HDMI_BLACKOUT = 0;
 assign HDMI_BOB_DEINT = 0;
 
+wire [1:0] ovl_color;
+
+drv_overlay drv_ovl (
+	.clk(CLK_VIDEO),
+	.ce(ce_pix),
+	.hblank(hblank),
+	.vblank(vblank),
+
+	.drive_osd_mode(status[62:61]),
+	.ntsc(ntsc),
+	.drive_led(drive_led),
+	.drive_mounted(drive_mounted),
+	.drive_track_0(drive_track[0]),
+	.drive_track_1(drive_track[1]),
+	.drive_we(drive_we),
+
+	.pixel_color(ovl_color)
+);
+
 video_mixer #(.GAMMA(1)) video_mixer
 (
    .CLK_VIDEO(CLK_VIDEO),
@@ -1884,9 +1910,9 @@ video_mixer #(.GAMMA(1)) video_mixer
    .gamma_bus(gamma_bus),
 
    .ce_pix(ce_pix),
-   .R(r),
-   .G(g),
-   .B(b),
+   .R((ovl_color == 2 || ovl_color == 3) ? 8'hFF : (ovl_color == 1 ? 8'h00 : r)),
+   .G((ovl_color == 1 || ovl_color == 2) ? 8'hFF : (ovl_color == 3 ? 8'h00 : g)),
+   .B((ovl_color != 0) ? 8'h00 : b),
    .HSync(hsync_out),
    .VSync(vsync_out),
    .HBlank(hblank),

@@ -29,7 +29,9 @@ module c157x_multi #(parameter PARPORT=1,DRIVES=2)
 	input   [N:0] img_mfm,
 
 	output  [N:0] led,
-	output		  disk_ready,
+	output            disk_ready,
+	output wire [7:0] out_track[NDR],
+	output wire [N:0] out_we,
 
 	input         iec_atn_i,
 	input         iec_data_i,
@@ -265,7 +267,9 @@ generate
 			.sd_buff_addr(sd_buff_addr),
 			.sd_buff_dout(sd_buff_dout),
 			.sd_buff_din(sd_buff_din[i]),
-			.sd_buff_wr(sd_buff_wr)
+			.sd_buff_wr(sd_buff_wr),
+			.out_track(out_track[i]),
+			.out_we(out_we[i])
 		);
 	end
 endgenerate
