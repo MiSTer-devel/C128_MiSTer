@@ -302,7 +302,7 @@ localparam CONF_STR = {
    "-;",
    "O[3],Swap Joysticks,No,Yes;",
    "O[104:103],SNAC Joystick,Disabled,Joy 1,Joy 2,Joy 1 + 2;",
-   "O[88:87],SNAC Autofire,Off,Slow,Fast;",
+   "O[106:105],SNAC Autofire,Off,Slow,Fast;",
    "-;",
    "O[49:48],8502 Speed,Standard,x2,x3,x4;",
    "HCO[101],Z80 Speed,Standard,x2;",
@@ -456,7 +456,7 @@ wire [6:0] snac_joy  = {1'b0, ~USER_IN[6], ~USER_IN[2], ~USER_IN[3], ~USER_IN[5]
 
 // SNAC Autofire: oscillatore software, non richiede il +5V hardware (DB9 Pin 5)
 // Fire 1 (DB9 Pin 6) viene modulato; Fire 2 (DB9 Pin 9) passa sempre diretto
-wire [1:0] snac_af_mode = status[88:87];
+wire [1:0] snac_af_mode = status[106:105];
 reg [21:0] snac_af_cnt;
 always @(posedge clk_sys) snac_af_cnt <= snac_af_cnt + 1'd1;
 // Slow ~7.6 Hz | Fast ~15.3 Hz  (clk_sys = 32 MHz)
@@ -871,9 +871,9 @@ localparam RAM_ADDR = 25'h0000000;  // System RAM: 256k
 localparam CRM_ADDR = 25'h0040000;  // Cartridge RAM: 64k
 localparam ROM_ADDR = 25'h0060000;  // System ROM: 72k (align on 128k)       loaded from boot0.rom or MRA (required)
 localparam DRV_ADDR = 25'h0080000;  // Drive ROM: 512k                       loaded from boot0.rom, boot1.rom or MRA (required)
-localparam CRT_ADDR = 25'h0100000;  // Cartridge: 2M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
-localparam IFR_ADDR = 25'h0300000;  // Internal function ROM: 1M             can be loaded from boot2.rom or MRA (optional)
-localparam TAP_ADDR = 25'h0400000;  // Tape buffer (not aligned)
+localparam CRT_ADDR = 25'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
+localparam IFR_ADDR = 25'h0200000;  // Internal function ROM: 1M             can be loaded from boot2.rom or MRA (optional)
+localparam TAP_ADDR = 25'h0300000;  // Tape buffer (not aligned)
 localparam GEO_ADDR = 25'h0C00000;  // GeoRAM: 4M
 localparam REU_ADDR = 25'h1000000;  // REU: 16M
 
