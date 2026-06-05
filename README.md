@@ -18,6 +18,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - **VIC register $D030 video manipulation tricks** (used in some demos, e.g. RfO part 1)
 - **VDC with 16k or 64k RAM and multiple colour palettes**.
 - Almost all C64 **and C128** cartridge formats (\*.CRT).
+- Added Magic Desk 2 (2 MB) CRT cartridge support (SNK vs Capcom Stronger Edition game)
 - **Internal Function ROM support for ROMs up to 1Mb with MegaBit 128 support**
 - Direct file injection (\*.PRG) **with detection of C128 or C64 mode**.
 - Dual SID with several degree of mixing 6581/8580 from stereo to mono.
