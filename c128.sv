@@ -871,9 +871,9 @@ localparam RAM_ADDR = 25'h0000000;  // System RAM: 256k
 localparam CRM_ADDR = 25'h0040000;  // Cartridge RAM: 64k
 localparam ROM_ADDR = 25'h0060000;  // System ROM: 72k (align on 128k)       loaded from boot0.rom or MRA (required)
 localparam DRV_ADDR = 25'h0080000;  // Drive ROM: 512k                       loaded from boot0.rom, boot1.rom or MRA (required)
-localparam CRT_ADDR = 25'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
-localparam IFR_ADDR = 25'h0200000;  // Internal function ROM: 1M             can be loaded from boot2.rom or MRA (optional)
-localparam TAP_ADDR = 25'h0300000;  // Tape buffer (not aligned)
+localparam CRT_ADDR = 25'h0100000;  // Cartridge: 2M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
+localparam IFR_ADDR = 25'h0300000;  // Internal function ROM: 1M             can be loaded from boot2.rom or MRA (optional)
+localparam TAP_ADDR = 25'h0400000;  // Tape buffer (not aligned)
 localparam GEO_ADDR = 25'h0C00000;  // GeoRAM: 4M
 localparam REU_ADDR = 25'h1000000;  // REU: 16M
 
