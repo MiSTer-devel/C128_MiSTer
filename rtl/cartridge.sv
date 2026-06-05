@@ -76,15 +76,15 @@ module cartridge
 );
 
 reg        bank_lo_en;
-reg  [6:0] bank_lo;
+reg  [7:0] bank_lo;
 reg        bank_hi_en;
-reg  [6:0] bank_hi;
+reg  [7:0] bank_hi;
 reg [13:0] mask_lo;
 reg  [5:0] bank_no;
 
 reg [13:0] geo_bank;
-reg  [6:0] IOE_bank;
-reg  [6:0] IOF_bank;
+reg  [7:0] IOE_bank;
+reg  [7:0] IOF_bank;
 reg        IOE_wr_ena;
 reg        IOF_wr_ena;
 
@@ -93,12 +93,12 @@ reg        game_overide;
 assign     {exrom, game} = force_ultimax ? 2'b10 : {exrom_overide, game_overide};
 
 // C64 cart: 64 banks of 8K, C128 cart: 32 banks of 16K
-(* ramstyle = "logic" *) reg [6:0] lobanks[0:63];
-(* ramstyle = "logic" *) reg [6:0] hibanks[0:63];
+(* ramstyle = "logic" *) reg [6:0] lobanks[0:127];
+(* ramstyle = "logic" *) reg [6:0] hibanks[0:127];
 
 reg  [7:0] bank_cnt;
-reg [63:0] lobanks_map;
-reg [63:0] hibanks_map;
+reg [127:0] lobanks_map;
+reg [127:0] hibanks_map;
 always @(posedge clk32) begin
 	reg old_loading;
 	old_loading <= cart_loading;
@@ -110,14 +110,14 @@ always @(posedge clk32) begin
 	end
 	if(cart_bank_wr) begin
 		bank_cnt <= bank_cnt + 1'd1;
-		if(cart_bank_num<64) begin
+		if(cart_bank_num<128) begin
 			if(cart_bank_laddr <= 'h8000) begin
-				lobanks[cart_bank_num[5:0]] <= cart_bank_raddr[19:13];
+				lobanks[cart_bank_num[6:0]] <= cart_bank_raddr[19:13];
 				lobanks_map[cart_bank_num[5:0]] <= 1;
 				if(cart_bank_size > 'h2000) hibanks[cart_bank_num[5:0]] <= cart_bank_raddr[19:13]+1'd1;
 			end
 			else begin
-				hibanks[cart_bank_num[5:0]] <= cart_bank_raddr[19:13];
+				hibanks[cart_bank_num[6:0]] <= cart_bank_raddr[19:13];
 				hibanks_map[cart_bank_num[5:0]] <= 1;
 			end
 		end
@@ -864,7 +864,7 @@ always @(posedge clk32) begin
 					end
 				end
 
-			// BMP-Data Turbo 2000, (game=0, exrom=0, one 16k bank)
+					// BMP-Data Turbo 2000, (game=0, exrom=0, one 16k bank)
 			83: begin
 					bank_lo <= 0;
 					bank_hi <= 0;
@@ -875,6 +875,22 @@ always @(posedge clk32) begin
 					else if(iof_wr) begin
 						game_overide  <= 1;
 						exrom_overide <= 1;
+					end
+				end
+
+			// Magic Desk 2 (16k banks, up to 2MB) - game=0, exrom=0
+			85: begin
+					if(!init_n) begin
+						game_overide  <= 0;
+						exrom_overide <= 0;
+						bank_lo       <= 0;
+						bank_hi       <= 1;
+					end
+					else if(ioe_wr) begin
+						bank_lo       <= {data_in[6:0], 1'b0};
+						bank_hi       <= {data_in[6:0], 1'b1};
+						game_overide  <= data_in[7];
+						exrom_overide <= data_in[7];
 					end
 				end
 
@@ -929,11 +945,11 @@ assign mem_ce_out = mem_ce | (cs_ioe & stb_ioe) | (cs_iof & stb_iof);
 //RAM banks are mapped to 0x040000 (64K max)
 //CRT/EFR banks are mapped to 0x100000 (1MB max)
 function [11:0] get_bank;
-	input [6:0] bank;
+	input [7:0] bank;
 	input       ram;
 	input       addr13;
 begin
-	get_bank = ram ? {9'(CRM_ADDR>>16), bank[2:0]} : (c128_n ? {5'(CRT_ADDR>>20), bank[6:0]} : {5'(CRT_ADDR>>20), bank[5:0], addr13});
+	get_bank = ram ? {9'(CRM_ADDR>>16), bank[2:0]} : (c128_n ? ((CRT_ADDR>>13) + bank) : {5'(CRT_ADDR>>20), bank[5:0], addr13});
 end
 endfunction
 
