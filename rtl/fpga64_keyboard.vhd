@@ -212,6 +212,13 @@ architecture rtl of fpga64_keyboard is
 	signal key_fn_crsr : std_logic;
 	signal shift_num_mod : std_logic;
 
+	-- Used to remap shift + number:
+	signal phys_6: std_logic := '0';
+	signal phys_7: std_logic := '0';
+	signal phys_8: std_logic := '0';
+	signal phys_9: std_logic := '0';
+	signal phys_0: std_logic := '0';
+
 begin
 	delay_end <= '1' when delay_cnt = 0 else '0';
 	shift_num_mod <= c128_n or capslock_state or not azerty;
@@ -259,7 +266,7 @@ begin
 		end if;
 	end process;
 
-	key_shift <= key_shiftl or key_shiftr or shift_lock_state;
+	key_shift <= (key_shiftl or key_shiftr or shift_lock_state) and shift_num_mod;
 	key_fn_crsr <= key_fn xor alt_crsr;
 
 	pressed <= ps2_key(9);
@@ -533,24 +540,19 @@ begin
 					when "0" & X"33" => key_H <= pressed;
 					when "0" & X"34" => key_G <= pressed;
 					when "0" & X"35" => key_Y <= pressed;
-					when "0" & X"36" => key_7 <= pressed and      key_shift and shift_num_mod;
-											  key_6 <= pressed and not (key_shift and shift_num_mod);
+					when "0" & X"36" => phys_6 <= pressed;
 					when "0" & X"3A" => key_M <= pressed;
 					when "0" & X"3B" => key_J <= pressed;
 					when "0" & X"3C" => key_U <= pressed;
-					when "0" & X"3D" => key_6 <= pressed and      key_shift and shift_num_mod;
-									        key_7 <= pressed and not (key_shift and shift_num_mod);
-					when "0" & X"3E" => key_8s <= pressed and     key_shift and shift_num_mod;
-									        key_8 <= pressed and not (key_shift and shift_num_mod);
-									        delay_cnt <= 300000;
+					when "0" & X"3D" => phys_7 <= pressed;
+					when "0" & X"3E" => phys_8 <= pressed;
+											  delay_cnt <= 300000;
 					when "0" & X"41" => key_comma <= pressed;
 					when "0" & X"42" => key_K <= pressed;
 					when "0" & X"43" => key_I <= pressed;
 					when "0" & X"44" => key_O <= pressed;
-					when "0" & X"45" => key_9 <= pressed and      key_shift and shift_num_mod;
-											  key_0 <= pressed and not (key_shift and shift_num_mod);
-					when "0" & X"46" => key_8 <= pressed and      key_shift and shift_num_mod;
-									  		  key_9 <= pressed and not (key_shift and shift_num_mod);
+					when "0" & X"45" => phys_0 <= pressed;
+					when "0" & X"46" => phys_9 <= pressed;
 					when "0" & X"49" => key_dot <= pressed;
 					when "0" & X"4A" => key_slash <= pressed;
 					when "0" & X"4B" => key_L <= pressed;
@@ -617,6 +619,19 @@ begin
 					when others => null;
 				end case;
 			end if;
+			
+			-- Remap without dropping keystrokes:
+			-- shift-7 to shift-6
+			key_6  <= (phys_6 and not key_shift) or (phys_7 and key_shift);
+			-- shift-6 to shift-7
+			key_7  <= (phys_7 and not key_shift) or (phys_6 and key_shift);
+			-- shift-8 to * (uses delay_cnt so shift is suppressed for * register)
+			key_8s <=  phys_8 and key_shift;
+			-- shift 9 to shift-8
+			key_8  <= (phys_8 and not key_shift) or (phys_9 and key_shift);
+			-- shift-0 to shift-9
+			key_9  <= (phys_9 and not key_shift) or (phys_0 and key_shift);
+			key_0  <=  phys_0 and not key_shift;
 
 			if reset = '1' then
 					key_F1        <= '0';
@@ -667,6 +682,11 @@ begin
 					key_8s        <= '0';
 					key_9         <= '0';
 					key_0         <= '0';
+					phys_6        <= '0';
+					phys_7        <= '0';
+					phys_8        <= '0';
+					phys_9        <= '0';
+					phys_0        <= '0';
 					key_Q         <= '0';
 					key_Z         <= '0';
 					key_S         <= '0';
