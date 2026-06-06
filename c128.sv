@@ -201,10 +201,10 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX    XXXXXXXXXXXXXXXX XXXXXXX                        X
+// XXXXXXXXXXXX                             XXXXXXXXXXXXXXXXXXXXXXXX
 
-// bits  0.. 79 keep in sync with C64 core (X: identical, x: different use)
-// bits 80..127 C128 core options
+// bits assigned bottom up: X=identical options from C64 core, x=different use
+// bits assigned top down: X=C128 core specific options
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -222,8 +222,8 @@ localparam CONF_STR = {
    "-;",
 
    "P1,Audio & Video;",
-   "HCP1O[100:99],Video Out,Follow 40/80,VIC,VDC;",
-   "HCP1O[98],40/80 Display,40 col,80 col;",
+   "HCP1O[106:105],Video Out,Follow 40/80,VIC,VDC;",
+   "HCP1O[107],40/80 Display,40 col,80 col;",
    "HCP1-;",
    "P1O[2],Video Standard,PAL,NTSC;",
    "P1-;",
@@ -233,18 +233,18 @@ localparam CONF_STR = {
    "P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
    "P1-;",
    "hCP1O[35:34],VIC-II Variant,656x,856x,Early 856x;",
-   "P1O[95:94],VIC-II Jailbars,Off,Low,Medium,High;",
+   "P1O[111:110],VIC-II Jailbars,Off,Low,Medium,High;",
    "HCP1-;",
-   "HCP1O[81:80],VDC Variant,Auto,8563R9,8568;",
-   "HCP1O[122],VDC Position,Centered,Original;",
+   "HCP1O[126:125],VDC Variant,Auto,8563R9,8568;",
+   "HCP1O[124],VDC Position,Centered,Original;",
 `ifdef VDC_XRAY
    "HCP1O[127],VDC XRay,Off,On;",
 `endif
 `ifndef REDUCE_VDC_RAM
-   "HCH6P1O[88],VDC Memory,16k,64k;",
+   "HCH6P1O[117],VDC Memory,16k,64k;",
 `endif
-   "HCP1O[92:91],VDC Palette,Default,Analogue,Monochrome,Composite;",
-   "HCh2P1O[90:89],VDC Mono Colour,White,Green,Amber,Red;",
+   "HCP1O[116:115],VDC Palette,Default,Analogue,Monochrome,Composite;",
+   "HCh2P1O[114:113],VDC Mono Colour,White,Green,Amber,Red;",
    "P1-;",
    "P1O[14:13],Left SID,Auto,6581,8580;",
    "P1O[16:15],Right SID,Auto,6581,8580;",
@@ -261,17 +261,17 @@ localparam CONF_STR = {
    "P1O[19:18],Stereo Mix,None,25%,50%,100%;",
 
    "P2,Hardware;",
-   "HCP2O[93],C64 mode,C128 extensions,Pure C64;",
+   "HCP2O[112],C64 mode,C128 extensions,Pure C64;",
    "HCP2-;",
    "P2O[58:57],Enable Drive #8,If Mounted,Always,Never;",
    "P2O[56:55],Enable Drive #9,If Mounted,Always,Never;",
-   "D7P2O[84:83],Drive #8 5.25\" model,Auto,1541,1571;",
-   "D0P2O[86:85],Drive #9 5.25\" model,Auto,1541,1571;",
+   "D7P2O[122:121],Drive #8 5.25\" model,Auto,1541,1571;",
+   "D0P2O[120:119],Drive #9 5.25\" model,Auto,1541,1571;",
    "P2O[44],Parallel port,Enabled,Disabled;",
    "P2O[25],External IEC,Disabled,Enabled;",
    "P2R[6],Reset Disk Drives;",
    "P2-;",
-   "HCP2O[87],Internal Memory,128K,256K;",
+   "HCP2O[118],Internal Memory,128K,256K;",
    "P2O[52],GeoRAM,Disabled,4MB;",
 	"P2O[54:53],REU,Disabled,512KB,2MB,16MB;",
 	"hFP2O[63],REU wrap,512KB,None;",
@@ -286,7 +286,7 @@ localparam CONF_STR = {
    "P2O[29:28],Pot 3/4,Joy 2 Fire 2/3,Mouse,Paddles 3/4;",
    "P2-;",
    "P2O[60:59],Key modifier,L+R Shift,L Shift,R Shift;",
-   "HCP2O[97:96],Caps Lock mode,Auto,Caps Lock,ASCII/DIN;",
+   "HCP2O[109:108],Caps Lock mode,Auto,Caps Lock,ASCII/DIN;",
    "P2-;",
    "P2O[1],Release Keys on Reset,Yes,No;",
    "P2O[24],Clear RAM on Reset,Yes,No;",
@@ -303,9 +303,9 @@ localparam CONF_STR = {
    "O[3],Swap Joysticks,No,Yes;",
    "-;",
    "O[49:48],8502 Speed,Standard,x2,x3,x4;",
-   "HCO[101],Z80 Speed,Standard,x2;",
+   "HCO[104],Z80 Speed,Standard,x2;",
    "-;",
-   "HChER[82],Reset & Remove Int.Func.ROM;",
+   "HChER[123],Reset & Remove Int.Func.ROM;",
    "hDR[17],Reset & Remove Cartridge;",
    "R[0],Reset;",
    "J,Fire 1,Fire 2,Fire 3,Paddle Btn,Mod1,Mod2;",
@@ -416,7 +416,7 @@ always @(posedge clk_sys) begin
 
    reset_n <= ~|reset_counter;
 
-   if (RESET | status[0] | status[17] | status[82] | buttons[1] | !pll_locked | !rom_loaded) begin
+   if (RESET | status[0] | status[17] | status[123] | buttons[1] | !pll_locked | !rom_loaded) begin
       if(RESET) do_erase <= 1;
       reset_counter <= 100000;
    end
@@ -447,8 +447,8 @@ wire  [15:0] joyA,joyB,joyC,joyD;
 wire  [15:0] joy = joyA | joyB | joyC | joyD;
 
 reg          status_set;
-reg          status_in_98;
-wire [127:0] status_in = {status[127:99], status_in_98, status[97:0]};
+reg          status_in_107;
+wire [127:0] status_in = {status[127:108], status_in_107, status[106:0]};
 wire [127:0] status;
 
 wire         forced_scandoubler;
@@ -529,7 +529,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
       /* 5 */ sidVersion[1],
       /* 4 */ sidVersion[0],
       /* 3 */ tap_loaded,
-      /* 2 */ status[92],
+      /* 2 */ status[116],
       /* 1 */ |vcrop,
       /* 0 */ status[56]
    }),
@@ -586,33 +586,33 @@ function auto_config;
 endfunction
 wire       ciaVersion = auto_config(status[46:45], cfg_chipset);
 wire [1:0] sidVersion = {auto_config(status[16:15], cfg_chipset), auto_config(status[14:13], cfg_chipset)};
-wire       vdcVersion = auto_config(status[81:80], cfg_chipset);
-wire       cpslk_mode = auto_config(status[97:96], cfg_cpslk);
-wire       video_mode = ~auto_config(status[100:99], status[98]);
-wire       pure64     = cfg_force64 | (c128_n & status[93]);
+wire       vdcVersion = auto_config(status[126:125], cfg_chipset);
+wire       cpslk_mode = auto_config(status[109:108], cfg_cpslk);
+wire       video_mode = ~auto_config(status[106:105], status[107]);
+wire       pure64     = cfg_force64 | (c128_n & status[112]);
 
 always @(posedge clk_sys) begin
    reg d4080_sense_d;
 
    d4080_sense_d <= d4080_sense;
    if (RESET) begin
-      status_in_98 <= status[98];
+      status_in_107 <= status[107];
       status_set <= 0;
    end
    else if (status_set) begin
-      if (status_in_98 == status[98])
+      if (status_in_107 == status[107])
          status_set <= 0;
    end
-   else if (pure64 && status[98]) begin
-      status_in_98 <= 0;
+   else if (pure64 && status[107]) begin
+      status_in_107 <= 0;
       status_set <= 1;
    end
    else if (d4080_sense != d4080_sense_d) begin
-      status_in_98 <= ~status[98];
+      status_in_107 <= ~status[107];
       status_set <= 1;
    end
    else
-      status_in_98 <= status[98];
+      status_in_107 <= status[107];
 end
 
 wire bootrom  = ioctl_index[5:0] == 0;                                 // MRA index 0 or any boot*.rom
@@ -1234,7 +1234,7 @@ always @(posedge clk_sys) begin
       cart_ext_rom <= 0;
    end
 
-   if (status[82]) begin
+   if (status[123]) begin
       ifr_attached <= 0;
       cart_int_rom <= 0;
    end
@@ -1419,20 +1419,20 @@ fpga64_sid_iec #(
    .pause(freeze),
    .pause_out(c64_pause),
 
-   .turbo_mode(disk_access ? 3'b000 : {status[101], status[49:48]}),
+   .turbo_mode(disk_access ? 3'b000 : {status[104], status[49:48]}),
    .force64(cfg_force64),
    .pure64(pure64),
-   .d4080_sel(~status[98]),
-   .sys256k(status[87]),
+   .d4080_sel(~status[107]),
+   .sys256k(status[118]),
 
    .vdcVersion(vdcVersion),
 `ifdef REDUCE_VDC_RAM
    .vdc64k(0),
 `else
-   .vdc64k(status[88]|vdcVersion),
+   .vdc64k(status[117]|vdcVersion),
 `endif
    .vdcInitRam(~status[24]),
-   .vdcPalette(status[92:89]),
+   .vdcPalette(status[116:113]),
 `ifdef VDC_XRAY
    .vdcDebug(status[127]),
 `else
@@ -1459,7 +1459,7 @@ fpga64_sid_iec #(
 
    .vic_variant(cfg_force64 ? status[35:34] : 2'b01),
    .ntscmode(ntsc),
-   .vicJailbars(status[95:94]),
+   .vicJailbars(status[111:110]),
 
    .vicHsync(vicHsync),
    .vicVsync(vicVsync),
@@ -1626,7 +1626,7 @@ iec_drive iec_drive
    .clk(clk_sys),
    .reset({drive_reset | ((!status[56:55]) ? ~drive_mounted[1] : status[56]),
            drive_reset | ((!status[58:57]) ? ~drive_mounted[0] : status[58])}),
-   .drv_mode('{map_drive_model(status[84:83]), map_drive_model(status[86:85])}),
+   .drv_mode('{map_drive_model(status[122:121]), map_drive_model(status[120:119])}),
 
    .ce(drive_ce),
 
@@ -1792,7 +1792,7 @@ video_switch video_switch
    .ntsc(ntsc),
    .wide(wide),
    .mode(video_mode),
-   .vdc_position(status[122]),
+   .vdc_position(status[124]),
 
    .clk_vic(clk_sys),
    .vicHsync(vicHsync),
@@ -2215,7 +2215,7 @@ osdinfo osdinfo
    .rom_loaded(ioctl_download ? 2'b11 : {drv_loaded, rom_loaded}),
    .sftlk_sense(sftlk_sense),
    .cpslk_sense(cpslk_sense),
-   .d4080_sense(~status[98]),
+   .d4080_sense(~status[107]),
    .noscr_sense(noscr_sense),
 
    .info_req(info_req),
