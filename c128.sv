@@ -201,7 +201,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX      XXX                    XXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXX      XXX  XX                XXXXXXXXXXXXXXXXXXXXXXXX
 
 // bits assigned bottom up: X=identical options from C64 core, x=different use
 // bits assigned top down: X=C128 core specific options
@@ -283,6 +283,7 @@ localparam CONF_STR = {
    "P2O[36],Real-Time Clock,Auto,Disabled;",
    "P2O[46:45],CIA,Auto,6526,8521;",
    "P2-;",
+	"P2O[88:87],SNAC Joystick,Disabled,Joy 1,Joy 2;",
    "P2O[27:26],Pot 1/2,Joy 1 Fire 2/3,Mouse,Paddles 1/2;",
    "P2O[29:28],Pot 3/4,Joy 2 Fire 2/3,Mouse,Paddles 3/4;",
    "P2-;",
@@ -793,8 +794,21 @@ wire [6:0] joyC_c64 = joy[9:8] ? 7'd0 : {joyC[6:4], joyC[0], joyC[1], joyC[2], j
 wire [6:0] joyD_c64 = joy[9:8] ? 7'd0 : {joyD[6:4], joyD[0], joyD[1], joyD[2], joyD[3]};
 
 // swap joysticks if requested
-wire [6:0] joyA_c64 = status[3] ? joyB_int : joyA_int;
-wire [6:0] joyB_c64 = status[3] ? joyA_int : joyB_int;
+// SNAC DB9 joystick support - C64/Amiga/SMS standard pinout:
+//   Pin 1 Up     -> USER_IN[1]  (active low)
+//   Pin 2 Down   -> USER_IN[0]  (active low)
+//   Pin 3 Left   -> USER_IN[5]  (active low)
+//   Pin 4 Right  -> USER_IN[3]  (active low)
+//   Pin 5 NC     -> not used
+//   Pin 6 Fire A -> USER_IN[2]  (active low, Button 1)
+//   Pin 9 Fire B -> USER_IN[6]  (active low, Button 2)
+wire [1:0] snac_mode = status[88:87]; // 0=disabled, 1=Joy1, 2=Joy2
+wire [6:0] snac_joy  = {1'b0, ~USER_IN[6], ~USER_IN[2],
+                        ~USER_IN[3], ~USER_IN[5], ~USER_IN[0], ~USER_IN[1]};
+// format: {fire3=0, fireB(Pin9), fireA(Pin6), right(Pin4), left(Pin3), down(Pin2), up(Pin1)}
+
+wire [6:0] joyA_c64 = (snac_mode == 2'd1) ? snac_joy : (status[3] ? joyB_int : joyA_int);
+wire [6:0] joyB_c64 = (snac_mode == 2'd2) ? snac_joy : (status[3] ? joyA_int : joyB_int);
 
 wire [7:0] paddle_1 = status[3] ? pd3 : pd1;
 wire [7:0] paddle_2 = status[3] ? pd4 : pd2;
@@ -1704,7 +1718,7 @@ always @(posedge clk_sys) begin
    else disk_access <= 0;
 end
 
-wire ext_iec_en = status[25];
+wire ext_iec_en = status[25] && ~|snac_mode;
 
 iec_io iec_io_clk
 (
