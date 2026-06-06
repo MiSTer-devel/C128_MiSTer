@@ -64,7 +64,7 @@ module emu
    input  [11:0] HDMI_HEIGHT,
    output        HDMI_FREEZE,
    output        HDMI_BLACKOUT,
-	output        HDMI_BOB_DEINT,
+   output        HDMI_BOB_DEINT,
 
 `ifdef MISTER_FB
    // Use framebuffer in DDRAM
@@ -521,7 +521,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2), .BLKSZ(1)) hps_io
       /* E */ ifr_attached,
       /* D */ cart_attached,
       /* C */ cfg_force64,
-      /* B */ ezfl_mod || ezfl_save_en, 
+      /* B */ ezfl_mod || ezfl_save_en,
       /* A */ cart_ezfl,
       /* 9 */ ~status[69],
       /* 8 */ ~status[66],
@@ -665,11 +665,10 @@ cartridge #(
    .cart_ext_rom(cart_ext_rom),
    .cart_exrom(cart_exrom),
    .cart_game(cart_game),
-   .cart_bank_laddr(cart_bank_laddr),
-   .cart_bank_size(cart_bank_size),
+   .cart_bank_hi(cart_bank_hi),
+   .cart_bank_16k(cart_bank_16k),
    .cart_bank_num(cart_bank_num),
-   .cart_bank_type(cart_bank_type),
-   .cart_bank_raddr(ioctl_load_addr),
+   .cart_bank_addr(ioctl_load_addr[20:13]),
    .cart_bank_wr(cart_hdr_wr),
    .cart_boot(~status[38]),
    .cart_bank_int(d7port[4:0]),
@@ -724,10 +723,10 @@ always @(posedge clk_sys) begin
    if(cart_mem_req) ezfl_mod <= 1;
    if(ioctl_download && load_crt) ezfl_mod <= 0;
    if(ioctl_upload) {ezfl_mod, ezfl_save_en} <= 0;
-   
+
    save_old <= ezfl_save;
    if(~save_old & ezfl_save) ezfl_idx <= ~status[61];
-   
+
    ext_old <= ext_crt;
    if(~ext_old & ext_crt) ezfl_save_en <= 1;
 end
@@ -758,7 +757,7 @@ reu #(
    .clk(clk_sys),
    .reset(~reset_n),
    .cfg(reu_cfg),
-	.wrap(reu_wrap),
+   .wrap(reu_wrap),
 
    .dma_req(dma_req),
 
@@ -815,17 +814,14 @@ reg        ioctl_req_wr;
 reg        ioctl_req_rd;
 
 reg        cart_c128;
-reg [15:0] cart_id;
-reg [15:0] cart_bank_laddr;
-reg [15:0] cart_bank_size;
-reg [15:0] cart_bank_num;
-reg  [7:0] cart_bank_type;
-reg  [7:0] cart_exrom;
-reg  [7:0] cart_game;
+reg  [7:0] cart_id;
+reg        cart_bank_hi;
+reg        cart_bank_16k;
+reg  [7:0] cart_bank_num;
+reg        cart_exrom;
+reg        cart_game;
 reg        cart_attached = 0;
-reg  [3:0] cart_hdr_cnt;
 reg        cart_hdr_wr;
-reg [31:0] cart_blk_len;
 
 reg        go64;
 reg        force_erase;
@@ -853,9 +849,9 @@ localparam RAM_ADDR = 25'h0000000;  // System RAM: 256k
 localparam CRM_ADDR = 25'h0040000;  // Cartridge RAM: 64k
 localparam ROM_ADDR = 25'h0060000;  // System ROM: 72k (align on 128k)       loaded from boot0.rom or MRA (required)
 localparam DRV_ADDR = 25'h0080000;  // Drive ROM: 512k                       loaded from boot0.rom, boot1.rom or MRA (required)
-localparam CRT_ADDR = 25'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
-localparam IFR_ADDR = 25'h0200000;  // Internal function ROM: 1M             can be loaded from boot2.rom or MRA (optional)
-localparam TAP_ADDR = 25'h0300000;  // Tape buffer (not aligned)
+localparam IFR_ADDR = 25'h0100000;  // Internal function ROM: 1M             can be loaded from boot2.rom or MRA (optional)
+localparam CRT_ADDR = 25'h0200000;  // Cartridge: 2M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
+localparam TAP_ADDR = 25'h0400000;  // Tape buffer (not aligned)
 localparam GEO_ADDR = 25'h0C00000;  // GeoRAM: 4M
 localparam REU_ADDR = 25'h1000000;  // REU: 16M
 
@@ -887,6 +883,9 @@ always @(posedge clk_sys) begin
    reg  [7:0] inj_meminit_data;
    reg  [2:0] rd_cyc;
    reg        ioctl_rd_en;
+   reg [15:0] cart_blk_len;
+   reg  [3:0] cart_hdr_cnt;
+   reg  [7:0] cart_id_hi;
    reg        prg_reseting;
    reg        ioctl_ignore;
 
@@ -920,7 +919,7 @@ always @(posedge clk_sys) begin
          ioctl_rd_en <= 1;
       end
    end
-   
+
    if (io_cycle) {io_cycle_ce, io_cycle_we, ioctl_rd_en} <= 0;
 
    if (ioctl_rd) begin
@@ -1069,45 +1068,22 @@ always @(posedge clk_sys) begin
             cart_ext_rom <= 0;
          end
 
-         if (ioctl_addr == 8'h01) cart_c128       <= ioctl_data == 8'h31;
-         if (ioctl_addr == 8'h02) cart_c128       <= cart_c128 & ioctl_data == 8'h32;
-         if (ioctl_addr == 8'h03) cart_c128       <= cart_c128 & ioctl_data == 8'h38;
-         if (ioctl_addr == 8'h16) cart_id[15:8]   <= ioctl_data;
-         if (ioctl_addr == 8'h17) cart_id[7:0]    <= ioctl_data;
-         if (ioctl_addr == 8'h18) cart_exrom[7:0] <= ioctl_data;
-         if (ioctl_addr == 8'h19) cart_game[7:0]  <= ioctl_data;
+         if (ioctl_addr == 8'h01) cart_c128  <= ioctl_data == 8'h31;
+         if (ioctl_addr == 8'h02) cart_c128  <= cart_c128 & ioctl_data == 8'h32;
+         if (ioctl_addr == 8'h03) cart_c128  <= cart_c128 & ioctl_data == 8'h38;
+         if (ioctl_addr == 8'h16) cart_id_hi <= ioctl_data;
+         if (ioctl_addr == 8'h17) cart_id    <= cart_id_hi ? 8'd255 : ioctl_data;
+         if (ioctl_addr == 8'h18) cart_exrom <= ioctl_data[0];
+         if (ioctl_addr == 8'h19) cart_game  <= ioctl_data[0];
 
          if (ioctl_addr >= 8'h40) begin
-            if (cart_blk_len == 0 & cart_hdr_cnt == 0) begin
-               cart_hdr_cnt <= 1;
-               if (cart_c128)
-                  if (ioctl_load_addr[13:0] != 0) begin
-                     // align to 16KiB boundary
-                     ioctl_load_addr[13:0] <= 0;
-                     ioctl_load_addr[24:14] <= ioctl_load_addr[24:14] + 1'b1;
-                  end
-               else
-                  if (ioctl_load_addr[12:0] != 0) begin
-                     // align to 8KiB boundary
-                     ioctl_load_addr[12:0] <= 0;
-                     ioctl_load_addr[24:13] <= ioctl_load_addr[24:13] + 1'b1;
-                  end
-            end
-            else if (cart_hdr_cnt != 0) begin
+            if (!cart_blk_len || cart_hdr_cnt) begin
                cart_hdr_cnt <= cart_hdr_cnt + 1'b1;
-               if (cart_hdr_cnt == 4)  cart_blk_len[31:24]  <= ioctl_data;
-               if (cart_hdr_cnt == 5)  cart_blk_len[23:16]  <= ioctl_data;
-               if (cart_hdr_cnt == 6)  cart_blk_len[15:8]   <= ioctl_data;
-               if (cart_hdr_cnt == 7)  cart_blk_len[7:0]    <= ioctl_data;
-               if (cart_hdr_cnt == 8)  cart_blk_len         <= cart_blk_len - 8'h10;
-               if (cart_hdr_cnt == 9)  cart_bank_type       <= ioctl_data;
-               if (cart_hdr_cnt == 10) cart_bank_num[15:8]  <= ioctl_data;
-               if (cart_hdr_cnt == 11) cart_bank_num[7:0]   <= ioctl_data;
-               if (cart_hdr_cnt == 12) cart_bank_laddr[15:8]<= ioctl_data;
-               if (cart_hdr_cnt == 13) cart_bank_laddr[7:0] <= ioctl_data;
-               if (cart_hdr_cnt == 14) cart_bank_size[15:8] <= ioctl_data;
-               if (cart_hdr_cnt == 15) cart_bank_size[7:0]  <= ioctl_data;
-               if (cart_hdr_cnt == 15) cart_hdr_wr <= 1;
+               if (cart_hdr_cnt == 6)  cart_blk_len  <= {ioctl_data, 8'h00};
+               if (cart_hdr_cnt == 11) cart_bank_num <= ioctl_data;
+               if (cart_hdr_cnt == 12) cart_bank_hi  <= ioctl_data > 8'h80;
+               if (cart_hdr_cnt == 14) cart_bank_16k <= ioctl_data > 8'h20;
+               if (cart_hdr_cnt == 15) cart_hdr_wr   <= 1;
             end
             else begin
                cart_ext_rom[ioctl_load_addr[14]] <= 1;
