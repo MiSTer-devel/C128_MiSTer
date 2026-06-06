@@ -201,7 +201,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX                             XXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXX      XXX                    XXXXXXXXXXXXXXXXXXXXXXXX
 
 // bits assigned bottom up: X=identical options from C64 core, x=different use
 // bits assigned top down: X=C128 core specific options
@@ -228,11 +228,12 @@ localparam CONF_STR = {
    "P1O[2],Video Standard,PAL,NTSC;",
    "P1-;",
    "P1O[5:4],Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
-	"P1O[10:8],Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
+   "P1O[10:8],Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
    "d1P1O[32],Vertical Crop,No,Yes;",
    "P1O[31:30],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
    "P1-;",
    "hCP1O[35:34],VIC-II Variant,656x,856x,Early 856x;",
+   "P1O[84:82],VIC-II Palette,Colodore,Ultimate,Pepto-PAL,Vice,Vice6569R1,Vice6569R5,Vice8565R2,Lemon64;",
    "P1O[111:110],VIC-II Jailbars,Off,Low,Medium,High;",
    "HCP1-;",
    "HCP1O[126:125],VDC Variant,Auto,8563R9,8568;",
@@ -273,8 +274,8 @@ localparam CONF_STR = {
    "P2-;",
    "HCP2O[118],Internal Memory,128K,256K;",
    "P2O[52],GeoRAM,Disabled,4MB;",
-	"P2O[54:53],REU,Disabled,512KB,2MB,16MB;",
-	"hFP2O[63],REU wrap,512KB,None;",
+   "P2O[54:53],REU,Disabled,512KB,2MB,16MB;",
+   "hFP2O[63],REU wrap,512KB,None;",
    "P2-;",
    "P2O[43],Expansion,Joysticks,RS232;",
    "P2O[51],RS232 mode,UP9600,VIC-1011;",
@@ -1459,6 +1460,7 @@ fpga64_sid_iec #(
 
    .vic_variant(cfg_force64 ? status[35:34] : 2'b01),
    .ntscmode(ntsc),
+   .vicPalette(status[84:82]),
    .vicJailbars(status[111:110]),
 
    .vicHsync(vicHsync),
