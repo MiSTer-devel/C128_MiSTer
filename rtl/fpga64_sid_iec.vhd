@@ -1342,7 +1342,7 @@ port map (
    pbo => cia1_pbi,
    ki => vicKo,
 
-   alt_crsr => not cpuBusAkT80_n,
+   alt_crsr => cpuBusAkT80_n,
    shift_mod => shift_mod,
    azerty => azerty,
 
