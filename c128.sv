@@ -871,9 +871,9 @@ localparam RAM_ADDR = 25'h0000000;  // System RAM: 256k
 localparam CRM_ADDR = 25'h0040000;  // Cartridge RAM: 64k
 localparam ROM_ADDR = 25'h0060000;  // System ROM: 72k (align on 128k)       loaded from boot0.rom or MRA (required)
 localparam DRV_ADDR = 25'h0080000;  // Drive ROM: 512k                       loaded from boot0.rom, boot1.rom or MRA (required)
-localparam CRT_ADDR = 25'h0100000;  // Cartridge: 1M                         can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
-localparam IFR_ADDR = 25'h0200000;  // Internal function ROM: 1M             can be loaded from boot2.rom or MRA (optional)
-localparam TAP_ADDR = 25'h0300000;  // Tape buffer (not aligned)
+localparam CRT_ADDR = 25'h0100000;  // Cartridge: 2M (up 128 banks x 16 KB)  can be loaded from boot0.rom, boot3.rom or MRA (first 32k, optional)
+localparam IFR_ADDR = 25'h0300000;  // Internal function ROM: 1M             can be loaded from boot2.rom or MRA (optional)
+localparam TAP_ADDR = 25'h0400000;  // Tape buffer (not aligned)
 localparam GEO_ADDR = 25'h0C00000;  // GeoRAM: 4M
 localparam REU_ADDR = 25'h1000000;  // REU: 16M
 
@@ -1747,14 +1747,16 @@ end
 
 wire ext_iec_en = status[25];
 
+// Gestione IEC wired‑OR (come nel core C64)
 wire ext_iec_clk  = |snac_mode ? 1'b1 : (USER_IN[2] | ~ext_iec_en);
 wire ext_iec_data = |snac_mode ? 1'b1 : (USER_IN[4] | ~ext_iec_en);
 wire ext_iec_srq_n = |snac_mode ? 1'b1 : (USER_IN[6] | ~ext_iec_en);
 
-assign c64_iec_clk_i = ext_iec_clk;
-assign c64_iec_data_i = ext_iec_data;
+assign c64_iec_clk_i   = ext_iec_clk;
+assign c64_iec_data_i  = ext_iec_data;
 assign c64_iec_srq_n_i = ext_iec_srq_n;
 
+// Uscite verso i pin USER_OUT: quando SNAC è attivo, disabilitiamo le uscite IEC (1)
 assign USER_OUT[2] = |snac_mode ? 1'b1 : ((c64_iec_clk_o & drive_iec_clk_o) | ~ext_iec_en);
 assign USER_OUT[3] = |snac_mode ? 1'b1 : ((reset_n & ~status[6]) | ~ext_iec_en);
 assign USER_OUT[4] = |snac_mode ? 1'b1 : ((c64_iec_data_o & drive_iec_data_o) | ~ext_iec_en);
