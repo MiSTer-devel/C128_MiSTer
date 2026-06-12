@@ -55,9 +55,10 @@ module c1581_fdc1772 (
 	input      [8:0] sd_buff_addr,
 	input      [7:0] sd_dout,
 	output     [7:0] sd_din,
-	input            sd_dout_strobe
+	input            sd_dout_strobe,
+	output     [7:0] out_track,
+	output           out_we
 );
-
 
 parameter CLK_EN           = 16'd8000; // in kHz
 parameter FD_NUM           = 2;    // number of supported floppies
@@ -917,6 +918,8 @@ wire [7:0] status = { (MODEL == 1 || MODEL == 3) ? !floppy_ready : motor_on,
 		      busy } /* synthesis keep */;
 
 reg [7:0] track /* verilator public */;
+assign out_track = track;
+assign out_we = ((cmd[7:5] == 3'b101 || cmd[7:4] == 4'b1111) && busy) || (sd_state == SD_WRITE);
 reg [7:0] sector;
 reg [7:0] data_in;
 reg [7:0] data_out;

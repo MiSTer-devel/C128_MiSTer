@@ -31,4 +31,5 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/osdinfo.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/iec_io.sv
 set_global_assignment -name QIP_FILE rtl/pll_video.qip
 set_global_assignment -name QIP_FILE rtl/pll_video_cfg.qip
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/drv_overlay.sv
 set_global_assignment -name SYSTEMVERILOG_FILE c128.sv

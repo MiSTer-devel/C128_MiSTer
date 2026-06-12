@@ -48,7 +48,7 @@ assign VGA_SCALER = 0;
 //                                      1         1         1
 // 6     7         8         9          0         1         2
 // 45678901234567890123456789012345 67890123456789012345678901234567
-// XXXXXXXXXXXX      XXX  XX                XXXXXXXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXX      XXXXXXX                XXXXXXXXXXXXXXXXXXXXXXXX
 
 // bits assigned bottom up: X=identical options from C64 core, x=different use
 // bits assigned top down: X=C128 core specific options
@@ -111,19 +111,12 @@ localparam CONF_STR = {
    "P2,Hardware;",
    "HCP2O[112],C64 mode,C128 extensions,Pure C64;",
    "HCP2-;",
-   "P2O[58:57],Enable Drive #8,If Mounted,Always,Never;",
-   "P2O[56:55],Enable Drive #9,If Mounted,Always,Never;",
-   "D7P2O[122:121],Drive #8 5.25\" model,Auto,1541,1571;",
-   "D0P2O[120:119],Drive #9 5.25\" model,Auto,1541,1571;",
-   "P2O[44],Parallel port,Enabled,Disabled;",
-   "P2O[25],External IEC,Disabled,Enabled;",
-   "P2R[6],Reset Disk Drives;",
-   "P2-;",
    "HCP2O[118],Internal Memory,128K,256K;",
    "P2O[52],GeoRAM,Disabled,4MB;",
    "P2O[54:53],REU,Disabled,512KB,2MB,16MB;",
    "hFP2O[63],REU wrap,512KB,None;",
    "P2-;",
+   "P2O[25],External IEC,Disabled,Enabled;",
    "P2O[43],Expansion,Joysticks,RS232;",
    "P2O[51],RS232 mode,UP9600,VIC-1011;",
    "P2O[33],RS232 connection,Internal,External;",
@@ -148,6 +141,19 @@ localparam CONF_STR = {
    "P2FC4,ROMBIN,Drive ROMs                  ;",
    "HCP2FC6,ROMBIN,Internal Function ROM      ;",
    "P2FC5,CRT,Boot Cartridge              ;",
+
+   "P3,Drives;",
+   "P3O[58:57],Enable Drive #8,If Mounted,Always,Never;",
+   "P3O[56:55],Enable Drive #9,If Mounted,Always,Never;",
+   "P3-;",
+   "D7P3O[122:121],Drive #8 5.25\" model,Auto,1541,1571;",
+   "D0P3O[120:119],Drive #9 5.25\" model,Auto,1541,1571;",
+   "P3-;",
+   "P3O[44],Parallel port,Enabled,Disabled;",
+	"P3O[86:85],Drives OSD,Activity Only,If Mounted,Always,Off;",
+   "P3-;",
+   "P3R[6],Reset Disk Drives;",
+
    "-;",
    "O[3],Swap Joysticks,No,Yes;",
    "-;",
@@ -1460,6 +1466,9 @@ wire        drive_rom_req;
 wire [18:0] drive_rom_addr;
 reg         drive_rom_wr;
 
+wire [7:0] drive_track[2];
+wire [1:0] drive_we;
+
 iec_drive iec_drive
 (
    .clk(clk_sys),
@@ -1503,6 +1512,9 @@ iec_drive iec_drive
    .sd_buff_dout(sd_buff_dout),
    .sd_buff_din(sd_buff_din),
    .sd_buff_wr(sd_buff_wr),
+
+   .out_track(drive_track),
+   .out_we(drive_we),
 
    .rom_loading(drv_loading),
    .rom_req(drive_rom_req),
@@ -1714,6 +1726,33 @@ assign HDMI_FREEZE = freeze;
 assign HDMI_BLACKOUT = 0;
 assign HDMI_BOB_DEINT = 0;
 
+// Drive Overlay display:
+//  - three modes: on activity (default), if enabled, always and off
+//  - color coded: green for idle (only shows in "if enabled" and "always" mode)
+//                 yellow for (read) activity (via drive led)
+//                 red for write activity (covers writes to disk & flushing to sd)
+//  - track number: Full tracks and half tracks (e.g. 33.5)
+//  - drive number: (#8, #9)
+//  - auto adjusts for pal/ntsc
+wire [1:0] ovl_color;
+
+drv_overlay drv_ovl (
+	.clk(CLK_VIDEO),
+	.ce(ce_pix),
+	.hblank(hblank),
+	.vblank(vblank),
+
+	.drive_osd_mode(status[86:85]),
+	.ntsc(ntsc),
+	.drive_led(drive_led),
+	.drive_mounted(drive_mounted),
+	.drive_track_0(drive_track[0]),
+	.drive_track_1(drive_track[1]),
+	.drive_we(drive_we),
+
+	.pixel_color(ovl_color)
+);
+
 video_mixer #(.GAMMA(1)) video_mixer
 (
    .CLK_VIDEO(CLK_VIDEO),
@@ -1723,9 +1762,9 @@ video_mixer #(.GAMMA(1)) video_mixer
    .gamma_bus(gamma_bus),
 
    .ce_pix(ce_pix),
-   .R(r),
-   .G(g),
-   .B(b),
+   .R((ovl_color == 2 || ovl_color == 3) ? 8'hFF : (ovl_color == 1 ? 8'h00 : r)),
+   .G((ovl_color == 1 || ovl_color == 2) ? 8'hFF : (ovl_color == 3 ? 8'h00 : g)),
+   .B((ovl_color != 0) ? 8'h00 : b),
    .HSync(hsync_out),
    .VSync(vsync_out),
    .HBlank(hblank),

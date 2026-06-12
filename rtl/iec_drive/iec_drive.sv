@@ -24,6 +24,8 @@ module iec_drive #(parameter PARPORT=1,DRIVES=2)
 
    output  [N:0] led,
    output        disk_ready,
+   output  [7:0] out_track[NDR],
+   output  [N:0] out_we,
 
    input         iec_atn_i,
    input         iec_data_i,
@@ -132,6 +134,11 @@ assign iec_fclk_o   = c1581_iec_fclk  & c157x_iec_fclk;
 assign par_stb_o    = c1581_stb_o     & c157x_stb_o;
 assign par_data_o   = c1581_par_o     & c157x_par_o;
 
+wire  [7:0] c157x_out_track[NDR];
+wire  [N:0] c157x_out_we;
+wire  [7:0] c1581_out_track[NDR];
+wire  [N:0] c1581_out_we;
+
 always_comb for(int i=0; i<NDR; i=i+1) begin
    sd_buff_din[i] = (img_hd[i] ? c1581_sd_buff_dout[i] : c157x_sd_buff_dout[i] );
    sd_lba[i]      = (img_hd[i] ? c1581_sd_lba[i] << 1  : c157x_sd_lba[i]       );
@@ -139,6 +146,8 @@ always_comb for(int i=0; i<NDR; i=i+1) begin
    sd_wr[i]       = (img_hd[i] ? c1581_sd_wr[i]        : c157x_sd_wr[i]        );
    sd_blk_cnt[i]  = (img_hd[i] ? 6'd1                  : c157x_sd_blk_cnt[i]   );
    mem_a[i]       = (img_hd[i] ? c1581_mem_a[i]        : c157x_mem_a[i]        );
+   out_track[i]   = (img_hd[i] ? c1581_out_track[i]    : c157x_out_track[i]    );
+   out_we[i]      = (img_hd[i] ? c1581_out_we[i]       : c157x_out_we[i]       );
 end
 
 wire        c157x_iec_data, c157x_iec_clk, c157x_iec_fclk, c157x_stb_o;
@@ -201,7 +210,9 @@ c157x_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c157x
    .sd_buff_addr(sd_buff_addr),
    .sd_buff_dout(sd_buff_dout),
    .sd_buff_din(c157x_sd_buff_dout),
-   .sd_buff_wr(sd_buff_wr)
+   .sd_buff_wr(sd_buff_wr),
+   .out_track(c157x_out_track),
+   .out_we(c157x_out_we)
 );
 
 
@@ -255,7 +266,9 @@ c1581_multi #(.PARPORT(PARPORT), .DRIVES(DRIVES)) c1581
    .sd_buff_addr(sd_buff_addr[8:0]),
    .sd_buff_dout(sd_buff_dout),
    .sd_buff_din(c1581_sd_buff_dout),
-   .sd_buff_wr(sd_buff_wr)
+   .sd_buff_wr(sd_buff_wr),
+   .out_track(c1581_out_track),
+   .out_we(c1581_out_we)
 );
 
 endmodule

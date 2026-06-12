@@ -35,8 +35,10 @@ module c157x_drv #(parameter DRIVE)
 	input         img_mounted,
 	input         img_readonly,
 	input  [31:0] img_size,
-	output reg    disk_ready,
-
+	output    reg disk_ready,
+	output  [7:0] out_track,
+	output        out_we,
+	
 	input         img_ds,
 	input         img_gcr,
 	input         img_mfm,
@@ -315,12 +317,12 @@ c157x_track c157x_track
 wire      side;
 reg [7:0] track;
 reg       save_track = 0;
-always @(posedge clk) begin
-	reg       track_modified;
-	reg [6:0] track_num;
-	reg [1:0] move, stp_old;
-	reg       side_old;
+reg       track_modified = 0;
+reg [6:0] track_num = 36;
+reg [1:0] move = 0, stp_old = 0;
+reg       side_old = 0;
 
+always @(posedge clk) begin
 	track <= track_num + (side ? 8'd84 : 8'd0);
 
 	side_old <= side;
@@ -350,5 +352,8 @@ always @(posedge clk) begin
 		end
 	end
 end
+
+assign out_track = track;
+assign out_we = track_modified | sd_wr;
 
 endmodule

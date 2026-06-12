@@ -49,6 +49,9 @@ module c1581_multi #(parameter PARPORT=1,DRIVES=2)
 	input   [7:0] sd_buff_dout,
 	output  [7:0] sd_buff_din[NDR],
 	input         sd_buff_wr,
+	
+	output  [7:0] out_track[NDR],
+	output  [N:0] out_we,
 
 	// input  [14:0] rom_addr,
 	// input   [7:0] rom_data,
@@ -187,7 +190,9 @@ generate
 			.sd_buff_addr(sd_buff_addr),
 			.sd_buff_dout(sd_buff_dout),
 			.sd_buff_din(sd_buff_din[i]),
-			.sd_buff_wr(sd_buff_wr)
+			.sd_buff_wr(sd_buff_wr),
+			.out_track(out_track[i]),
+			.out_we(out_we[i])
 		);
 	end
 endgenerate
