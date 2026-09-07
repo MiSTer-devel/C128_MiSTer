@@ -18,12 +18,12 @@ module video_sync (
    input        hsync,
    input        vsync,
 
-   output       hsync_out,
+   output reg   hsync_out,
    output       vsync_out,
-   output       hblank,
+   output reg   hblank,
    output       vblank,
-   output       ilace,
-   output       field,
+   output reg   ilace,
+   output reg   field,
    output       valid,
    output       ce
 );

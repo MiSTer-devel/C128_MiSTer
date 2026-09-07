@@ -17,6 +17,7 @@ Based on FPGA64 by Peter Wendrich with heavy later modifications by different pe
 - **VIC jailbars**.
 - **VIC register $D030 video manipulation tricks** (used in some demos, e.g. RfO part 1)
 - **VDC with 16k or 64k RAM and multiple colour palettes**.
+- **Side-by-side screen mode**
 - Almost all C64 **and C128** cartridge formats (\*.CRT).
 - **Internal Function ROM support for ROMs up to 1Mb with MegaBit 128 support**
 - Direct file injection (\*.PRG) **with detection of C128 or C64 mode**.
@@ -142,7 +143,9 @@ In the *OSD*->*Hardware* menu, internal memory size can be selected as 128K or 2
 ### Video mode
 On a C128, the <kbd>40/80 Display</kbd> switch on the keyboard selects which video mode the system will boot on, or switch to when pressing the <kbd>Run stop</kbd>+<kbd>Restore</kbd> key combination.
 
-Since the MiSTer has a single video output, the video mode being shown needs to be selectable. The video output can be selected from the OSD menu or using the keyboard. Use the *OSD*->*Video Output* option to either make the video output follow the <kbd>40/80 Display</kbd> state, or select the VIC or VDC video outputs independent of the state of the <kbd>40/80 Display</kbd> switch.
+The *Audio & Video* -> *Video Out* option cycles through *Follow 40/80*, *Side-by-side*, *VIC-II*, and *VDC*. 
+
+*Follow 40/80* shows the video mode as selected by the 40/80 Display key. *Side-by-side* shows the VIC-II on the left and the VDC on the right. It follows VIC-II timing and buffers the VDC independently. The layout is 1536 pixels wide, so use an output resolution at least that wide. Side-by-side mode is optimized for standard VDC text modes.
 
 ### VDC/80 column mode
 In *OSD*->*Audio & Video* the VDC version, memory size and colour palette can be selected.
@@ -155,6 +158,8 @@ There are four colour palettes selectable for the VDC:
 * **Composite**: the black and white image on the composite pin of the DB9 TTL RGBI connector
 
 The VDC can be programmed to generate non-standard video modes that the MiSTer video scaler does not handle very well. These modes would not work with most monitors on a real C128 either. They can cause the scaler to stop working (it will usually recover when switching video output to the VIC) or produce extreme flickering on the video output.
+
+A 40-column boot leaves the VDC blank. An 80-column boot shows BASIC on the VDC and a blank green/grey VIC-II screen. Changing PAL/NTSC takes effect immediately on the VIC-II; use Run stop + Restore to let the kernal reprogram the VDC.
 
 ## Cartridges
 To load a cartridge from the OSD menu it must be in .CRT format. C64 and C128 cartridges will be detected based on the CRT header and the core will start in the correct mode.

@@ -29,10 +29,25 @@ module vdc_top #(
 
 	output         vsync,
 	output         hsync,
+	output reg     pixel_ce,
+	output reg     active_h,
+	output reg     active_v,
 	output   [3:0] rgbi
 );
 
 reg enable;
+// These enables describe the registered RGBI pixel, including double width
+// modes. Export display bounds instead of guessing them from sync timings.
+always @(posedge clk) begin
+	pixel_ce <= enable && !reset;
+	if (reset) begin
+		active_h <= 0;
+		active_v <= 0;
+	end else if (enable) begin
+		active_h <= hVisible;
+		active_v <= vVisible;
+	end
+end
 always @(posedge clk) begin
 	reg [1:0] clkdiv = 0;
 

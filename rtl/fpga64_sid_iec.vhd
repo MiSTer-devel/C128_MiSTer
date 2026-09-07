@@ -100,6 +100,10 @@ port(
    vdcR        : out unsigned(7 downto 0);
    vdcG        : out unsigned(7 downto 0);
    vdcB        : out unsigned(7 downto 0);
+   vdcPixel    : out unsigned(3 downto 0);
+   vdcPixelCE  : out std_logic;
+   vdcActiveH  : out std_logic;
+   vdcActiveV  : out std_logic;
 
    -- cartridge port
    game        : in  std_logic;
@@ -483,7 +487,11 @@ component vdc_top
 
       hsync         : out std_logic;
       vsync         : out std_logic;
-      rgbi          : out unsigned(3 downto 0)
+
+      rgbi          : out unsigned(3 downto 0);
+      pixel_ce      : out std_logic;
+      active_h      : out std_logic;
+      active_v      : out std_logic
    );
 end component;
 
@@ -920,8 +928,13 @@ port map (
    hsync => vdcHsync,
    vsync => vdcVsync,
 
-   rgbi => vdcRGBI
+   rgbi => vdcRGBI,
+   pixel_ce => vdcPixelCE,
+   active_h => vdcActiveH,
+   active_v => vdcActiveV
 );
+
+vdcPixel <= vdcRGBI;
 
 vdcColors: entity work.rgbicolor
 port map (

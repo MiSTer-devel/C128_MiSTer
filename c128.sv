@@ -29,7 +29,6 @@ module emu
 	`include "sys/emu_ports.vh"
 );
 
-assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
 assign LED_DISK   = 0;
@@ -69,7 +68,7 @@ localparam CONF_STR = {
    "-;",
 
    "P1,Audio & Video;",
-   "HCP1O[106:105],Video Out,Follow 40/80,VIC,VDC;",
+   "HCP1O[106:105],Video Out,Follow 40/80,Side-by-side,VIC-II,VDC;",
    "HCP1O[107],40/80 Display,40 col,80 col;",
    "HCP1-;",
    "P1O[2],Video Standard,PAL,NTSC;",
@@ -444,12 +443,13 @@ function auto_config;
       return |st ? st[1] : cfg;
    end
 endfunction
-wire       ciaVersion = auto_config(status[46:45], cfg_chipset);
-wire [1:0] sidVersion = {auto_config(status[16:15], cfg_chipset), auto_config(status[14:13], cfg_chipset)};
-wire       vdcVersion = auto_config(status[126:125], cfg_chipset);
-wire       cpslk_mode = auto_config(status[109:108], cfg_cpslk);
-wire       video_mode = ~auto_config(status[106:105], status[107]);
-wire       pure64     = cfg_force64 | (c128_n & status[112]);
+wire       ciaVersion   = auto_config(status[46:45], cfg_chipset);
+wire [1:0] sidVersion   = {auto_config(status[16:15], cfg_chipset), auto_config(status[14:13], cfg_chipset)};
+wire       vdcVersion   = auto_config(status[126:125], cfg_chipset);
+wire       cpslk_mode   = auto_config(status[109:108], cfg_cpslk);
+wire       side_by_side = status[106:105] == 2'd1;
+wire       video_mode   = status[106:105] == 2'd0 ? ~status[107] : status[106:105] != 2'd3;
+wire       pure64       = cfg_force64 | (c128_n & status[112]);
 
 always @(posedge clk_sys) begin
    reg d4080_sense_d;
@@ -1244,6 +1244,8 @@ wire  [7:0] vicR, vicG, vicB;
 
 wire        vdcHsync, vdcVsync;
 wire  [7:0] vdcR, vdcG, vdcB;
+wire  [3:0] vdcPixel;
+wire        vdcPixelCE, vdcActiveH, vdcActiveV;
 
 wire        c64_iec_atn;
 wire        c64_iec_clk_o;
@@ -1321,6 +1323,10 @@ fpga64_sid_iec #(
    .vdcR(vdcR),
    .vdcG(vdcG),
    .vdcB(vdcB),
+   .vdcPixel(vdcPixel),
+   .vdcPixelCE(vdcPixelCE),
+   .vdcActiveH(vdcActiveH),
+   .vdcActiveV(vdcActiveV),
 
    .game(game),
    .game_mmu(game_mmu),
@@ -1628,6 +1634,57 @@ iec_io iec_io_srq_n
 assign USER_OUT[3] = (reset_n & ~status[6]) | ~ext_iec_en;
 assign USER_OUT[5] = c64_iec_atn | ~ext_iec_en;
 
+wire clk_single;
+wire single_disable, single_field;
+wire [7:0] single_r, single_g, single_b;
+wire single_hs, single_vs, single_de, single_ce;
+wire sbs_ce, sbs_hs, sbs_vs, sbs_hb, sbs_vb;
+wire [23:0] sbs_rgb, sbs_gamma_rgb;
+wire sbs_gamma_hs, sbs_gamma_vs, sbs_gamma_de;
+wire [9:0] sbs_height;
+wire [12:0] single_arx, single_ary;
+// The VIC panel repeats each native pixel twice horizontally. HDMI repeats
+// both panels twice vertically, giving VIC 2x2 and standard VDC 1x2 pixels.
+assign VIDEO_ARX = side_by_side ? (13'h1000 | 13'd1536) : single_arx;
+assign VIDEO_ARY = side_by_side ? (13'h1000 | {2'b00, sbs_height, 1'b0}) : single_ary;
+wire [21:0] sbs_gamma_bus;
+assign sbs_gamma_bus[20:0] = gamma_bus[20:0];
+reg sbs_gamma_ce;
+// Both paths use the existing video PLL. In dual mode it follows the VIC
+// PLL configuration and phase reference, just as the VIC-only path does.
+assign CLK_VIDEO = clk_single;
+
+video_side_by_side dual_video (
+   .reset(RESET | !pll_locked),
+   .clk_vic(clk_sys), .clk_video(clk_single), .clk_vdc(clk_vdc),
+   .vic_hs(vicHsync), .vic_vs(vicVsync), .vic_rgb({vicR, vicG, vicB}),
+   .vdc_ce(vdcPixelCE), .vdc_h(vdcActiveH), .vdc_v(vdcActiveV),
+   .vdc_pixel(vdcPixel), .palette(status[116:113]),
+   .ce(sbs_ce), .hs(sbs_hs), .vs(sbs_vs), .hb(sbs_hb), .vb(sbs_vb),
+   .rgb(sbs_rgb), .height(sbs_height),
+   .ddr_clk(DDRAM_CLK), .ddr_busy(DDRAM_BUSY), .ddr_burst(DDRAM_BURSTCNT),
+   .ddr_addr(DDRAM_ADDR), .ddr_din(DDRAM_DIN), .ddr_be(DDRAM_BE),
+   .ddr_rd(DDRAM_RD), .ddr_we(DDRAM_WE),
+   .ddr_dout(DDRAM_DOUT), .ddr_ready(DDRAM_DOUT_READY)
+);
+
+gamma_fast dual_gamma (
+   .clk_vid(clk_single), .ce_pix(sbs_ce), .gamma_bus(sbs_gamma_bus),
+   .HSync(sbs_hs), .VSync(sbs_vs), .HBlank(sbs_hb), .VBlank(sbs_vb),
+   .DE(!sbs_hb && !sbs_vb), .RGB_in(sbs_rgb),
+   .HSync_out(sbs_gamma_hs), .VSync_out(sbs_gamma_vs),
+   .HBlank_out(), .VBlank_out(), .DE_out(sbs_gamma_de),
+   .RGB_out(sbs_gamma_rgb)
+);
+always @(posedge clk_single) sbs_gamma_ce <= sbs_ce;
+assign {VGA_R, VGA_G, VGA_B} = side_by_side ? sbs_gamma_rgb : {single_r, single_g, single_b};
+assign VGA_HS = side_by_side ? sbs_gamma_hs : single_hs;
+assign VGA_VS = side_by_side ? sbs_gamma_vs : single_vs;
+assign vga_de = side_by_side ? sbs_gamma_de : single_de;
+assign CE_PIXEL = side_by_side ? sbs_gamma_ce : single_ce;
+assign VGA_F1 = !side_by_side && single_field;
+assign VGA_DISABLE = !side_by_side && single_disable;
+
 wire hblank;
 wire vblank;
 wire ilace;
@@ -1663,16 +1720,16 @@ video_switch video_switch
    .vdcG(vdcG),
    .vdcB(vdcB),
 
-   .clk_video(CLK_VIDEO),
+   .clk_video(clk_single),
    .ce_pix(ce_pix),
    .selected(video_sel),
-   .vga_disable(VGA_DISABLE),
+   .vga_disable(single_disable),
    .hsync(hsync_out),
    .vsync(vsync_out),
    .hblank(hblank),
    .vblank(vblank),
    .ilace(ilace),
-   .field1(VGA_F1),
+   .field1(single_field),
    .r(r),
    .g(g),
    .b(b)
@@ -1680,7 +1737,7 @@ video_switch video_switch
 
 wire scandoubler = status[10:8] || forced_scandoubler;
 
-assign VGA_SL    = (status[10:8] > 1) ? status[9:8] - 2'd1 : 2'd0;
+assign VGA_SL    = !side_by_side && (status[10:8] > 1) ? status[9:8] - 2'd1 : 2'd0;
 
 reg [9:0] vcrop;
 reg wide;
@@ -1710,11 +1767,13 @@ video_freak video_freak
 (
    .*,
    .VGA_DE_IN(vga_de),
+   .VIDEO_ARX(single_arx),
+   .VIDEO_ARY(single_ary),
    .ARX((!ar) ? (wide ? 12'd680 : 12'd800) : (ar - 1'd1)),
    .ARY((!ar) ? 12'd600 : 12'd0),
-   .CROP_SIZE(vcrop_en ? (vcrop<<ilace) : 10'd0),
+   .CROP_SIZE(vcrop_en && !side_by_side ? (vcrop<<ilace) : 10'd0),
    .CROP_OFF(0),
-   .SCALE(status[31:30])
+   .SCALE(side_by_side ? 3'd2 : {1'b0, status[31:30]})
 );
 
 wire freeze_sync;
@@ -1741,7 +1800,7 @@ assign HDMI_BOB_DEINT = 0;
 wire [1:0] ovl_color;
 
 drv_overlay drv_ovl (
-	.clk(CLK_VIDEO),
+	.clk(clk_single),
 	.ce(ce_pix),
 	.hblank(hblank),
 	.vblank(vblank),
@@ -1759,7 +1818,7 @@ drv_overlay drv_ovl (
 
 video_mixer #(.GAMMA(1)) video_mixer
 (
-   .CLK_VIDEO(CLK_VIDEO),
+   .CLK_VIDEO(clk_single),
 
    .hq2x(status[10:8] == 3'b001),
    .scandoubler(scandoubler),
@@ -1777,13 +1836,13 @@ video_mixer #(.GAMMA(1)) video_mixer
    .HDMI_FREEZE(HDMI_FREEZE),
    .freeze_sync(freeze_sync),
 
-   .CE_PIXEL(CE_PIXEL),
-   .VGA_R(VGA_R),
-   .VGA_G(VGA_G),
-   .VGA_B(VGA_B),
-   .VGA_VS(VGA_VS),
-   .VGA_HS(VGA_HS),
-   .VGA_DE(vga_de)
+   .CE_PIXEL(single_ce),
+   .VGA_R(single_r),
+   .VGA_G(single_g),
+   .VGA_B(single_b),
+   .VGA_VS(single_vs),
+   .VGA_HS(single_hs),
+   .VGA_DE(single_de)
 );
 
 wire        opl_en = status[12];
