@@ -8,7 +8,10 @@
 // VDC pixels cross through a FIFO into a 1024 x 1024 RGBI framebuffer in DDR.
 // No VDC sync signal participates in output timing.
 
-module video_side_by_side (
+module video_side_by_side #(
+   // Base address in 64-bit DDR words; the framebuffer occupies 512 KiB.
+   parameter [28:0] DDR_BASE_ADDR = 29'h06080000
+) (
    input reset,
    input clk_vic, clk_video, clk_vdc,
    input vic_hs, vic_vs,
@@ -210,7 +213,7 @@ localparam IDLE = 2'd0, READ_REQUEST = 2'd1, READ_DATA = 2'd2, WRITE = 2'd3;
 reg [1:0] dma = IDLE;
 assign ddr_clk = clk_video;
 assign ddr_burst = dma == WRITE ? 8'd1 : 8'd64;
-assign ddr_addr = 29'h06000000 + (dma == WRITE ? {13'd0, fifo_q[79:64]} : {13'd0, fetch_y, 6'd0});
+assign ddr_addr = DDR_BASE_ADDR + (dma == WRITE ? {13'd0, fifo_q[79:64]} : {13'd0, fetch_y, 6'd0});
 assign ddr_din = fifo_q[63:0];
 assign ddr_be = 8'hFF;
 assign ddr_rd = dma == READ_REQUEST;
