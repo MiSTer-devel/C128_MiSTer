@@ -1640,6 +1640,8 @@ wire [7:0] single_r, single_g, single_b;
 wire single_hs, single_vs, single_de, single_ce;
 wire sbs_ce, sbs_hs, sbs_vs, sbs_hb, sbs_vb;
 wire [23:0] sbs_rgb, sbs_gamma_rgb;
+wire [23:0] sbs_overlay_rgb;
+wire [1:0] ovl_color;
 wire sbs_gamma_hs, sbs_gamma_vs, sbs_gamma_de;
 wire [9:0] sbs_height;
 wire [12:0] single_arx, single_ary;
@@ -1668,10 +1670,14 @@ video_side_by_side dual_video (
    .ddr_dout(DDRAM_DOUT), .ddr_ready(DDRAM_DOUT_READY)
 );
 
+assign sbs_overlay_rgb = ovl_color == 2'd1 ? 24'h00FF00 :
+                         ovl_color == 2'd2 ? 24'hFFFF00 :
+                         ovl_color == 2'd3 ? 24'hFF0000 : sbs_rgb;
+
 gamma_fast dual_gamma (
    .clk_vid(clk_single), .ce_pix(sbs_ce), .gamma_bus(sbs_gamma_bus),
    .HSync(sbs_hs), .VSync(sbs_vs), .HBlank(sbs_hb), .VBlank(sbs_vb),
-   .DE(!sbs_hb && !sbs_vb), .RGB_in(sbs_rgb),
+   .DE(!sbs_hb && !sbs_vb), .RGB_in(sbs_overlay_rgb),
    .HSync_out(sbs_gamma_hs), .VSync_out(sbs_gamma_vs),
    .HBlank_out(), .VBlank_out(), .DE_out(sbs_gamma_de),
    .RGB_out(sbs_gamma_rgb)
@@ -1797,13 +1803,13 @@ assign HDMI_BOB_DEINT = 0;
 //  - track number: Full tracks and half tracks (e.g. 33.5)
 //  - drive number: (#8, #9)
 //  - auto adjusts for pal/ntsc
-wire [1:0] ovl_color;
+// Follow the selected output timing so the overlay also reaches dual video.
 
 drv_overlay drv_ovl (
 	.clk(clk_single),
-	.ce(ce_pix),
-	.hblank(hblank),
-	.vblank(vblank),
+	.ce(side_by_side ? sbs_ce : ce_pix),
+	.hblank(side_by_side ? sbs_hb : hblank),
+	.vblank(side_by_side ? sbs_vb : vblank),
 
 	.drive_osd_mode(status[86:85]),
 	.ntsc(ntsc),
